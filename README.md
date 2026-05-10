@@ -1,6 +1,6 @@
 # Operza Landing
 
-Marketing website for **Operza** — raw material and production tracking software for small manufacturers in India.
+Marketing website for **Operza** — inventory and production tracking for small manufacturers.
 
 Built with **Next.js 14 (App Router)** + **TypeScript** + **Tailwind CSS**. Deploy-ready for Vercel.
 
