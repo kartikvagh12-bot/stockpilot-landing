@@ -13,8 +13,8 @@ const SITE_URL = "https://stockpilot-landing.vercel.app";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "StockPilot — Inventory & Production Software for Small Manufacturers",
-    template: "%s | StockPilot",
+    default: "Operza — Inventory & Production Software for Small Manufacturers",
+    template: "%s | Operza",
   },
   description:
     "Raw material and production tracking software built for small manufacturers in India. Track inventory, BOMs, production runs and finished goods — without spreadsheets.",
@@ -28,22 +28,22 @@ export const metadata: Metadata = {
     "MSME inventory software",
     "stock management software",
     "factory inventory app",
-    "StockPilot",
+    "Operza",
   ],
-  authors: [{ name: "StockPilot" }],
-  creator: "StockPilot",
+  authors: [{ name: "Operza" }],
+  creator: "Operza",
   openGraph: {
     type: "website",
     locale: "en_IN",
     url: SITE_URL,
-    siteName: "StockPilot",
-    title: "StockPilot — Inventory & Production Software for Small Manufacturers",
+    siteName: "Operza",
+    title: "Operza — Inventory & Production Software for Small Manufacturers",
     description:
       "Raw material and production tracking software built for small manufacturers in India.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "StockPilot — Inventory & Production for Small Manufacturers",
+    title: "Operza — Inventory & Production for Small Manufacturers",
     description:
       "Track raw materials, BOMs, production runs and finished goods — without spreadsheets.",
   },

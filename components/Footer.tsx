@@ -21,7 +21,7 @@ export default function Footer() {
                 <path d="M3 17l9 4 9-4" />
               </svg>
             </span>
-            <span className="text-sm font-semibold text-slate-900">StockPilot</span>
+            <span className="text-sm font-semibold text-slate-900">Operza</span>
           </div>
 
           <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
@@ -33,7 +33,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col gap-2 border-t border-slate-100 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} StockPilot. Built for small manufacturers in India.</p>
+          <p>© {new Date().getFullYear()} Operza. Built for small manufacturers in India.</p>
           <p>Made with care · Hosted on Vercel</p>
         </div>
       </div>

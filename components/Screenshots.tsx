@@ -21,7 +21,7 @@ export default function Screenshots() {
           <span className="eyebrow">Inside the product</span>
           <h2 className="h-section">A factory dashboard that fits on a phone.</h2>
           <p className="p-section">
-            StockPilot runs in the browser. Use it from a desktop in the office
+            Operza runs in the browser. Use it from a desktop in the office
             or from a phone on the shop floor — same data, same speed.
           </p>
         </div>
@@ -62,7 +62,7 @@ function ScreenshotPlaceholder({ label }: { label: string }) {
           <span className="h-2 w-2 rounded-full bg-amber-300" />
           <span className="h-2 w-2 rounded-full bg-emerald-300" />
           <span className="ml-3 text-[10px] font-medium uppercase tracking-wider text-slate-400">
-            stockpilot · {label.toLowerCase()}
+            operza · {label.toLowerCase()}
           </span>
         </div>
         <div className="grid grid-cols-3 gap-2">

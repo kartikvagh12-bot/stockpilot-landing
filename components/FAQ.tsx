@@ -4,12 +4,12 @@ import { useState } from "react";
 
 const FAQS = [
   {
-    q: "Who is StockPilot built for?",
+    q: "Who is Operza built for?",
     a: "Small manufacturers in India — typically 5 to 50 staff — who currently track inventory and production on Excel, paper or WhatsApp. Furniture, garments, packaging, food processing, light fabrication, FMCG private label.",
   },
   {
     q: "Do I need to install anything?",
-    a: "No. StockPilot runs in the browser. Open it on a laptop in the office or on a phone on the shop floor — same login, same data.",
+    a: "No. Operza runs in the browser. Open it on a laptop in the office or on a phone on the shop floor — same login, same data.",
   },
   {
     q: "Will it work on a slow internet connection?",

@@ -13,7 +13,7 @@ export default function Contact() {
             <span className="eyebrow">Try it on your factory</span>
             <h2 className="h-section">Book a 20-minute demo.</h2>
             <p className="p-section">
-              Tell us what you make. We&apos;ll set up StockPilot with your
+              Tell us what you make. We&apos;ll set up Operza with your
               parts and products, walk you through the dashboard, and answer
               every question.
             </p>
