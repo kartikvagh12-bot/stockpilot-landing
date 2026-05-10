@@ -21,12 +21,13 @@ export default function Contact() {
             <div className="mt-8 space-y-4 text-sm text-slate-700">
               <ContactRow
                 label="Email"
-                value="hello@stockpilot.in"
-                href="mailto:hello@stockpilot.in"
+                value="kartikvagh12@gmail.com"
+                href="mailto:kartikvagh12@gmail.com"
               />
               <ContactRow
                 label="WhatsApp"
-                value="Message us — we usually reply same day"
+                value="+91 87338 65541"
+                href="https://wa.me/918733865541"
               />
               <ContactRow label="Based in" value="India · Built for India" />
             </div>
@@ -148,6 +149,9 @@ function ContactRow({
         {href ? (
           <a
             href={href}
+            {...(href.startsWith("http")
+              ? { target: "_blank", rel: "noopener noreferrer" }
+              : {})}
             className="text-sm font-medium text-slate-900 hover:text-brand-600"
           >
             {value}
