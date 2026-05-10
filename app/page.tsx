@@ -27,7 +27,7 @@ export default function HomePage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            name: "StockPilot",
+            name: "Operza",
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
             description:

@@ -1,6 +1,6 @@
-# StockPilot Landing
+# Operza Landing
 
-Marketing website for **StockPilot** — raw material and production tracking software for small manufacturers in India.
+Marketing website for **Operza** — raw material and production tracking software for small manufacturers in India.
 
 Built with **Next.js 14 (App Router)** + **TypeScript** + **Tailwind CSS**. Deploy-ready for Vercel.
 
@@ -67,4 +67,4 @@ the `ScreenshotPlaceholder` component.
 
 ## License
 
-© StockPilot. All rights reserved.
+© Operza. All rights reserved.

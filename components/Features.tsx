@@ -21,7 +21,7 @@ const FEATURES = [
   },
   {
     title: "Production tracking",
-    body: "One click to record a production run. StockPilot deducts raw materials and updates finished goods automatically.",
+    body: "One click to record a production run. Operza deducts raw materials and updates finished goods automatically.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6">
         <path d="M21 12a9 9 0 1 1-3-6.7" />
@@ -69,7 +69,7 @@ export default function Features() {
             Everything a small factory actually needs. Nothing it doesn&apos;t.
           </h2>
           <p className="p-section">
-            StockPilot is intentionally small. Six modules that work together
+            Operza is intentionally small. Six modules that work together
             — instead of an ERP you have to hire a consultant to use.
           </p>
         </div>

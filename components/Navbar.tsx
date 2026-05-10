@@ -35,7 +35,7 @@ export default function Navbar() {
             </svg>
           </span>
           <span className="text-base font-bold tracking-tight text-slate-900">
-            StockPilot
+            Operza
           </span>
         </Link>
 
