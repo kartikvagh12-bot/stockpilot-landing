@@ -31,7 +31,7 @@ export default function HomePage() {
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
             description:
-              "Raw material and production tracking software for small manufacturers in India.",
+              "Inventory and production tracking for small manufacturers.",
             offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
           }),
         }}

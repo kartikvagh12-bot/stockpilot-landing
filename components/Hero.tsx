@@ -24,9 +24,9 @@ export default function Hero() {
                 <span className="text-brand-600">on Excel sheets.</span>
               </h1>
               <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-                Operza is raw material and production tracking software for
-                small factories. Manage stock, BOMs, production runs and
-                finished goods from one simple dashboard — on any device.
+                Inventory and production tracking for small manufacturers.
+                Manage raw materials, BOMs, production runs and finished
+                goods from one simple dashboard — on any device.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">

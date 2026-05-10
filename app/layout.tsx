@@ -13,11 +13,11 @@ const SITE_URL = "https://stockpilot-landing.vercel.app";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Operza — Inventory & Production Software for Small Manufacturers",
+    default: "Operza — Inventory and production tracking for small manufacturers",
     template: "%s | Operza",
   },
   description:
-    "Raw material and production tracking software built for small manufacturers in India. Track inventory, BOMs, production runs and finished goods — without spreadsheets.",
+    "Inventory and production tracking for small manufacturers. Manage raw materials, BOMs, production runs and finished goods — without spreadsheets.",
   keywords: [
     "inventory software India",
     "production tracking software",
@@ -37,15 +37,15 @@ export const metadata: Metadata = {
     locale: "en_IN",
     url: SITE_URL,
     siteName: "Operza",
-    title: "Operza — Inventory & Production Software for Small Manufacturers",
+    title: "Operza — Inventory and production tracking for small manufacturers",
     description:
-      "Raw material and production tracking software built for small manufacturers in India.",
+      "Inventory and production tracking for small manufacturers. Manage raw materials, BOMs, production runs and finished goods — without spreadsheets.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Operza — Inventory & Production for Small Manufacturers",
+    title: "Operza — Inventory and production tracking for small manufacturers",
     description:
-      "Track raw materials, BOMs, production runs and finished goods — without spreadsheets.",
+      "Inventory and production tracking for small manufacturers. Manage raw materials, BOMs, production runs and finished goods — without spreadsheets.",
   },
   robots: {
     index: true,
