@@ -14,10 +14,52 @@ Built with **Next.js 14 (App Router)** + **TypeScript** + **Tailwind CSS**. Depl
 - Contact / demo request form
 - Mobile responsive, SEO-friendly (Open Graph, Twitter cards, JSON-LD, sitemap, robots)
 
+## Environment variables
+
+The Book Demo form on the contact section writes leads directly into the
+Supabase `demo_requests` table (the same Supabase project the Operza app
+uses). You need:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon publishable key>
+```
+
+For local dev, copy `.env.local.example` to `.env.local` and fill in the
+values. For Vercel, add the same two keys under
+**Project → Settings → Environment Variables** for Production, Preview
+and Development.
+
+The `demo_requests` table is created by migration
+`supabase/migrations/003_demo_requests.sql` in the
+[`Inventory_tracker`](https://github.com/kartikvagh12-bot/Inventory_tracker)
+repo. Run it once in the Supabase SQL editor before going live.
+
+## Where leads show up
+
+1. Open Supabase Dashboard → **Table Editor** → `demo_requests`.
+2. Newest leads appear at the top (the table is indexed on `created_at desc`).
+3. Columns: `name`, `email`, `phone`, `company`, `message`, `created_at`.
+
+### Optional: email me when a new lead comes in
+
+Supabase has built-in **Database Webhooks** for this. In the dashboard:
+
+1. **Database → Webhooks → Create webhook**
+2. Source: `demo_requests`, event: `INSERT`
+3. Type: `HTTP Request` (POST) to a service that emails you, e.g.:
+   - [Resend](https://resend.com) (`https://api.resend.com/emails` with your API key in the headers)
+   - A Zapier / Make / n8n webhook that forwards to Gmail
+   - A simple Cloudflare Worker / Vercel function that calls Resend
+
+The form persists every submission whether or not the webhook is wired —
+it's purely a notification add-on.
+
 ## Local development
 
 ```bash
 npm install
+cp .env.local.example .env.local   # fill in the two Supabase values
 npm run dev
 ```
 
@@ -34,8 +76,10 @@ npm start
 
 1. Push this repo to GitHub.
 2. On <https://vercel.com/new>, import the repo.
-3. Framework preset will auto-detect **Next.js**. No env vars required.
-4. Deploy.
+3. Framework preset will auto-detect **Next.js**.
+4. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` under
+   **Environment Variables** before the first deploy.
+5. Deploy.
 
 ## Project structure
 
@@ -53,8 +97,10 @@ components/
   Features.tsx
   Screenshots.tsx
   FAQ.tsx
-  Contact.tsx
+  Contact.tsx      writes leads to Supabase demo_requests
   Footer.tsx
+lib/
+  supabase.ts      browser Supabase client (lazy)
 public/
   favicon.svg
 ```
