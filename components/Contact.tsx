@@ -1,9 +1,58 @@
 "use client";
 
 import { useState } from "react";
+import { getSupabaseClient, type DemoRequestPayload } from "@/lib/supabase";
 
 export default function Contact() {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting) return;
+
+    const form = e.currentTarget;
+    const data = new FormData(form);
+
+    // Honeypot — silently drop bots that fill the hidden field
+    if ((data.get("website") || "").toString().trim() !== "") {
+      setSubmitted(true);
+      return;
+    }
+
+    const payload: DemoRequestPayload = {
+      name: (data.get("name") || "").toString().trim(),
+      email: (data.get("email") || "").toString().trim(),
+      phone: (data.get("phone") || "").toString().trim() || undefined,
+      company: (data.get("company") || "").toString().trim() || undefined,
+      message: (data.get("message") || "").toString().trim() || undefined,
+    };
+
+    if (!payload.name || !payload.email) {
+      setError("Please fill in your name and email.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const supabase = getSupabaseClient();
+      const { error: insertErr } = await supabase
+        .from("demo_requests")
+        .insert([payload]);
+      if (insertErr) throw insertErr;
+      setSubmitted(true);
+      form.reset();
+    } catch (err) {
+      console.error("demo_requests insert failed", err);
+      setError(
+        "Couldn't send your request. Please try again, or email kartikvagh12@gmail.com directly.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <section id="contact" className="section bg-gradient-to-b from-brand-50/40 to-white">
@@ -59,18 +108,12 @@ export default function Contact() {
                 </p>
               </div>
             ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setSubmitted(true);
-                }}
-                className="space-y-4"
-              >
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Your name" id="name" autoComplete="name" required />
                   <Field
                     label="Business name"
-                    id="business"
+                    id="company"
                     autoComplete="organization"
                   />
                 </div>
@@ -104,8 +147,34 @@ export default function Contact() {
                     className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   />
                 </div>
-                <button type="submit" className="btn-primary w-full">
-                  Request a demo
+
+                {/* Honeypot — visually hidden, ignored by humans, filled by bots */}
+                <div aria-hidden="true" className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden">
+                  <label htmlFor="website">Website</label>
+                  <input
+                    id="website"
+                    name="website"
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                  />
+                </div>
+
+                {error && (
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+                  >
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "Sending…" : "Request a demo"}
                 </button>
                 <p className="text-center text-xs text-slate-500">
                   We&apos;ll never share your details. No spam, ever.
