@@ -1,6 +1,6 @@
 # Operza Landing
 
-Marketing website for **Operza** — inventory and production tracking for small manufacturers.
+Marketing website for **Operza** — inventory and production tracking for manufacturers.
 
 Built with **Next.js 14 (App Router)** + **TypeScript** + **Tailwind CSS**. Deploy-ready for Vercel.
 
