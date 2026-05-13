@@ -18,13 +18,13 @@ export default function Hero() {
         <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
           <div className="lg:col-span-7">
             <div className="animate-fade-up">
-              <span className="eyebrow">Built for small manufacturers in India</span>
+              <span className="eyebrow">Built for manufacturers in India</span>
               <h1 className="mt-4 text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
                 Stop tracking inventory{" "}
                 <span className="text-brand-600">on Excel sheets.</span>
               </h1>
               <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-                Inventory and production tracking for small manufacturers.
+                Inventory and production tracking for manufacturers.
                 Manage raw materials, BOMs, production runs and finished
                 goods from one simple dashboard — on any device.
               </p>

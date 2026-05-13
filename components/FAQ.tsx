@@ -5,7 +5,7 @@ import { useState } from "react";
 const FAQS = [
   {
     q: "Who is Operza built for?",
-    a: "Small manufacturers in India — typically 5 to 50 staff — who currently track inventory and production on Excel, paper or WhatsApp. Furniture, garments, packaging, food processing, light fabrication, FMCG private label.",
+    a: "Manufacturers in India — typically 5 to 50 staff — who currently track inventory and production on Excel, paper or WhatsApp. Furniture, garments, packaging, food processing, light fabrication, FMCG private label.",
   },
   {
     q: "Do I need to install anything?",

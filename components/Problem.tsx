@@ -49,7 +49,7 @@ export default function Problem() {
           <span className="eyebrow">The problem</span>
           <h2 className="h-section">Spreadsheets weren&apos;t built to run a factory.</h2>
           <p className="p-section">
-            Most small manufacturers in India still track inventory and
+            Most manufacturers in India still track inventory and
             production on Excel, paper, or WhatsApp. It works — until it
             doesn&apos;t.
           </p>

@@ -33,7 +33,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col gap-2 border-t border-slate-100 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Operza. Built for small manufacturers in India.</p>
+          <p>© {new Date().getFullYear()} Operza. Built for manufacturers in India.</p>
           <p>Made with care · Hosted on Vercel</p>
         </div>
       </div>

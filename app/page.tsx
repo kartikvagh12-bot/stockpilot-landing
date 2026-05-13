@@ -31,7 +31,7 @@ export default function HomePage() {
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
             description:
-              "Inventory and production tracking for small manufacturers.",
+              "Inventory and production tracking for manufacturers.",
             offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
           }),
         }}
