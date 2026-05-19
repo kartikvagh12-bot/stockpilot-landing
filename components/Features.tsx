@@ -66,7 +66,7 @@ export default function Features() {
         <div className="max-w-2xl">
           <span className="eyebrow">What&apos;s inside</span>
           <h2 className="h-section">
-            Everything a small factory actually needs.
+            Everything your factory actually needs to run.
           </h2>
           <p className="p-section">
             Operza is intentionally focused. Six modules that work together —

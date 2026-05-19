@@ -35,9 +35,9 @@ export default function Workflow() {
             One clear workflow, from raw material to dispatched unit.
           </h2>
           <p className="p-section">
-            Operza is built around how a small or mid-sized factory actually
-            operates — not a generic ERP. Four steps, the same on day one as
-            on day five hundred.
+            Operza is built around how factories actually operate — not a
+            generic ERP. Four steps, the same on day one as on day five
+            hundred.
           </p>
         </div>
 
