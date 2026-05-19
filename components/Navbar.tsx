@@ -24,10 +24,8 @@ export default function Navbar() {
       }`}
     >
       <nav className="container-page flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Operza home">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-white">
-            <LogoMark />
-          </span>
+        <Link href="/" className="flex items-center gap-2" aria-label="Operza home">
+          <LogoMark />
           <span className="text-base font-semibold tracking-tight text-slate-900">
             Operza
           </span>
@@ -124,22 +122,18 @@ export default function Navbar() {
 }
 
 function LogoMark() {
+  // Square PNG with transparent padding — render at 32px so the hexagon
+  // visually balances the wordmark next to it.
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/operza-logo.png"
+      alt=""
+      width={32}
+      height={32}
+      className="h-8 w-8"
       aria-hidden="true"
-    >
-      <path d="M3 7l9-4 9 4-9 4-9-4z" />
-      <path d="M3 12l9 4 9-4" />
-      <path d="M3 17l9 4 9-4" />
-    </svg>
+    />
   );
 }
 
