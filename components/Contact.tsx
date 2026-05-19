@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getSupabaseClient, type DemoRequestPayload } from "@/lib/supabase";
+import { SITE } from "@/lib/site";
 
 export default function Contact() {
   const [submitted, setSubmitted] = useState(false);
@@ -47,7 +48,7 @@ export default function Contact() {
     } catch (err) {
       console.error("demo_requests insert failed", err);
       setError(
-        "Couldn't send your request. Please try again, or email kartikvagh12@gmail.com directly.",
+        `Couldn't send your request. Please try again, or email ${SITE.email} directly.`,
       );
     } finally {
       setSubmitting(false);
@@ -55,132 +56,126 @@ export default function Contact() {
   }
 
   return (
-    <section id="contact" className="section bg-gradient-to-b from-brand-50/40 to-white">
+    <section id="contact" className="section border-t border-slate-200/70 bg-slate-50/60">
       <div className="container-page">
-        <div className="grid items-start gap-10 lg:grid-cols-2">
-          <div>
+        <div className="grid items-start gap-12 lg:grid-cols-12">
+          <div className="lg:col-span-5">
             <span className="eyebrow">Try it on your factory</span>
             <h2 className="h-section">Book a 20-minute demo.</h2>
             <p className="p-section">
-              Tell us what you make. We&apos;ll set up Operza with your
-              parts and products, walk you through the dashboard, and answer
-              every question.
+              Tell us what you make. We&apos;ll set up Operza with your parts
+              and products, walk you through the dashboard, and answer every
+              question.
             </p>
 
-            <div className="mt-8 space-y-4 text-sm text-slate-700">
-              <ContactRow
-                label="Email"
-                value="kartikvagh12@gmail.com"
-                href="mailto:kartikvagh12@gmail.com"
-              />
-              <ContactRow
-                label="WhatsApp"
-                value="+91 87338 65541"
-                href="https://wa.me/918733865541"
-              />
+            <div className="mt-10 space-y-4 text-sm text-slate-700">
+              <ContactRow label="Email" value={SITE.email} href={`mailto:${SITE.email}`} />
+              <ContactRow label="WhatsApp" value={SITE.whatsapp} href={SITE.whatsappLink} />
               <ContactRow label="Based in" value="India · Built for India" />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
-            {submitted ? (
-              <div className="flex h-full flex-col items-center justify-center text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                  <svg
-                    className="h-6 w-6"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M20 6L9 17l-5-5" />
-                  </svg>
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-slate-900">
-                  Thanks — we&apos;ll be in touch.
-                </h3>
-                <p className="mt-2 text-sm text-slate-600">
-                  We received your request and will reach out within one
-                  working day.
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Your name" id="name" autoComplete="name" required />
-                  <Field
-                    label="Business name"
-                    id="company"
-                    autoComplete="organization"
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label="Email"
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                  />
-                  <Field
-                    label="Phone / WhatsApp"
-                    id="phone"
-                    type="tel"
-                    autoComplete="tel"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="message"
-                    className="block text-xs font-semibold uppercase tracking-wider text-slate-600"
-                  >
-                    What do you make?
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={3}
-                    placeholder="e.g. wooden furniture, around 30 SKUs, 12 staff"
-                    className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  />
-                </div>
-
-                {/* Honeypot — visually hidden, ignored by humans, filled by bots */}
-                <div aria-hidden="true" className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden">
-                  <label htmlFor="website">Website</label>
-                  <input
-                    id="website"
-                    name="website"
-                    type="text"
-                    tabIndex={-1}
-                    autoComplete="off"
-                  />
-                </div>
-
-                {error && (
-                  <p
-                    role="alert"
-                    className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
-                  >
-                    {error}
+          <div className="lg:col-span-7">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
+              {submitted ? (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    <svg
+                      className="h-6 w-6"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold text-slate-900">
+                    Thanks — we&apos;ll be in touch.
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    We received your request and will reach out within one
+                    working day.
                   </p>
-                )}
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Your name" id="name" autoComplete="name" required />
+                    <Field
+                      label="Business name"
+                      id="company"
+                      autoComplete="organization"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field
+                      label="Email"
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                    />
+                    <Field
+                      label="Phone / WhatsApp"
+                      id="phone"
+                      type="tel"
+                      autoComplete="tel"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="message"
+                      className="block text-xs font-semibold uppercase tracking-wider text-slate-600"
+                    >
+                      What do you make?
+                    </label>
+                    <textarea
+                      id="message"
+                      name="message"
+                      rows={3}
+                      placeholder="e.g. wooden furniture, around 30 SKUs, 12 staff"
+                      className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    />
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting ? "Sending…" : "Request a demo"}
-                </button>
-                <p className="text-center text-xs text-slate-500">
-                  We&apos;ll never share your details. No spam, ever.
-                </p>
-              </form>
-            )}
+                  {/* Honeypot — visually hidden, ignored by humans, filled by bots */}
+                  <div aria-hidden="true" className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden">
+                    <label htmlFor="website">Website</label>
+                    <input
+                      id="website"
+                      name="website"
+                      type="text"
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  {error && (
+                    <p
+                      role="alert"
+                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+                    >
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {submitting ? "Sending…" : "Request a demo"}
+                  </button>
+                  <p className="text-center text-xs text-slate-500">
+                    We&apos;ll never share your details. No spam, ever.
+                  </p>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -199,7 +194,7 @@ function ContactRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-0.5 inline-flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+      <span className="mt-0.5 inline-flex h-8 w-8 flex-none items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700">
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -221,7 +216,7 @@ function ContactRow({
             {...(href.startsWith("http")
               ? { target: "_blank", rel: "noopener noreferrer" }
               : {})}
-            className="text-sm font-medium text-slate-900 hover:text-brand-600"
+            className="text-sm font-medium text-slate-900 hover:text-slate-700"
           >
             {value}
           </a>
@@ -261,7 +256,7 @@ function Field({
         type={type}
         autoComplete={autoComplete}
         required={required}
-        className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+        className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
       />
     </div>
   );

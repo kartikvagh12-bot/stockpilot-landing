@@ -34,49 +34,59 @@ export default function FAQ() {
 
   return (
     <section id="faq" className="section">
-      <div className="container-page">
-        <div className="max-w-2xl">
+      <div className="container-page grid gap-12 lg:grid-cols-12">
+        <div className="lg:col-span-4">
           <span className="eyebrow">FAQ</span>
           <h2 className="h-section">Questions we hear all the time.</h2>
           <p className="p-section">
-            Don&apos;t see your question? Reach out via the contact form — we
+            Don&apos;t see your question? Use the contact form below — we
             usually reply within a working day.
           </p>
         </div>
 
-        <div className="mt-10 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
-          {FAQS.map((item, i) => {
-            const isOpen = open === i;
-            return (
-              <div key={item.q}>
-                <button
-                  type="button"
-                  onClick={() => setOpen(isOpen ? null : i)}
-                  className="flex w-full items-center justify-between gap-6 px-5 py-5 text-left sm:px-6"
-                  aria-expanded={isOpen}
-                >
-                  <span className="text-sm font-semibold text-slate-900 sm:text-base">
-                    {item.q}
-                  </span>
-                  <span
-                    className={`flex h-7 w-7 flex-none items-center justify-center rounded-full border border-slate-200 text-slate-500 transition ${
-                      isOpen ? "rotate-45 border-brand-200 text-brand-600" : ""
-                    }`}
-                    aria-hidden="true"
+        <div className="lg:col-span-8">
+          <div className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            {FAQS.map((item, i) => {
+              const isOpen = open === i;
+              return (
+                <div key={item.q}>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(isOpen ? null : i)}
+                    className="flex w-full items-center justify-between gap-6 px-5 py-5 text-left transition hover:bg-slate-50/60 sm:px-6"
+                    aria-expanded={isOpen}
                   >
-                    <svg viewBox="0 0 12 12" className="h-3 w-3" fill="currentColor">
-                      <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
-                  </span>
-                </button>
-                {isOpen && (
-                  <div className="px-5 pb-5 text-sm leading-7 text-slate-600 sm:px-6">
-                    {item.a}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                    <span className="text-sm font-semibold text-slate-900 sm:text-base">
+                      {item.q}
+                    </span>
+                    <span
+                      className={`flex h-7 w-7 flex-none items-center justify-center rounded-full border border-slate-200 text-slate-500 transition ${
+                        isOpen
+                          ? "rotate-45 border-slate-900 bg-slate-900 text-white"
+                          : ""
+                      }`}
+                      aria-hidden="true"
+                    >
+                      <svg
+                        viewBox="0 0 12 12"
+                        className="h-3 w-3"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      >
+                        <path d="M6 1v10M1 6h10" />
+                      </svg>
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-5 text-sm leading-7 text-slate-600 sm:px-6">
+                      {item.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>

@@ -34,14 +34,18 @@ const config: Config = {
         ],
       },
       boxShadow: {
-        soft: "0 10px 40px -12px rgba(31, 44, 128, 0.18)",
+        soft: "0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 12px 32px -16px rgba(15, 23, 42, 0.18)",
+        lift: "0 1px 2px 0 rgba(15, 23, 42, 0.05), 0 24px 48px -24px rgba(15, 23, 42, 0.22)",
+      },
+      letterSpacing: {
+        tightish: "-0.012em",
       },
       animation: {
-        "fade-up": "fadeUp 0.6s ease-out both",
+        "fade-up": "fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
       keyframes: {
         fadeUp: {
-          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },

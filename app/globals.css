@@ -4,7 +4,7 @@
 
 :root {
   --background: 255 255 255;
-  --foreground: 17 24 39;
+  --foreground: 15 23 42;
 }
 
 html {
@@ -14,30 +14,77 @@ html {
 body {
   color: rgb(var(--foreground));
   background: rgb(var(--background));
-  font-feature-settings: "rlig" 1, "calt" 1;
+  font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 @layer components {
   .container-page {
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
+
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-[0_1px_0_0_rgba(255,255,255,0.06)_inset,0_1px_2px_0_rgba(15,23,42,0.18)] transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2;
   }
+
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2;
   }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900;
+  }
+
   .section {
-    @apply py-16 sm:py-20 lg:py-24;
+    @apply py-20 sm:py-24 lg:py-28;
   }
+
   .eyebrow {
-    @apply inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-700;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600;
   }
+
+  .eyebrow::before {
+    content: "";
+    @apply h-1.5 w-1.5 rounded-full bg-brand-600;
+  }
+
   .h-section {
-    @apply mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl;
+    @apply mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1];
   }
+
   .p-section {
     @apply mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white p-6 transition;
+  }
+
+  .card-hover {
+    @apply hover:border-slate-300 hover:shadow-soft;
+  }
+
+  .surface {
+    @apply rounded-2xl border border-slate-200 bg-white shadow-soft;
+  }
+
+  .ring-divider {
+    @apply ring-1 ring-inset ring-slate-200/60;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(15, 23, 42, 0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .mask-fade-y {
+    mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
   }
 }
