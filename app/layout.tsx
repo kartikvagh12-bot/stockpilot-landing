@@ -8,7 +8,7 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const SITE_URL = "https://stockpilot-landing.vercel.app";
+const SITE_URL = "https://www.operza.in";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#2c43ed",
+  themeColor: "#0f172a",
   width: "device-width",
   initialScale: 1,
 };
