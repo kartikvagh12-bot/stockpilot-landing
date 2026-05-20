@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import Problem from "@/components/Problem";
+import BlindSpots from "@/components/BlindSpots";
+import HealthCheckCTA from "@/components/HealthCheckCTA";
 import Workflow from "@/components/Workflow";
 import Features from "@/components/Features";
 import Screenshots from "@/components/Screenshots";
@@ -8,6 +9,7 @@ import FAQ from "@/components/FAQ";
 import FinalCTA from "@/components/FinalCTA";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
+import FloatingAudit from "@/components/FloatingAudit";
 import { SITE } from "@/lib/site";
 
 export default function HomePage() {
@@ -16,7 +18,8 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        <Problem />
+        <BlindSpots />
+        <HealthCheckCTA />
         <Workflow />
         <Features />
         <Screenshots />
@@ -25,6 +28,7 @@ export default function HomePage() {
         <Contact />
       </main>
       <Footer />
+      <FloatingAudit />
 
       <script
         type="application/ld+json"

@@ -28,27 +28,26 @@ export default function Hero() {
               </p>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <a href="/health-check" className="btn-primary">
+                  Take Manufacturing Health Check
+                  <ArrowRight />
+                </a>
                 <a
                   href={SITE.app}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-primary"
+                  className="btn-secondary"
                 >
                   Open app
-                  <ArrowRight />
-                </a>
-                <a href="#contact" className="btn-secondary">
-                  Book a demo
                 </a>
               </div>
 
-              <a
-                href="/health-check"
-                className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"
-              >
-                Not sure if you need it? Take the 60-second health check
-                <ArrowRight />
-              </a>
+              <p className="mt-4 text-xs text-slate-500">
+                60-second operational audit · No signup ·{" "}
+                <a href="#contact" className="underline-offset-4 hover:underline">
+                  Or book a demo
+                </a>
+              </p>
 
               <ul className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-500">
                 <li className="inline-flex items-center gap-2">

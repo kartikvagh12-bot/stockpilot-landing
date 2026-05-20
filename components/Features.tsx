@@ -72,6 +72,15 @@ export default function Features() {
             Operza is intentionally focused. Six modules that work together —
             not an ERP you have to hire a consultant to use.
           </p>
+          <p className="mt-5 text-sm text-slate-500">
+            Small operational gaps become expensive at scale.{" "}
+            <a
+              href="/health-check"
+              className="font-medium text-slate-700 underline-offset-4 hover:text-slate-900 hover:underline"
+            >
+              Run the 60-second audit →
+            </a>
+          </p>
         </div>
 
         <div className="mt-14 grid gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-3">
