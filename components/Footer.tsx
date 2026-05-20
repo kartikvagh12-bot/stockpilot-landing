@@ -14,7 +14,7 @@ const COLS: Array<{ heading: string; links: Array<{ href: string; label: string;
   {
     heading: "Company",
     links: [
-      { href: "/#problem", label: "Why Operza" },
+      { href: "/health-check", label: "Health check" },
       { href: "/#faq", label: "FAQ" },
       { href: "/#contact", label: "Contact" },
     ],

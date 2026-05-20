@@ -39,6 +39,16 @@ export default function Workflow() {
             generic ERP. Four steps, the same on day one as on day five
             hundred.
           </p>
+          <p className="mt-5 text-sm text-slate-500">
+            Most spreadsheet-based workflows fail an operational visibility
+            check.{" "}
+            <a
+              href="/health-check"
+              className="font-medium text-slate-700 underline-offset-4 hover:text-slate-900 hover:underline"
+            >
+              See where yours stands →
+            </a>
+          </p>
         </div>
 
         <ol className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
