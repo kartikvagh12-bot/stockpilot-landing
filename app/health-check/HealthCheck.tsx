@@ -193,10 +193,12 @@ function computeScore(answers: (number | null)[]) {
     const idx = answers[i];
     if (idx == null) return;
     const opt = q.options[idx];
+    if (!opt) return; // guard against a stale index after data edits
     sum += opt.score;
     if (opt.flag) flags.add(opt.flag);
   });
-  const normalized = Math.round((sum / MAX_SCORE) * 100);
+  const raw = MAX_SCORE > 0 ? (sum / MAX_SCORE) * 100 : 0;
+  const normalized = Math.max(0, Math.min(100, Math.round(raw)));
   return { normalized, flags: Array.from(flags) };
 }
 
@@ -279,19 +281,21 @@ export default function HealthCheck() {
       <main>
         <Hero onStart={start} />
         <Intro />
-        <section
-          id="assessment"
-          ref={assessmentRef}
-          className="relative scroll-mt-20 border-t border-white/5 py-20 sm:py-24"
-        >
-          <Assessment
-            step={step}
-            answers={answers}
-            onStart={start}
-            onAnswer={answer}
-            onBack={back}
-          />
-        </section>
+        {!completed && (
+          <section
+            id="assessment"
+            ref={assessmentRef}
+            className="relative scroll-mt-20 border-t border-white/5 py-20 sm:py-24"
+          >
+            <Assessment
+              step={step}
+              answers={answers}
+              onStart={start}
+              onAnswer={answer}
+              onBack={back}
+            />
+          </section>
+        )}
 
         {completed && (
           <div ref={resultsRef} className="scroll-mt-20">
@@ -532,8 +536,11 @@ function Assessment({
     );
   }
 
-  // step is clamped to [0, QUESTIONS.length] elsewhere; the completed branch
-  // is unmounted by the parent, so this only renders while step < length.
+  // Belt-and-suspenders: the parent unmounts this component once step
+  // reaches QUESTIONS.length, but if a render slips through during a
+  // state transition we render nothing rather than crash on `q.prompt`.
+  if (step >= QUESTIONS.length) return null;
+
   const q = QUESTIONS[step];
   const total = QUESTIONS.length;
   const selected = answers[step];
@@ -767,20 +774,25 @@ function Results({
 }
 
 function AnimatedNumber({ target }: { target: number }) {
+  // Clamp + sanitize so a stray NaN/Infinity never reaches the DOM as text.
+  const safeTarget = Number.isFinite(target)
+    ? Math.max(0, Math.min(100, Math.round(target)))
+    : 0;
   const [value, setValue] = useState(0);
   useEffect(() => {
     let raf = 0;
-    const start = performance.now();
+    const startTime =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
     const dur = 900;
     const tick = (t: number) => {
-      const k = Math.min(1, (t - start) / dur);
+      const k = Math.min(1, (t - startTime) / dur);
       const eased = 1 - Math.pow(1 - k, 3);
-      setValue(Math.round(eased * target));
+      setValue(Math.round(eased * safeTarget));
       if (k < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target]);
+  }, [safeTarget]);
   return (
     <span className="text-5xl font-semibold tabular-nums text-white">
       {value}
