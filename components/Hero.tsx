@@ -42,6 +42,14 @@ export default function Hero() {
                 </a>
               </div>
 
+              <a
+                href="/health-check"
+                className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+              >
+                Not sure if you need it? Take the 60-second health check
+                <ArrowRight />
+              </a>
+
               <ul className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-slate-500">
                 <li className="inline-flex items-center gap-2">
                   <Tick /> No installation
