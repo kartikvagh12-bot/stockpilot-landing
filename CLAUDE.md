@@ -4,25 +4,22 @@ Operza
 
 ---
 
-# App Repo
+# App Repos
 
-`Inventory_tracker`
+**Primary (since Phase 5.5 cutover, 2026-05-23):** `operza-app`
 
-* Streamlit frontend
-* Supabase backend
-* Auth system
-* password reset
-* raw material tracking
-* BOM creation
-* production tracking
-* automatic raw material deduction
-* finished goods tracking
-* inventory logs
-* production logs
-* finished goods logs
-* low stock alerts
-* CSV exports
-* demo onboarding
+* Next.js 16 (App Router, RSC), TanStack Query, shadcn/ui
+* Supabase backend (same project as Streamlit — `kragnxmsspfaxiejyqgm`)
+* Deployed on Vercel → `https://app.operza.in`
+* Full feature parity with the Streamlit app (audited in `operza-app/docs/PARITY.md`)
+* Light + dark theme, mobile polish, persistent auth, optimistic concurrency on stock writes, paginated history
+
+**Legacy fallback (sunset 2026-06-22 to 2026-07-22):** `Inventory_tracker`
+
+* Streamlit frontend on Streamlit Cloud (`operza.streamlit.app`)
+* Kept alive temporarily as migration bridge
+* Has a migration banner pointing users to `app.operza.in`
+* Do NOT add features here — fixes only
 
 ---
 
@@ -41,9 +38,11 @@ Operza
 
 # Current Deployment
 
-**App:** Streamlit
+**Primary app:** Next.js on Vercel (`app.operza.in`)
 
-**Landing:** Vercel
+**Legacy fallback:** Streamlit on Streamlit Cloud (`operza.streamlit.app`)
+
+**Landing:** Next.js on Vercel (`www.operza.in`)
 
 ---
 
@@ -78,6 +77,17 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-05-23 — Switch "Open app" CTAs to the Next.js app (Phase 5.5 cutover)
+
+`lib/site.ts` was the single chokepoint for every "Open app" CTA on the landing page (Hero, Navbar desktop + mobile, Footer, FinalCTA, plus four occurrences in the HealthCheck results screens). Changed `SITE.app` from `https://operza.streamlit.app` to `https://app.operza.in` — the new Next.js deploy that became the primary product in Phase 5.5.
+
+Also preserved the Streamlit URL as `SITE.appLegacy` so a future "Open legacy version" affordance has a single source. Not surfaced anywhere yet.
+
+What this is NOT:
+* A rewrite of any landing-page section or copy.
+* A redirect from the Streamlit deploy — Streamlit stays alive at `operza.streamlit.app` for the soft-sunset window (~30–60 days) and shows its own migration banner pointing back to `app.operza.in`.
+* A teardown of the old app. We're in soft-sunset, not hard-shutdown.
 
 ## 2026-05-20 — Manufacturing Health Check funnel (PR #11)
 
