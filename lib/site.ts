@@ -1,7 +1,11 @@
 export const SITE = {
   name: "Operza",
   domain: "https://www.operza.in",
-  app: "https://operza.streamlit.app",
+  // Primary app — Next.js on Vercel, app.operza.in (Phase 5.5 cutover).
+  // The legacy Streamlit deploy at operza.streamlit.app is kept alive
+  // as a temporary fallback during the soft sunset window (30–60 days).
+  app: "https://app.operza.in",
+  appLegacy: "https://operza.streamlit.app",
   email: "kartikvagh12@gmail.com",
   whatsapp: "+91 87338 65541",
   whatsappLink: "https://wa.me/918733865541",
