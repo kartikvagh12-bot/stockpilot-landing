@@ -6,7 +6,7 @@ export const SITE = {
   // as a temporary fallback during the soft sunset window (30–60 days).
   app: "https://app.operza.in",
   appLegacy: "https://operza.streamlit.app",
-  email: "kartikvagh12@gmail.com",
+  email: "founder@operza.in",
   whatsapp: "+91 87338 65541",
   whatsappLink: "https://wa.me/918733865541",
 } as const;
