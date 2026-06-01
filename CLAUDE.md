@@ -117,25 +117,42 @@ scenario-based operational simulation:
 
 **Rev-4 (operational continuation, same day):** the rev-3 flow ended at
 "recommendation panel" — operational but terminal. Added one
-continuation step so the scenario reads as an ongoing factory rather
-than a one-shot demo:
-* New "Generate reorder suggestion" button inside the recommendation
-  panel (only renders when there are low/insufficient materials,
-  i.e. always given the scripted scenario).
-* On click → reveals a `<ReorderPanel />` below: brand-50/30 wash,
-  package icon, a small white-card list of items with their suggested
-  reorder quantities, an "Estimated coverage · ~3 future production
-  batches" footnote, an operational explanation line, and a brand-100
-  pill with a clock icon: "Recommended reorder timing — within the
-  next 24 hours."
-* Suggested quantities are *derived*, not hardcoded:
-  `ceil((3 × required) − currentAfter)` rounded up to a nice unit step
-  (50 for pcs, 5 for L). At the scripted scenario this yields Wood
-  Planks 300 pcs / Wood Glue 40 L — which actually covers 3 future
-  batches, so the marketing claim matches the data.
-* `reorderRevealed` state is cleared by both `start()` and `reset()`
-  so Run Again replays the whole sequence cleanly.
-* +0.5 kB bundle (70 kB total for `/`).
+continuation step ("Generate reorder suggestion" button that revealed
+an in-card replenishment panel). This was *replaced* by rev-5 below —
+the rev-4 ReorderPanel component no longer exists.
+
+**Rev-5 (workspace switch, same day):** the rev-4 in-card reveal still
+read as "smart card with hidden panels" rather than "connected
+operational system." Replaced with a real workspace transition:
+* New `workspace: "production" | "purchasing"` state in the main
+  component. Production state (phase, progress) is preserved across
+  workspace switches so the round-trip via "Back to production" feels
+  natural — production view comes back at its completed state, not
+  replayed.
+* In the production view, the rev-4 inline reveal button became a
+  card-style workspace-nav affordance inside the recommendation panel:
+  amber eyebrow "N MATERIALS BELOW THRESHOLD" + bold
+  "Open Purchasing workspace" + chevron. Reads as a navigation tile.
+* On click → the whole card content swaps to a new
+  `<PurchasingWorkspace />`: dedicated workspace header band
+  ("Back to production" link + "Workspace" pill + "Purchasing" title +
+  subtitle citing ORD-1142), a four-column Material/Supplier/
+  Suggested-qty/Coverage table (supplier + coverage labels authored
+  in `SUPPLIER_INFO`; reorder qty still derived from the same
+  `suggestedReorder()` formula), an operational insights row
+  (clock icon "Recommended reorder timing — within 24h" + emerald
+  check "Production stability restored after replenishment"), and a
+  footer with "Run scenario again" escape hatch.
+* Transition mechanism: new `workspace-in` Tailwind keyframe (420ms
+  opacity 0→1 + translateX 16px→0) paired with `key={workspace}` on
+  the wrapper so React unmounts/remounts each navigation. Cross-fade
+  with a subtle slide-in-from-right. No Framer Motion.
+* Within the PurchasingWorkspace, table rows + insights row stagger in
+  via `animate-fade-up` with per-row animationDelay (90ms steps), so
+  the workspace appears to "populate" rather than snap.
+* Mobile collapses cleanly: workspace header + stacked one-card-per-
+  material + insights + footer button.
+* +0.6 kB bundle (70.6 kB total for `/`).
 
 * Pure client state — no Supabase, no API routes, no persistence.
 * Single product (Dining Chair), three BOM items, segmented quantity

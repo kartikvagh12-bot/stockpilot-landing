@@ -4,37 +4,43 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SITE } from "@/lib/site";
 
-// Scenario-based operational simulation (rev-3 + rev-4, 2026-06-01).
+// Scenario-based operational simulation (rev-3 → rev-5, 2026-06-01).
 //
-// The earlier "quantity-calculator" pattern (click 10/25/50/100, watch
-// numbers recompute) explained inventory math but didn't sell the
-// product. Visitors understood "this can calculate inventory" — not
-// "this software helps run factory operations." This pivot replaces
-// the calculator with a single scripted operational scenario, with an
-// operational *continuation* step (rev-4) tacked on so the experience
-// doesn't end at "production ran":
+// Started life (rev-1/rev-2) as a "quantity calculator" — click
+// 10/25/50/100, watch numbers recompute. That explained inventory
+// math but didn't sell the product. Rev-3 pivoted to a scripted
+// production scenario (idle → checking → starting → consuming →
+// completed). Rev-4 tacked on an in-card "Generate reorder suggestion"
+// panel so the experience didn't end at "production ran." Rev-5
+// (current) replaces the in-card reveal with an actual *workspace
+// switch* so the demo reads as connected operational systems instead
+// of one smart card with hidden sub-panels.
 //
-//   1. Incoming order context card (100 chairs, due 9 AM tomorrow)
-//   2. Press "Run Production"
-//   3. Watch the floor sequence unfold:
-//        idle → checking → starting → consuming → completed
-//      - Status line updates phase-by-phase
-//      - Material rows count down progressively (RAF tween)
-//      - Status chips appear as values cross alert thresholds
-//      - Operational warning banner fades in when stock crosses
-//      - Finished goods animates 20 → 120
-//      - Recommendation panel surfaces at the end
-//   4. Press "Generate reorder suggestion" to reveal the replenishment
-//      panel — derived reorder quantities ceil((3 × required) − after)
-//      rounded to a nice step, with a "covers next 3 batches" line
-//      and a recommended-timing nudge. This is the moment the product
-//      reads as "operations support system", not "inventory tracker".
-//   5. Run again to repeat.
+// End-to-end flow (rev-5):
+//   PRODUCTION workspace
+//     1. Incoming order card (100 chairs, due 9 AM tomorrow)
+//     2. Press "Run Production"
+//     3. Floor sequence runs (~2.6s): RAF counter tween, status
+//        chips appear as values cross alert thresholds, danger /
+//        warning banner fades in mid-tween
+//     4. Recommendation panel surfaces with a *workspace-nav* CTA:
+//        "2 MATERIALS BELOW THRESHOLD · Open Purchasing workspace →"
+//   PURCHASING workspace
+//     5. Card content swaps (key= remount + workspace-in keyframe
+//        = subtle 420ms slide-in-from-right + fade). The whole
+//        operational area changes, not a hidden panel reveal.
+//     6. Replenishment table shows Material / Supplier / Suggested
+//        qty / Coverage; insight row: "Recommended reorder timing —
+//        within the next 24 hours" + "Production stability restored
+//        after replenishment."
+//     7. "Back to production" preserves state and round-trips.
+//        "Run scenario again" resets the whole demo to idle/production.
 //
 // Pure client state. No Supabase, no API, no persistence, no Framer
-// Motion. Just useState + requestAnimationFrame + existing Tailwind
-// keyframes (animate-fade-up, animate-flash). Premium / restrained —
-// total sequence runs in ~2.6s.
+// Motion. Just useState + requestAnimationFrame + Tailwind keyframes
+// (animate-fade-up, animate-flash, animate-workspace-in). Premium /
+// restrained throughout — total production sequence ~2.6s, workspace
+// transition ~420ms.
 
 // --- Domain ---
 
@@ -70,6 +76,22 @@ const ORDER = {
   customer: "Acme Furniture",
   dueAt: "Tomorrow · 9:00 AM",
 };
+
+// Supplier name + coverage label are authored, not derived. The
+// supplier is obviously fictional; the coverage labels are slightly
+// rounded for visual variety in the table (raw computation lands
+// ~3.2 batches for both, but ~3 / ~4 reads less templated). The
+// underlying reorder quantity (`suggestedReorder()` below) stays
+// derived so the table number actually reflects the production math.
+const SUPPLIER_INFO: Record<string, { supplier: string; coverage: string }> = {
+  "Wood Planks": { supplier: "TimberWorks", coverage: "~3 batches" },
+  "Screws": { supplier: "FastFix Hardware", coverage: "~5 batches" },
+  "Wood Glue": { supplier: "ChemBond", coverage: "~4 batches" },
+};
+
+// --- Workspace router ---
+
+type Workspace = "production" | "purchasing";
 
 // --- Phase machine ---
 
@@ -156,10 +178,10 @@ function buildRows(phase: Phase, progress: number): ComputedRow[] {
 export default function InteractiveProductionDemo() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0); // 0..1 during "consuming"
-  // The operational continuation step (rev-4) — the "Generate reorder
-  // suggestion" button in the recommendation panel flips this true,
-  // which reveals the ReorderPanel below.
-  const [reorderRevealed, setReorderRevealed] = useState(false);
+  // The operational workspace router (rev-5). Production state (phase,
+  // progress) is preserved across workspace navigations, so "Back to
+  // production" returns to the completed state without replay.
+  const [workspace, setWorkspace] = useState<Workspace>("production");
 
   const rafRef = useRef<number | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -178,7 +200,7 @@ export default function InteractiveProductionDemo() {
   function start() {
     clearTimers();
     setProgress(0);
-    setReorderRevealed(false);
+    setWorkspace("production");
     setPhase("checking");
 
     timeoutsRef.current.push(
@@ -206,7 +228,7 @@ export default function InteractiveProductionDemo() {
   function reset() {
     clearTimers();
     setProgress(0);
-    setReorderRevealed(false);
+    setWorkspace("production");
     setPhase("idle");
   }
 
@@ -251,32 +273,39 @@ export default function InteractiveProductionDemo() {
         </div>
 
         <div className="mt-12 rounded-2xl border border-slate-200 bg-white shadow-lift overflow-hidden">
-          <OrderHeader phase={phase} onStart={start} onReset={reset} />
+          {workspace === "production" ? (
+            <div key="production" className="animate-workspace-in">
+              <OrderHeader phase={phase} onStart={start} onReset={reset} />
 
-          <StatusBar phase={phase} />
+              <StatusBar phase={phase} />
 
-          <InventoryTableDesktop rows={rows} phase={phase} />
-          <InventoryTableMobile rows={rows} phase={phase} />
+              <InventoryTableDesktop rows={rows} phase={phase} />
+              <InventoryTableMobile rows={rows} phase={phase} />
 
-          <FinishedGoodsBlock phase={phase} finishedAfter={finishedAfter} />
+              <FinishedGoodsBlock phase={phase} finishedAfter={finishedAfter} />
 
-          {alertRow && (
-            <OperationalAlert
-              row={alertRow}
-              key={`${alertRow.item.name}-${alertRow.visibleStatus}`}
-            />
-          )}
+              {alertRow && (
+                <OperationalAlert
+                  row={alertRow}
+                  key={`${alertRow.item.name}-${alertRow.visibleStatus}`}
+                />
+              )}
 
-          {phase === "completed" && (
-            <RecommendationPanel
-              rows={rows}
-              reorderRevealed={reorderRevealed}
-              onRevealReorder={() => setReorderRevealed(true)}
-            />
-          )}
-
-          {phase === "completed" && reorderRevealed && (
-            <ReorderPanel rows={rows} />
+              {phase === "completed" && (
+                <RecommendationPanel
+                  rows={rows}
+                  onOpenPurchasing={() => setWorkspace("purchasing")}
+                />
+              )}
+            </div>
+          ) : (
+            <div key="purchasing" className="animate-workspace-in">
+              <PurchasingWorkspace
+                rows={rows}
+                onBack={() => setWorkspace("production")}
+                onReset={reset}
+              />
+            </div>
           )}
         </div>
 
@@ -642,16 +671,14 @@ function OperationalAlert({ row }: { row: ComputedRow }) {
 
 function RecommendationPanel({
   rows,
-  reorderRevealed,
-  onRevealReorder,
+  onOpenPurchasing,
 }: {
   rows: ComputedRow[];
-  reorderRevealed: boolean;
-  onRevealReorder: () => void;
+  onOpenPurchasing: () => void;
 }) {
   const insufficient = rows.filter((r) => r.finalStatus === "insufficient");
   const low = rows.filter((r) => r.finalStatus === "low");
-  const needsReorder = insufficient.length + low.length > 0;
+  const belowThreshold = insufficient.length + low.length;
 
   let title: string;
   let body: string;
@@ -682,14 +709,22 @@ function RecommendationPanel({
           </p>
           <p className="mt-1.5 text-sm font-semibold text-slate-900">{title}</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
-          {needsReorder && !reorderRevealed && (
+
+          {belowThreshold > 0 && (
             <button
               type="button"
-              onClick={onRevealReorder}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              onClick={onOpenPurchasing}
+              className="group mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-left transition hover:border-brand-300 hover:bg-brand-50/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[20rem]"
             >
-              Generate reorder suggestion
-              <ArrowRightIcon className="h-3 w-3" />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-amber-700">
+                  {belowThreshold} material{belowThreshold > 1 ? "s" : ""} below threshold
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">
+                  Open Purchasing workspace
+                </p>
+              </div>
+              <ArrowRightIcon className="h-4 w-4 flex-shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-brand-600" />
             </button>
           )}
         </div>
@@ -698,58 +733,138 @@ function RecommendationPanel({
   );
 }
 
-function ReorderPanel({ rows }: { rows: ComputedRow[] }) {
+function PurchasingWorkspace({
+  rows,
+  onBack,
+  onReset,
+}: {
+  rows: ComputedRow[];
+  onBack: () => void;
+  onReset: () => void;
+}) {
   const items = rows
     .filter((r) => r.finalStatus !== "ok")
     .map((r) => ({
       name: r.item.name,
-      qty: suggestedReorder(r.item, r.currentAfter),
       unit: r.item.unit,
+      qty: suggestedReorder(r.item, r.currentAfter),
+      supplier: SUPPLIER_INFO[r.item.name]?.supplier ?? "—",
+      coverage: SUPPLIER_INFO[r.item.name]?.coverage ?? "~3 batches",
     }));
 
   return (
-    <div
-      key="reorder"
-      className="border-t border-slate-100 bg-brand-50/30 px-5 py-5 animate-fade-up sm:px-6"
-    >
-      <div className="flex items-start gap-3">
-        <PackageIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
-        <div className="flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">
-            Suggested replenishment
-          </p>
-
-          <ul className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
-            {items.map((it) => (
-              <li
-                key={it.name}
-                className="flex items-center justify-between px-3 py-2.5 text-sm"
-              >
-                <span className="font-medium text-slate-900">{it.name}</span>
-                <span className="inline-flex items-center gap-2 tabular-nums">
-                  <ArrowRightIcon className="h-3 w-3 text-slate-400" />
-                  <span className="font-semibold text-slate-900">
-                    {it.qty.toLocaleString("en-IN")} {it.unit}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          <p className="mt-3 text-xs text-slate-500">
-            Estimated coverage · ~3 future production batches
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Operza calculates reorder visibility before shortages stop
-            production.
-          </p>
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-100/70 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
-            <ClockIcon className="h-3 w-3" />
-            Recommended reorder timing — within the next 24 hours
-          </p>
+    <>
+      {/* Workspace header — visually distinct from the Production order
+          header to sell the "moved to another area" feel. */}
+      <div className="border-b border-slate-100 bg-slate-50/40 p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+          >
+            <ArrowLeftIcon className="h-3 w-3" />
+            Back to production
+          </button>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-700">
+            <PackageIcon className="h-2.5 w-2.5" />
+            Workspace
+          </span>
         </div>
+        <p className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
+          Purchasing
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          Replenishment suggestions generated from production order{" "}
+          <span className="font-mono text-slate-700">{ORDER.reference}</span>.
+        </p>
       </div>
-    </div>
+
+      {/* Suggestions table — desktop */}
+      <div className="hidden sm:block">
+        <div className="grid grid-cols-[1.3fr_1.3fr_1fr_1fr] gap-x-4 border-b border-slate-100 bg-slate-50/60 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <div>Material</div>
+          <div>Supplier</div>
+          <div className="text-right">Suggested qty</div>
+          <div className="text-right">Coverage</div>
+        </div>
+        {items.map((it, i) => (
+          <div
+            key={it.name}
+            style={{ animationDelay: `${i * 90}ms` }}
+            className={`grid grid-cols-[1.3fr_1.3fr_1fr_1fr] items-center gap-x-4 px-6 py-3.5 text-sm tabular-nums animate-fade-up ${
+              i < items.length - 1 ? "border-b border-slate-100" : ""
+            }`}
+          >
+            <div className="font-medium text-slate-900">{it.name}</div>
+            <div className="text-slate-700">{it.supplier}</div>
+            <div className="text-right font-semibold text-slate-900">
+              {it.qty.toLocaleString("en-IN")} {it.unit}
+            </div>
+            <div className="text-right text-slate-700">{it.coverage}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Suggestions — mobile */}
+      <div className="divide-y divide-slate-100 sm:hidden">
+        {items.map((it, i) => (
+          <div
+            key={it.name}
+            style={{ animationDelay: `${i * 90}ms` }}
+            className="px-5 py-4 animate-fade-up"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium text-slate-900">{it.name}</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {it.supplier} · {it.coverage}
+                </p>
+              </div>
+              <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                {it.qty.toLocaleString("en-IN")} {it.unit}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Operational insights */}
+      <div
+        className="border-t border-slate-100 bg-brand-50/20 px-5 py-5 animate-fade-up sm:px-6"
+        style={{ animationDelay: `${items.length * 90 + 60}ms` }}
+      >
+        <ul className="space-y-2.5 text-sm">
+          <li className="flex items-start gap-2.5 text-slate-700">
+            <ClockIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
+            <span>
+              Recommended reorder timing —{" "}
+              <span className="font-semibold text-slate-900">within the next 24 hours</span>.
+            </span>
+          </li>
+          <li className="flex items-start gap-2.5 text-slate-700">
+            <CheckIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+            <span>
+              Production stability restored after replenishment.
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      {/* Footer with the run-again escape hatch */}
+      <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p className="text-xs text-slate-500">
+          One operational chain — production → purchasing → stability restored.
+        </p>
+        <button
+          type="button"
+          onClick={onReset}
+          className="btn-secondary h-10 text-sm"
+        >
+          Run scenario again
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -835,6 +950,18 @@ function ArrowRightIcon({ className = "" }: { className?: string }) {
       <path
         fillRule="evenodd"
         d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={className}>
+      <path
+        fillRule="evenodd"
+        d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
         clipRule="evenodd"
       />
     </svg>
