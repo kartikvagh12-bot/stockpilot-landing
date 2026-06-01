@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { SITE } from "@/lib/site";
 
-// Scenario-based operational simulation (rev-3 → rev-6, 2026-06-01).
+// Scenario-based operational simulation (rev-3 → rev-7, 2026-06-01).
 //
 // Started life (rev-1/rev-2) as a "quantity calculator" — click
 // 10/25/50/100, watch numbers recompute. That explained inventory
@@ -42,6 +42,24 @@ import { SITE } from "@/lib/site";
 // without replay. Pure client state — useState + RAF + Tailwind
 // keyframes (animate-fade-up, animate-flash, animate-workspace-in).
 // No Framer Motion. No Supabase. No persistence.
+//
+// Rev-7 polish (same day, no new modules):
+// * Blocked recovery: a "Maximum safe production" tile inside the
+//   recommendation panel surfaces `maxSafeProductionTier()` (largest
+//   selector tier that won't block — 100 for our scripted BOM) plus
+//   a "Run adjusted batch" CTA. Clicking it sets the selector to the
+//   safe tier and re-runs the sequence — visitor experiences
+//   block → guidance → recovery in a single click.
+// * Operational reasoning: short "Reason · Planks and Glue fall below
+//   minimum production requirement" line in the blocked state, sits
+//   between the recommendation body and the recovery tile.
+// * System metadata footer: small all-caps line "Inventory validated
+//   in 240ms · Logged just now" at the bottom of the recommendation
+//   panel — quiet "this software is real and active" signal.
+// * Workspace identity: the demo card gains a constant 4px left
+//   border that animates color (slate-200 → brand-500) when entering
+//   the Purchasing workspace. Subtle module-identity marker; no
+//   layout shift because the border width is constant.
 
 // --- Domain ---
 
@@ -190,6 +208,39 @@ function wouldBlock(orderQty: number): boolean {
   );
 }
 
+// Largest selector tier that won't block production at current stock.
+// True absolute max is `min(floor(stock/req))` per material — for our
+// scripted BOM that's 115 (Wood Glue is the binding constraint at
+// floor(15 / 0.13)). We round down to the nearest existing selector
+// tier so that "Run adjusted batch" can reuse the selector system
+// without introducing a fifth custom value. Trade-off accepted: at
+// our BOM this returns 100, leaving ~15 units of theoretical headroom
+// on the table — but operationally honest (real procurement always
+// keeps a buffer).
+function maxSafeProductionTier(): Qty | null {
+  let rawMax = Infinity;
+  for (const item of BOM) {
+    if (item.requiredPerUnit > 0) {
+      rawMax = Math.min(rawMax, Math.floor(item.stock / item.requiredPerUnit));
+    }
+  }
+  if (rawMax === Infinity) return null;
+  for (let i = QUANTITY_OPTIONS.length - 1; i >= 0; i--) {
+    if (QUANTITY_OPTIONS[i] <= rawMax) return QUANTITY_OPTIONS[i];
+  }
+  // No selector tier fits — would happen only if even the smallest
+  // tier exceeds available stock. Defensive only for our BOM.
+  return null;
+}
+
+const MAX_SAFE_PRODUCTION = maxSafeProductionTier();
+
+// Tiny "system metadata" detail used in the recommendation panel
+// footer. Hardcoded (not Math.random) to keep SSR/CSR hydration in
+// lockstep — no risk of "Validated in 217ms" on the server and
+// "Validated in 263ms" on the client.
+const VALIDATION_MS = 240;
+
 // --- Workspace router ---
 
 type Workspace = "production" | "purchasing";
@@ -317,6 +368,16 @@ export default function InteractiveProductionDemo() {
     setPhase("idle");
   }
 
+  // Recovery affordance for the blocked tier: swap to the largest
+  // non-blocking selector tier, then re-run the sequence. Lets the
+  // visitor experience "block → system guidance → recovery" without
+  // having to re-pick the quantity by hand.
+  function runAdjustedBatch() {
+    if (MAX_SAFE_PRODUCTION === null) return;
+    setSelectedQuantity(MAX_SAFE_PRODUCTION);
+    start();
+  }
+
   const rows = useMemo(
     () => buildRows(phase, progress, selectedQuantity),
     [phase, progress, selectedQuantity],
@@ -368,7 +429,11 @@ export default function InteractiveProductionDemo() {
           </p>
         </div>
 
-        <div className="mt-12 rounded-2xl border border-slate-200 bg-white shadow-lift overflow-hidden">
+        <div
+          className={`mt-12 rounded-2xl border border-slate-200 border-l-4 bg-white shadow-lift overflow-hidden transition-colors duration-300 ${
+            workspace === "purchasing" ? "border-l-brand-500" : "border-l-slate-200"
+          }`}
+        >
           {workspace === "production" ? (
             <div key="production" className="animate-workspace-in">
               <OrderHeader
@@ -402,7 +467,9 @@ export default function InteractiveProductionDemo() {
                   rows={rows}
                   urgency={urgency}
                   blocked={blocked}
+                  maxSafe={MAX_SAFE_PRODUCTION}
                   onOpenPurchasing={() => setWorkspace("purchasing")}
+                  onRunAdjusted={runAdjustedBatch}
                 />
               )}
             </div>
@@ -834,23 +901,29 @@ function RecommendationPanel({
   rows,
   urgency,
   blocked,
+  maxSafe,
   onOpenPurchasing,
+  onRunAdjusted,
 }: {
   rows: ComputedRow[];
   urgency: Urgency;
   blocked: boolean;
+  maxSafe: Qty | null;
   onOpenPurchasing: () => void;
+  onRunAdjusted: () => void;
 }) {
   const insufficient = rows.filter((r) => r.finalStatus === "insufficient");
   const low = rows.filter((r) => r.finalStatus === "low");
 
   let title: string;
   let body: string;
+  let reasonText: string | null = null;
 
   if (blocked) {
+    title = `Production blocked — materials would have run out mid-batch.`;
+    body = `Operza would prevent this run in the live app. Here's what's possible with your current stock:`;
     const names = insufficient.map((r) => r.item.name).join(" and ");
-    title = `Production blocked — ${insufficient.length} material${insufficient.length > 1 ? "s" : ""} would have run out.`;
-    body = `${names} can't cover this batch. Operza would block this run in the live app and require replenishment first.`;
+    reasonText = `${names} ${insufficient.length > 1 ? "fall" : "falls"} below the minimum production requirement.`;
   } else if (low.length >= 2) {
     const names = low.map((r) => r.item.name).join(" and ");
     title = `Production completed. ${low.length} raw materials now below alert level.`;
@@ -881,11 +954,40 @@ function RecommendationPanel({
           <p className="mt-1.5 text-sm font-semibold text-slate-900">{title}</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
 
+          {reasonText && (
+            <p className="mt-3 text-xs leading-6 text-slate-500">
+              <span className="font-semibold text-slate-700">Reason ·</span>{" "}
+              {reasonText}
+            </p>
+          )}
+
+          {blocked && maxSafe !== null && (
+            <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/40 px-4 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-700">
+                Maximum safe production
+              </p>
+              <p className="mt-1.5 flex items-baseline gap-2 tabular-nums">
+                <span className="text-2xl font-bold text-slate-900">{maxSafe}</span>
+                <span className="text-sm text-slate-600">
+                  units with current inventory
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={onRunAdjusted}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              >
+                Run adjusted batch
+                <ArrowRightIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           {showNavTile && (
             <button
               type="button"
               onClick={onOpenPurchasing}
-              className={`group mt-4 flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[20rem] ${
+              className={`group mt-3 flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[20rem] ${
                 isUrgent
                   ? "border-red-300 bg-red-50/40 hover:border-red-400 hover:bg-red-50/60 focus-visible:ring-red-500"
                   : "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/30 focus-visible:ring-brand-500"
@@ -910,6 +1012,14 @@ function RecommendationPanel({
               />
             </button>
           )}
+
+          {/* Tiny system-metadata line — the "this software is real
+              and active" signal. Quiet, all-caps, wide letterspacing.
+              Hardcoded ms value to avoid SSR/CSR hydration mismatch
+              that Math.random() would introduce. */}
+          <p className="mt-5 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-400">
+            Inventory validated in {VALIDATION_MS}ms · Logged just now
+          </p>
         </div>
       </div>
     </div>

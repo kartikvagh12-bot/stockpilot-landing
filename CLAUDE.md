@@ -121,6 +121,41 @@ continuation step ("Generate reorder suggestion" button that revealed
 an in-card replenishment panel). This was *replaced* by rev-5 below —
 the rev-4 ReorderPanel component no longer exists.
 
+**Rev-7 (polish + operational intelligence, same day):** rev-6 had the
+decision-making input but the experience still ended at "you hit the
+limit." Polish pass adds the recovery path + a few "real software"
+signals without introducing new modules:
+
+* **Maximum safe production tile.** When production is blocked (qty=200
+  in the scripted scenario), the recommendation panel surfaces a
+  prominent brand-tinted card: "MAXIMUM SAFE PRODUCTION · 100 units
+  with current inventory · [Run adjusted batch →]". The number is
+  `maxSafeProductionTier()` — the largest selector tier that won't
+  block (true raw max is 115, rounded down to 100 so "Run adjusted
+  batch" can re-use the existing selector instead of introducing a
+  fifth custom tier). Clicking the CTA calls
+  `setSelectedQuantity(MAX_SAFE_PRODUCTION) + start()` — the visitor
+  experiences block → system guidance → recovery in one click.
+* **Operational reasoning line.** Compact "Reason · Wood Planks and
+  Wood Glue fall below the minimum production requirement." sits
+  between the rec panel body and the recovery tile. Quiet, slate-500,
+  no icon — just enough to explain *why* without sounding verbose.
+* **System metadata footer.** Tiny all-caps line at the bottom of the
+  rec panel: "Inventory validated in 240ms · Logged just now". The
+  ms value is hardcoded (not Math.random()) to keep SSR/CSR hydration
+  in lockstep. Quiet "this software is real and active" signal.
+* **Workspace identity left border.** Constant 4px left border on the
+  demo card that animates color via `transition-colors duration-300`
+  — slate-200 in the Production workspace, brand-500 in the Purchasing
+  workspace. Border width stays constant so there's no layout shift
+  during the workspace switch.
+* **Optional production-readiness badge (deferred).** The brief
+  flagged this as optional and warned against clutter. It was also
+  going to spoil the dramatic mid-tween "Production cannot complete"
+  reveal — currently the demo's strongest beat. Deliberately skipped.
+
++0.4 kB bundle (72 kB total for `/`).
+
 **Rev-6 (operational decision system, same day):** rev-5 had a fixed
 order quantity (100 chairs); the experience still read as "watching a
 demo" instead of "operating the workflow." Brought a quantity selector
