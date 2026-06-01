@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SITE } from "@/lib/site";
 
-// Scenario-based operational simulation (rev-3 pivot, 2026-06-01).
+// Scenario-based operational simulation (rev-3 + rev-4, 2026-06-01).
 //
 // The earlier "quantity-calculator" pattern (click 10/25/50/100, watch
 // numbers recompute) explained inventory math but didn't sell the
 // product. Visitors understood "this can calculate inventory" — not
 // "this software helps run factory operations." This pivot replaces
-// the calculator with a single scripted operational scenario:
+// the calculator with a single scripted operational scenario, with an
+// operational *continuation* step (rev-4) tacked on so the experience
+// doesn't end at "production ran":
 //
 //   1. Incoming order context card (100 chairs, due 9 AM tomorrow)
 //   2. Press "Run Production"
@@ -22,7 +24,12 @@ import { SITE } from "@/lib/site";
 //      - Operational warning banner fades in when stock crosses
 //      - Finished goods animates 20 → 120
 //      - Recommendation panel surfaces at the end
-//   4. Run again to repeat.
+//   4. Press "Generate reorder suggestion" to reveal the replenishment
+//      panel — derived reorder quantities ceil((3 × required) − after)
+//      rounded to a nice step, with a "covers next 3 batches" line
+//      and a recommended-timing nudge. This is the moment the product
+//      reads as "operations support system", not "inventory tracker".
+//   5. Run again to repeat.
 //
 // Pure client state. No Supabase, no API, no persistence, no Framer
 // Motion. Just useState + requestAnimationFrame + existing Tailwind
@@ -102,6 +109,19 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+// Derived reorder quantity: enough to cover three future batches at the
+// current consumption rate, rounded up to a "nice" step per unit so the
+// suggestion looks like a procurement number a human would actually
+// type (300 pcs, 40 L), not a raw computation (283.7). Marketing copy
+// elsewhere claims "~3 future production batches" — using a derived
+// value keeps that claim honest.
+function suggestedReorder(item: BomItem, currentAfter: number): number {
+  const required = item.requiredPerUnit * ORDER.quantity;
+  const needed = required * 3 - currentAfter;
+  const step = item.unit === "L" ? 5 : 50;
+  return Math.max(step, Math.ceil(needed / step) * step);
+}
+
 // --- Derived row shape ---
 
 type ComputedRow = {
@@ -136,6 +156,10 @@ function buildRows(phase: Phase, progress: number): ComputedRow[] {
 export default function InteractiveProductionDemo() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0); // 0..1 during "consuming"
+  // The operational continuation step (rev-4) — the "Generate reorder
+  // suggestion" button in the recommendation panel flips this true,
+  // which reveals the ReorderPanel below.
+  const [reorderRevealed, setReorderRevealed] = useState(false);
 
   const rafRef = useRef<number | null>(null);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -154,6 +178,7 @@ export default function InteractiveProductionDemo() {
   function start() {
     clearTimers();
     setProgress(0);
+    setReorderRevealed(false);
     setPhase("checking");
 
     timeoutsRef.current.push(
@@ -181,6 +206,7 @@ export default function InteractiveProductionDemo() {
   function reset() {
     clearTimers();
     setProgress(0);
+    setReorderRevealed(false);
     setPhase("idle");
   }
 
@@ -241,7 +267,17 @@ export default function InteractiveProductionDemo() {
             />
           )}
 
-          {phase === "completed" && <RecommendationPanel rows={rows} />}
+          {phase === "completed" && (
+            <RecommendationPanel
+              rows={rows}
+              reorderRevealed={reorderRevealed}
+              onRevealReorder={() => setReorderRevealed(true)}
+            />
+          )}
+
+          {phase === "completed" && reorderRevealed && (
+            <ReorderPanel rows={rows} />
+          )}
         </div>
 
         <p className="mt-6 text-center text-sm text-slate-500">
@@ -604,28 +640,33 @@ function OperationalAlert({ row }: { row: ComputedRow }) {
   );
 }
 
-function RecommendationPanel({ rows }: { rows: ComputedRow[] }) {
+function RecommendationPanel({
+  rows,
+  reorderRevealed,
+  onRevealReorder,
+}: {
+  rows: ComputedRow[];
+  reorderRevealed: boolean;
+  onRevealReorder: () => void;
+}) {
   const insufficient = rows.filter((r) => r.finalStatus === "insufficient");
   const low = rows.filter((r) => r.finalStatus === "low");
+  const needsReorder = insufficient.length + low.length > 0;
 
   let title: string;
   let body: string;
-  let action: string | null;
 
   if (insufficient.length > 0) {
     const names = insufficient.map((r) => r.item.name).join(", ");
     title = `Production completed with shortfall on ${insufficient.length} material${insufficient.length > 1 ? "s" : ""}.`;
     body = `Reorder ${names} immediately — the next run will block until stock is replenished.`;
-    action = "Trigger reorder workflow";
   } else if (low.length > 0) {
     const names = low.map((r) => r.item.name).join(" and ");
     title = `Production completed. ${low.length} raw material${low.length > 1 ? "s" : ""} now below alert level.`;
     body = `Schedule reorders for ${names} before the next batch — Operza recommends acting before the floor runs out.`;
-    action = "View reorder suggestions";
   } else {
     title = "Production completed successfully.";
     body = "All stock levels remain within healthy range.";
-    action = null;
   }
 
   return (
@@ -641,11 +682,71 @@ function RecommendationPanel({ rows }: { rows: ComputedRow[] }) {
           </p>
           <p className="mt-1.5 text-sm font-semibold text-slate-900">{title}</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
-          {action && (
-            <p className="mt-2 text-xs text-slate-500">
-              In the live app: {action} →
-            </p>
+          {needsReorder && !reorderRevealed && (
+            <button
+              type="button"
+              onClick={onRevealReorder}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:border-brand-300 hover:bg-brand-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            >
+              Generate reorder suggestion
+              <ArrowRightIcon className="h-3 w-3" />
+            </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReorderPanel({ rows }: { rows: ComputedRow[] }) {
+  const items = rows
+    .filter((r) => r.finalStatus !== "ok")
+    .map((r) => ({
+      name: r.item.name,
+      qty: suggestedReorder(r.item, r.currentAfter),
+      unit: r.item.unit,
+    }));
+
+  return (
+    <div
+      key="reorder"
+      className="border-t border-slate-100 bg-brand-50/30 px-5 py-5 animate-fade-up sm:px-6"
+    >
+      <div className="flex items-start gap-3">
+        <PackageIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
+        <div className="flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">
+            Suggested replenishment
+          </p>
+
+          <ul className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+            {items.map((it) => (
+              <li
+                key={it.name}
+                className="flex items-center justify-between px-3 py-2.5 text-sm"
+              >
+                <span className="font-medium text-slate-900">{it.name}</span>
+                <span className="inline-flex items-center gap-2 tabular-nums">
+                  <ArrowRightIcon className="h-3 w-3 text-slate-400" />
+                  <span className="font-semibold text-slate-900">
+                    {it.qty.toLocaleString("en-IN")} {it.unit}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-3 text-xs text-slate-500">
+            Estimated coverage · ~3 future production batches
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Operza calculates reorder visibility before shortages stop
+            production.
+          </p>
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-brand-100/70 px-2.5 py-1 text-[11px] font-semibold text-brand-700">
+            <ClockIcon className="h-3 w-3" />
+            Recommended reorder timing — within the next 24 hours
+          </p>
         </div>
       </div>
     </div>
@@ -755,6 +856,43 @@ function AlertIcon({ tone }: { tone: "warn" | "danger" }) {
         d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z"
         clipRule="evenodd"
       />
+    </svg>
+  );
+}
+
+function PackageIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10 2.5L3 5.5v9L10 17.5l7-3v-9L10 2.5z" />
+      <path d="M3 5.5l7 3 7-3" />
+      <path d="M10 8.5v9" />
+    </svg>
+  );
+}
+
+function ClockIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      className={className}
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="10" cy="10" r="7" />
+      <path d="M10 6v4l2.5 2" />
     </svg>
   );
 }

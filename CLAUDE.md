@@ -115,6 +115,28 @@ scenario-based operational simulation:
   2 materials now below alert level" narrative beat the rev-3 spec
   asked for, instead of a hard block.
 
+**Rev-4 (operational continuation, same day):** the rev-3 flow ended at
+"recommendation panel" — operational but terminal. Added one
+continuation step so the scenario reads as an ongoing factory rather
+than a one-shot demo:
+* New "Generate reorder suggestion" button inside the recommendation
+  panel (only renders when there are low/insufficient materials,
+  i.e. always given the scripted scenario).
+* On click → reveals a `<ReorderPanel />` below: brand-50/30 wash,
+  package icon, a small white-card list of items with their suggested
+  reorder quantities, an "Estimated coverage · ~3 future production
+  batches" footnote, an operational explanation line, and a brand-100
+  pill with a clock icon: "Recommended reorder timing — within the
+  next 24 hours."
+* Suggested quantities are *derived*, not hardcoded:
+  `ceil((3 × required) − currentAfter)` rounded up to a nice unit step
+  (50 for pcs, 5 for L). At the scripted scenario this yields Wood
+  Planks 300 pcs / Wood Glue 40 L — which actually covers 3 future
+  batches, so the marketing claim matches the data.
+* `reorderRevealed` state is cleared by both `start()` and `reset()`
+  so Run Again replays the whole sequence cleanly.
+* +0.5 kB bundle (70 kB total for `/`).
+
 * Pure client state — no Supabase, no API routes, no persistence.
 * Single product (Dining Chair), three BOM items, segmented quantity
   selector (10 / 25 / 50 / 100).
