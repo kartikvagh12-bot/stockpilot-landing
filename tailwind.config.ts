@@ -42,11 +42,19 @@ const config: Config = {
       },
       animation: {
         "fade-up": "fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both",
+        // Brief highlight pulse — used on demo cells when an input
+        // change recomputes the value, so the interactivity is
+        // unmissable without being noisy.
+        flash: "flash 600ms ease-out both",
       },
       keyframes: {
         fadeUp: {
           "0%": { opacity: "0", transform: "translateY(10px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        flash: {
+          "0%": { backgroundColor: "rgba(15, 23, 42, 0.07)" },
+          "100%": { backgroundColor: "rgba(15, 23, 42, 0)" },
         },
       },
     },

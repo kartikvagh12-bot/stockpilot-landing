@@ -10,6 +10,25 @@ import { SITE } from "@/lib/site";
 //
 // Sits between <Workflow /> (static explainer) and <Features /> (detail
 // reinforcement) so the page reads as: explain → try → explore.
+//
+// Design notes from the rev-2 iteration (after PR #14 first-cut feedback
+// "hard to notice, hard to realise it does something, doesn't give
+// idea about the app"):
+//   * Default qty=100 so the dramatic alert state is visible on first
+//     paint — visitor doesn't have to discover it.
+//   * Value-led headline ("Catch shortages before production stops")
+//     instead of behaviour-led ("See how production affects inventory").
+//   * Selector promoted to its own labelled row inside the card,
+//     full-width buttons, with an explicit "Try" affordance.
+//   * "After" cells animate a brief flash on every qty change (via
+//     key={qty} forcing remount of an animate-flash element) so the
+//     interactivity is unmissable.
+//   * Operational read line + footer line wire the demo to the product:
+//     "Operza flags this before you commit" / "This is exactly what
+//     Operza shows your floor team before every production run."
+//   * Subtle bg-grid texture + slate-50 section bg + shadow-lift on the
+//     card differentiate the section from the surrounding white sections
+//     without going dark/cinematic.
 
 type BomItem = {
   name: string;
@@ -24,16 +43,15 @@ const PRODUCT = {
   finishedGoodsBefore: 20,
 };
 
-// Data is tuned slightly from the literal spec example so the demo arc
+// Data tuned slightly from the literal brief example so the demo arc
 // hits all three Status states across the four quantity options:
 //   10  → all OK            (calm baseline)
-//   25  → all OK            (default)
+//   25  → all OK
 //   50  → all OK            (still under)
 //   100 → Wood Planks LOW   + Wood Glue INSUFFICIENT (crisis moment)
-// The only number changed vs the brief is Wood Glue's requiredPerUnit
-// (0.04 → 0.18 L per chair) — closer to realistic anyway and makes the
-// "Production cannot complete" copy actually reachable. Easy to revert
-// if a literal match to the spec is preferred.
+// Only number changed vs the brief is Wood Glue's requiredPerUnit
+// (0.04 → 0.18 L per chair) — closer to realistic and makes the
+// "Production cannot complete" copy actually reachable.
 const BOM: ReadonlyArray<BomItem> = [
   { name: "Wood Planks", stock: 120, requiredPerUnit: 1, alertLevel: 30, unit: "pcs" },
   { name: "Screws", stock: 1000, requiredPerUnit: 4, alertLevel: 200, unit: "pcs" },
@@ -62,8 +80,6 @@ function computeRow(item: BomItem, qty: number): Row {
 }
 
 function formatValue(value: number, unit: string): string {
-  // Trim trailing zeros; keep up to two decimals so 0.18 × 25 = 4.5
-  // doesn't render as 4.5000000001 from float math.
   const rounded = Math.round(value * 100) / 100;
   const text = Number.isInteger(rounded)
     ? rounded.toLocaleString("en-IN")
@@ -72,7 +88,12 @@ function formatValue(value: number, unit: string): string {
 }
 
 export default function InteractiveProductionDemo() {
-  const [qty, setQty] = useState<Qty>(25);
+  // Start at qty=100 so the visitor lands on the dramatic state
+  // (Wood Planks LOW + Wood Glue INSUFFICIENT, danger banner firing).
+  // The demo sells the value moment immediately; clicking down to
+  // smaller quantities then shows the "all clear" inverse — both
+  // directions are educational.
+  const [qty, setQty] = useState<Qty>(100);
 
   const rows = useMemo(
     () => BOM.map((item) => computeRow(item, qty)),
@@ -104,38 +125,50 @@ export default function InteractiveProductionDemo() {
     <section
       id="simulator"
       aria-label="Interactive production demo"
-      className="section relative"
+      className="section relative isolate overflow-hidden bg-slate-50/60"
     >
+      {/* Subtle industrial grid texture, masked top/bottom so the section
+          reads as visually distinct from the white Workflow/Features
+          sections above and below without being heavy or dark. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 bg-grid opacity-60 mask-fade-y"
+      />
+
       <div className="container-page">
         <div className="max-w-2xl">
-          <span className="eyebrow">Try it</span>
+          <span className="eyebrow">Live preview · no signup</span>
           <h2 className="h-section">
-            See how production affects inventory.
+            Catch shortages before production stops.
           </h2>
           <p className="p-section">
-            When production runs, raw materials reduce, finished goods
-            increase, and low-stock risks become visible instantly.
+            Operza calculates the impact of every production run on your
+            raw materials — instantly. Adjust the batch size to see how.
           </p>
         </div>
 
-        <div className="mt-12 surface overflow-hidden">
+        <div className="mt-12 rounded-2xl border border-slate-200 bg-white shadow-lift overflow-hidden">
           <DemoHeader qty={qty} onChange={setQty} />
 
-          <InventoryTableDesktop rows={rows} />
-          <InventoryTableMobile rows={rows} />
+          <InventoryTableDesktop rows={rows} qty={qty} />
+          <InventoryTableMobile rows={rows} qty={qty} />
 
           <FinishedGoodsAndAlert
+            qty={qty}
             finishedAfter={finishedAfter}
             alert={alert}
           />
         </div>
 
+        <p className="mt-6 text-center text-sm text-slate-500">
+          This is exactly what Operza shows your floor team before every
+          production run.
+        </p>
+
         <div className="mt-10 flex flex-col items-center gap-5 text-center">
           <p className="max-w-xl text-sm text-slate-500">
-            This is a simplified preview of Operza&apos;s production
-            workflow. The live app handles multi-product BOMs, partial
-            production runs, optimistic concurrency, and full operational
-            history.
+            The live app handles multi-product BOMs, partial production
+            runs, optimistic concurrency, and full operational history.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link href="/health-check" className="btn-primary">
@@ -167,24 +200,38 @@ function DemoHeader({
   onChange: (next: Qty) => void;
 }) {
   return (
-    <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-          Product
-        </p>
-        <p className="mt-1 text-base font-semibold text-slate-900">
-          {PRODUCT.name}
-        </p>
+    <div className="border-b border-slate-100 p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            Product
+          </p>
+          <p className="mt-1 text-lg font-semibold text-slate-900">
+            {PRODUCT.name}
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          </span>
+          Interactive
+        </span>
       </div>
 
-      <div className="flex flex-col items-start gap-2 sm:items-end">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-          Production quantity
-        </p>
+      <div className="mt-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            Try a different production batch size
+          </p>
+          <p className="hidden text-[11px] text-slate-400 sm:block">
+            Click to recalculate ↓
+          </p>
+        </div>
         <div
           role="radiogroup"
-          aria-label="Production quantity"
-          className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+          aria-label="Production batch size"
+          className="mt-2 grid grid-cols-4 gap-2"
         >
           {QUANTITY_OPTIONS.map((opt) => {
             const active = opt === qty;
@@ -195,13 +242,20 @@ function DemoHeader({
                 role="radio"
                 aria-checked={active}
                 onClick={() => onChange(opt)}
-                className={`min-w-[3.25rem] rounded-md px-3 py-1.5 text-sm font-semibold tabular-nums transition ${
+                className={`relative rounded-lg border px-3 py-3 text-base font-semibold tabular-nums transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${
                   active
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                 }`}
               >
                 {opt}
+                <span
+                  className={`mt-0.5 block text-[10px] font-medium uppercase tracking-wide ${
+                    active ? "text-white/65" : "text-slate-400"
+                  }`}
+                >
+                  units
+                </span>
               </button>
             );
           })}
@@ -211,7 +265,7 @@ function DemoHeader({
   );
 }
 
-function InventoryTableDesktop({ rows }: { rows: Row[] }) {
+function InventoryTableDesktop({ rows, qty }: { rows: Row[]; qty: Qty }) {
   return (
     <div className="hidden sm:block">
       <div className="grid grid-cols-[1.4fr_repeat(3,_1fr)_auto] gap-x-4 border-b border-slate-100 bg-slate-50/60 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
@@ -235,8 +289,16 @@ function InventoryTableDesktop({ rows }: { rows: Row[] }) {
           <div className="text-right text-slate-700">
             {formatValue(row.required, row.item.unit)}
           </div>
-          <div className={`text-right font-semibold transition-colors ${afterColor(row.status)}`}>
-            {formatValue(row.after, row.item.unit)}
+          {/* key={`${qty}-${row.item.name}`} forces a re-mount of the
+              animated span on every qty change, retriggering animate-flash
+              so the value visibly highlights right when it updates. */}
+          <div className="text-right">
+            <span
+              key={`${qty}-${row.item.name}`}
+              className={`-mx-1 inline-block rounded px-1 font-semibold transition-colors animate-flash ${afterColor(row.status)}`}
+            >
+              {formatValue(row.after, row.item.unit)}
+            </span>
           </div>
           <div className="pl-4 text-right">
             <StatusChip status={row.status} />
@@ -247,7 +309,7 @@ function InventoryTableDesktop({ rows }: { rows: Row[] }) {
   );
 }
 
-function InventoryTableMobile({ rows }: { rows: Row[] }) {
+function InventoryTableMobile({ rows, qty }: { rows: Row[]; qty: Qty }) {
   return (
     <div className="divide-y divide-slate-100 sm:hidden">
       {rows.map((row) => (
@@ -267,6 +329,7 @@ function InventoryTableMobile({ rows }: { rows: Row[] }) {
             />
             <MiniStat
               label="After"
+              flashKey={`${qty}-${row.item.name}`}
               value={formatValue(row.after, row.item.unit)}
               tone={row.status}
             />
@@ -281,33 +344,40 @@ function MiniStat({
   label,
   value,
   tone,
+  flashKey,
 }: {
   label: string;
   value: string;
   tone?: Status;
+  flashKey?: string;
 }) {
   return (
     <div>
       <dt className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
         {label}
       </dt>
-      <dd
-        className={`mt-0.5 ${
-          tone
-            ? `font-semibold transition-colors ${afterColor(tone)}`
-            : "text-slate-700"
-        }`}
-      >
-        {value}
-      </dd>
+      {tone ? (
+        <dd className="mt-0.5">
+          <span
+            key={flashKey}
+            className={`-mx-1 inline-block rounded px-1 font-semibold transition-colors animate-flash ${afterColor(tone)}`}
+          >
+            {value}
+          </span>
+        </dd>
+      ) : (
+        <dd className="mt-0.5 text-slate-700">{value}</dd>
+      )}
     </div>
   );
 }
 
 function FinishedGoodsAndAlert({
+  qty,
   finishedAfter,
   alert,
 }: {
+  qty: Qty;
   finishedAfter: number;
   alert: { tone: "warn" | "danger"; text: string } | null;
 }) {
@@ -323,7 +393,10 @@ function FinishedGoodsAndAlert({
               {PRODUCT.finishedGoodsBefore}
             </span>
             <ArrowRight className="h-3.5 w-3.5 self-center text-slate-400" />
-            <span className="text-2xl font-semibold text-slate-900 transition-colors">
+            <span
+              key={qty}
+              className="-mx-1 inline-block animate-flash rounded px-1 text-2xl font-semibold text-slate-900 transition-colors"
+            >
               {finishedAfter}
             </span>
             <span className="text-sm font-medium text-slate-500">units</span>
@@ -337,7 +410,7 @@ function FinishedGoodsAndAlert({
 
       {alert && (
         <div
-          key={alert.tone}
+          key={`${alert.tone}-${qty}`}
           role="status"
           className={`mt-4 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm animate-fade-up ${
             alert.tone === "danger"
@@ -346,7 +419,16 @@ function FinishedGoodsAndAlert({
           }`}
         >
           <AlertIcon tone={alert.tone} />
-          <span className="font-medium">{alert.text}</span>
+          <div>
+            <span className="font-medium">{alert.text}</span>
+            <span
+              className={`mt-1 block text-xs font-medium ${
+                alert.tone === "danger" ? "text-red-700/80" : "text-amber-700/80"
+              }`}
+            >
+              Operza flags this before you commit — no surprise stockouts.
+            </span>
+          </div>
         </div>
       )}
     </div>
