@@ -121,6 +121,62 @@ continuation step ("Generate reorder suggestion" button that revealed
 an in-card replenishment panel). This was *replaced* by rev-5 below —
 the rev-4 ReorderPanel component no longer exists.
 
+**Rev-6 (operational decision system, same day):** rev-5 had a fixed
+order quantity (100 chairs); the experience still read as "watching a
+demo" instead of "operating the workflow." Brought a quantity selector
+back — this time as an *operational decision input*, not a calculator
+dial. The four tiers (25 / 50 / 100 / 200) each trigger a deliberately
+different downstream outcome across the whole chain:
+
+* qty=25  → all OK                                            → healthy
+* qty=50  → Wood Glue LOW                                     → minor
+* qty=100 → Wood Planks + Wood Glue LOW                       → moderate
+* qty=200 → Planks + Glue INSUFFICIENT (production BLOCKED)   → urgent
+
+Three pieces of tuning made the tiers actually divergent:
+
+1. **Threshold data tuning** — Wood Glue alertLevel raised 3 → 9 so
+   qty=50 genuinely trips the threshold (8.5L < 9L). Without this
+   raise, qty=50 ended all-OK and the tier narrative collapsed.
+2. **Production block semantics** — when any material would go
+   insufficient (`wouldBlock()` returns true), finishedAfter does NOT
+   post — it stays at the before-value all the way through the
+   sequence. FinishedGoodsBlock renders a red "Production blocked — no
+   units posted" pill. StatusBar at completion shows red dot + "Production
+   blocked · stockout detected" instead of green "completed."
+3. **Reorder formula change** — `ceil(required × 3)` rounded to nice
+   step (no longer subtracting currentAfter, which at negative values
+   inflated the suggestion). Now gives Planks 600 / Glue 80 at qty=200
+   (matches the rev-6 brief example exactly). `coverageLabel()` reports
+   honest post-reorder coverage as `~N batches`.
+
+Downstream tier adaptation:
+
+* `urgencyForRows()` returns a discriminated union (healthy / minor /
+  moderate / urgent) carrying CTA eyebrow + tone, timing label + tone,
+  stability label + tone.
+* RecommendationPanel copy adapts per tier: "successfully" / "approaching
+  threshold" / "now below alert level" / "Production blocked — would have
+  run out."
+* Workspace-nav tile inside the recommendation panel: hidden in healthy
+  tier (no action needed); amber eyebrow + brand-hover for minor /
+  moderate; red border + red wash + red eyebrow ("Urgent · N materials
+  short") for urgent.
+* PurchasingWorkspace insights row: "Within the next 72 hours" / "24
+  hours" / "Immediate action recommended" (red icon + red wash);
+  stability flips from "restored after replenishment" to "Production
+  capacity unstable until replenishment completes." (warn icon).
+* All reorder qtys, suppliers, and coverage labels recompute per
+  selectedQuantity.
+
+Quantity selector UI: idle-phase only (hidden during the run and
+completed states; "Run again" → back to idle exposes it). 4-button
+segmented grid inside OrderHeader, label "Choose production quantity",
+active state is full slate-900 invert with white "units" sublabel.
+Default 100 to land on the moderate-tier story.
+
++1 kB bundle (71.6 kB total for `/`).
+
 **Rev-5 (workspace switch, same day):** the rev-4 in-card reveal still
 read as "smart card with hidden panels" rather than "connected
 operational system." Replaced with a real workspace transition:
