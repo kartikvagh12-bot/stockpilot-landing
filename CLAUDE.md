@@ -78,6 +78,35 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-06-01 — Interactive production demo (friction-reducer for cold visitors)
+
+New section `<InteractiveProductionDemo />` between `<Workflow />` and
+`<Features />` on the homepage. Goal: let cold visitors feel the core
+Operza loop (BOM → production → stock + finished goods + alerts)
+without signup, so the funnel becomes "land → interact → understand →
+CTA" instead of "land → signup → onboarding → understand".
+
+* Pure client state — no Supabase, no API routes, no persistence.
+* Single product (Dining Chair), three BOM items, segmented quantity
+  selector (10 / 25 / 50 / 100).
+* Live recomputes inventory After/Status, finished-goods delta, and an
+  operational alert banner. Status chip uses the same semantic palette
+  as the rest of the landing (emerald / amber / red).
+* No new deps. Tailwind + existing `animate-fade-up` keyframe only —
+  no Framer Motion.
+* One small data tweak vs the literal spec brief: Wood Glue
+  `requiredPerUnit` 0.04 → 0.18 L/chair. The spec's `0.04` made the
+  "insufficient" code path unreachable at every quantity option;
+  bumping it lets qty=100 trigger both the "low" warning (Wood Planks
+  below alert) and the "insufficient" danger (Wood Glue negative), so
+  the dramatic demo moment that the spec's "Production cannot
+  complete" copy was written for is actually demonstrable. Easy revert.
+* Three CTAs under the card: Health Check (primary), Book walkthrough
+  (`#contact`), Open app (`SITE.app`). Signup/login intentionally not
+  part of this section.
+* No nav-link added — would push nav to 7 items. The section has its
+  own `id="simulator"` if a deep link is needed later.
+
 ## 2026-05-23 — Switch "Open app" CTAs to the Next.js app (Phase 5.5 cutover)
 
 `lib/site.ts` was the single chokepoint for every "Open app" CTA on the landing page (Hero, Navbar desktop + mobile, Footer, FinalCTA, plus four occurrences in the HealthCheck results screens). Changed `SITE.app` from `https://operza.streamlit.app` to `https://app.operza.in` — the new Next.js deploy that became the primary product in Phase 5.5.

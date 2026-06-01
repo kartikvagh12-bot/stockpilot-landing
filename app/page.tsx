@@ -3,6 +3,7 @@ import Hero from "@/components/Hero";
 import BlindSpots from "@/components/BlindSpots";
 import HealthCheckCTA from "@/components/HealthCheckCTA";
 import Workflow from "@/components/Workflow";
+import InteractiveProductionDemo from "@/components/InteractiveProductionDemo";
 import Features from "@/components/Features";
 import Screenshots from "@/components/Screenshots";
 import FAQ from "@/components/FAQ";
@@ -21,6 +22,7 @@ export default function HomePage() {
         <BlindSpots />
         <HealthCheckCTA />
         <Workflow />
+        <InteractiveProductionDemo />
         <Features />
         <Screenshots />
         <FAQ />
