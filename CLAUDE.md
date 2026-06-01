@@ -86,6 +86,35 @@ Operza loop (BOM → production → stock + finished goods + alerts)
 without signup, so the funnel becomes "land → interact → understand →
 CTA" instead of "land → signup → onboarding → understand".
 
+**Rev-3 pivot (same day):** the rev-1 + rev-2 design behaved like an
+inventory calculator (click 10/25/50/100, watch numbers recompute) —
+explained the math but didn't sell the product. Replaced with a
+scenario-based operational simulation:
+* Order context card: `ORD-1142 · 100 × Dining Chair · due Tomorrow 9 AM`
+* Primary CTA: **Run Production**
+* On click, a 5-state machine runs: `idle → checking → starting →
+  consuming → completed`
+  * checking: "Checking raw materials…" with brand-blue ping dot
+  * starting: "Production batch starting…"
+  * consuming: RAF-driven counter tween (ease-out cubic, 1500ms)
+    progressively counts Available → Remaining on every row; status
+    chips fade in the moment values cross alert thresholds
+  * completed: green status pill + finished-goods turns emerald
+* Operational warning banner fades in mid-tween when the first row
+  crosses below alert (Wood Glue at ~progress 0.85)
+* Recommendation panel at completion: "Production completed. 2 raw
+  materials now below alert level — schedule reorders for Wood Planks
+  and Wood Glue" (with sparkle icon + brand accent)
+* "Run again" affordance after completion resets the state machine
+* Total sequence: ~2.6 seconds. No Framer Motion — just useState +
+  requestAnimationFrame + existing animate-fade-up / animate-flash
+  keyframes. New bundle cost: +1.5 kB.
+* Data tweak from rev-2: Wood Glue `requiredPerUnit` 0.18 → 0.13 so
+  100 chairs leaves +2L (LOW chip), not -3L (Insufficient). Production
+  *completes* with warnings — that matches the "completed successfully,
+  2 materials now below alert level" narrative beat the rev-3 spec
+  asked for, instead of a hard block.
+
 * Pure client state — no Supabase, no API routes, no persistence.
 * Single product (Dining Chair), three BOM items, segmented quantity
   selector (10 / 25 / 50 / 100).

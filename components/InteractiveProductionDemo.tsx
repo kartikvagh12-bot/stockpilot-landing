@@ -1,34 +1,35 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SITE } from "@/lib/site";
 
-// Friction-reducer for cold visitors: lets them feel the core Operza
-// loop (BOM → production → stock + finished goods + alerts) without
-// signup. Pure client-state — no Supabase, no persistence, no API.
+// Scenario-based operational simulation (rev-3 pivot, 2026-06-01).
 //
-// Sits between <Workflow /> (static explainer) and <Features /> (detail
-// reinforcement) so the page reads as: explain → try → explore.
+// The earlier "quantity-calculator" pattern (click 10/25/50/100, watch
+// numbers recompute) explained inventory math but didn't sell the
+// product. Visitors understood "this can calculate inventory" — not
+// "this software helps run factory operations." This pivot replaces
+// the calculator with a single scripted operational scenario:
 //
-// Design notes from the rev-2 iteration (after PR #14 first-cut feedback
-// "hard to notice, hard to realise it does something, doesn't give
-// idea about the app"):
-//   * Default qty=100 so the dramatic alert state is visible on first
-//     paint — visitor doesn't have to discover it.
-//   * Value-led headline ("Catch shortages before production stops")
-//     instead of behaviour-led ("See how production affects inventory").
-//   * Selector promoted to its own labelled row inside the card,
-//     full-width buttons, with an explicit "Try" affordance.
-//   * "After" cells animate a brief flash on every qty change (via
-//     key={qty} forcing remount of an animate-flash element) so the
-//     interactivity is unmissable.
-//   * Operational read line + footer line wire the demo to the product:
-//     "Operza flags this before you commit" / "This is exactly what
-//     Operza shows your floor team before every production run."
-//   * Subtle bg-grid texture + slate-50 section bg + shadow-lift on the
-//     card differentiate the section from the surrounding white sections
-//     without going dark/cinematic.
+//   1. Incoming order context card (100 chairs, due 9 AM tomorrow)
+//   2. Press "Run Production"
+//   3. Watch the floor sequence unfold:
+//        idle → checking → starting → consuming → completed
+//      - Status line updates phase-by-phase
+//      - Material rows count down progressively (RAF tween)
+//      - Status chips appear as values cross alert thresholds
+//      - Operational warning banner fades in when stock crosses
+//      - Finished goods animates 20 → 120
+//      - Recommendation panel surfaces at the end
+//   4. Run again to repeat.
+//
+// Pure client state. No Supabase, no API, no persistence, no Framer
+// Motion. Just useState + requestAnimationFrame + existing Tailwind
+// keyframes (animate-fade-up, animate-flash). Premium / restrained —
+// total sequence runs in ~2.6s.
+
+// --- Domain ---
 
 type BomItem = {
   name: string;
@@ -43,40 +44,50 @@ const PRODUCT = {
   finishedGoodsBefore: 20,
 };
 
-// Data tuned slightly from the literal brief example so the demo arc
-// hits all three Status states across the four quantity options:
-//   10  → all OK            (calm baseline)
-//   25  → all OK
-//   50  → all OK            (still under)
-//   100 → Wood Planks LOW   + Wood Glue INSUFFICIENT (crisis moment)
-// Only number changed vs the brief is Wood Glue's requiredPerUnit
-// (0.04 → 0.18 L per chair) — closer to realistic and makes the
-// "Production cannot complete" copy actually reachable.
+// Data sized so that 100 chairs (the scripted order quantity below):
+//   - Wood Planks: 120 → 20  (below alert 30 → LOW)
+//   - Screws:     1000 → 600 (above alert 200 → OK)
+//   - Wood Glue:    15 → 2   (below alert 3  → LOW)
+// Production *completes* with two stock warnings — which is the
+// operational-narrative beat the brief asks for ("Production completed
+// successfully. 2 raw materials now below alert level"), not a block.
 const BOM: ReadonlyArray<BomItem> = [
   { name: "Wood Planks", stock: 120, requiredPerUnit: 1, alertLevel: 30, unit: "pcs" },
   { name: "Screws", stock: 1000, requiredPerUnit: 4, alertLevel: 200, unit: "pcs" },
-  { name: "Wood Glue", stock: 15, requiredPerUnit: 0.18, alertLevel: 3, unit: "L" },
+  { name: "Wood Glue", stock: 15, requiredPerUnit: 0.13, alertLevel: 3, unit: "L" },
 ];
 
-const QUANTITY_OPTIONS = [10, 25, 50, 100] as const;
-type Qty = (typeof QUANTITY_OPTIONS)[number];
+const ORDER = {
+  reference: "ORD-1142",
+  quantity: 100,
+  customer: "Acme Furniture",
+  dueAt: "Tomorrow · 9:00 AM",
+};
+
+// --- Phase machine ---
+
+type Phase = "idle" | "checking" | "starting" | "consuming" | "completed";
+
+const PHASE_DURATIONS_MS = {
+  checking: 600,
+  starting: 500,
+  consuming: 1500,
+};
+
+// --- Status helpers ---
 
 type Status = "ok" | "low" | "insufficient";
 
-type Row = {
-  item: BomItem;
-  required: number;
-  after: number;
-  status: Status;
-};
+function statusForAfter(after: number, alertLevel: number): Status {
+  if (after < 0) return "insufficient";
+  if (after < alertLevel) return "low";
+  return "ok";
+}
 
-function computeRow(item: BomItem, qty: number): Row {
-  const required = item.requiredPerUnit * qty;
-  const after = item.stock - required;
-  let status: Status = "ok";
-  if (after < 0) status = "insufficient";
-  else if (after < item.alertLevel) status = "low";
-  return { item, required, after, status };
+function statusColor(status: Status): string {
+  if (status === "insufficient") return "text-red-700";
+  if (status === "low") return "text-amber-700";
+  return "text-slate-900";
 }
 
 function formatValue(value: number, unit: string): string {
@@ -87,49 +98,115 @@ function formatValue(value: number, unit: string): string {
   return `${text} ${unit}`;
 }
 
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+// --- Derived row shape ---
+
+type ComputedRow = {
+  item: BomItem;
+  required: number;          // total consumed at full quantity
+  currentAfter: number;      // current animated "Remaining" value
+  visibleStatus: Status | null; // chip / color, null while pre-checking
+  finalStatus: Status;        // final state at end of sequence
+};
+
+function buildRows(phase: Phase, progress: number): ComputedRow[] {
+  return BOM.map((item) => {
+    const required = item.requiredPerUnit * ORDER.quantity;
+    const finalAfter = item.stock - required;
+    const finalStatus = statusForAfter(finalAfter, item.alertLevel);
+
+    let currentAfter = item.stock;
+    let visibleStatus: Status | null = null;
+    if (phase === "consuming") {
+      currentAfter = item.stock - required * progress;
+      visibleStatus = statusForAfter(currentAfter, item.alertLevel);
+    } else if (phase === "completed") {
+      currentAfter = finalAfter;
+      visibleStatus = finalStatus;
+    }
+    return { item, required, currentAfter, visibleStatus, finalStatus };
+  });
+}
+
+// --- Component ---
+
 export default function InteractiveProductionDemo() {
-  // Start at qty=100 so the visitor lands on the dramatic state
-  // (Wood Planks LOW + Wood Glue INSUFFICIENT, danger banner firing).
-  // The demo sells the value moment immediately; clicking down to
-  // smaller quantities then shows the "all clear" inverse — both
-  // directions are educational.
-  const [qty, setQty] = useState<Qty>(100);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [progress, setProgress] = useState(0); // 0..1 during "consuming"
 
-  const rows = useMemo(
-    () => BOM.map((item) => computeRow(item, qty)),
-    [qty],
-  );
-  const finishedAfter = PRODUCT.finishedGoodsBefore + qty;
+  const rafRef = useRef<number | null>(null);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const alert = useMemo(() => {
-    const insufficient = rows.filter((r) => r.status === "insufficient");
-    if (insufficient.length > 0) {
-      const names = insufficient.map((r) => r.item.name).join(", ");
-      return {
-        tone: "danger" as const,
-        text: `Production cannot complete at this quantity — ${names} insufficient.`,
-      };
+  function clearTimers() {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
-    const low = rows.filter((r) => r.status === "low");
-    if (low.length > 0) {
-      const names = low.map((r) => r.item.name).join(", ");
-      return {
-        tone: "warn" as const,
-        text: `${names} will fall below alert level after this run.`,
-      };
-    }
-    return null;
-  }, [rows]);
+    timeoutsRef.current.forEach(clearTimeout);
+    timeoutsRef.current = [];
+  }
+
+  useEffect(() => () => clearTimers(), []);
+
+  function start() {
+    clearTimers();
+    setProgress(0);
+    setPhase("checking");
+
+    timeoutsRef.current.push(
+      setTimeout(() => setPhase("starting"), PHASE_DURATIONS_MS.checking),
+    );
+    timeoutsRef.current.push(
+      setTimeout(() => {
+        setPhase("consuming");
+        const startTs = performance.now();
+        const tick = (now: number) => {
+          const t = Math.min(1, (now - startTs) / PHASE_DURATIONS_MS.consuming);
+          setProgress(easeOutCubic(t));
+          if (t < 1) {
+            rafRef.current = requestAnimationFrame(tick);
+          } else {
+            rafRef.current = null;
+            setPhase("completed");
+          }
+        };
+        rafRef.current = requestAnimationFrame(tick);
+      }, PHASE_DURATIONS_MS.checking + PHASE_DURATIONS_MS.starting),
+    );
+  }
+
+  function reset() {
+    clearTimers();
+    setProgress(0);
+    setPhase("idle");
+  }
+
+  const rows = buildRows(phase, progress);
+  const finishedAfter =
+    phase === "completed"
+      ? PRODUCT.finishedGoodsBefore + ORDER.quantity
+      : phase === "consuming"
+        ? PRODUCT.finishedGoodsBefore + ORDER.quantity * progress
+        : PRODUCT.finishedGoodsBefore;
+
+  // The alert fires as soon as any row visibly crosses below alert
+  // level — i.e. mid-tween — which is the moment that sells the
+  // "operationally intelligent" beat. We pick the most-severe row
+  // (insufficient > low) and surface its name in the copy.
+  const alertRow = (phase === "consuming" || phase === "completed")
+    ? (rows.find((r) => r.visibleStatus === "insufficient")
+       ?? rows.find((r) => r.visibleStatus === "low"))
+    : undefined;
 
   return (
     <section
       id="simulator"
-      aria-label="Interactive production demo"
+      aria-label="Interactive production simulation"
       className="section relative isolate overflow-hidden bg-slate-50/60"
     >
-      {/* Subtle industrial grid texture, masked top/bottom so the section
-          reads as visually distinct from the white Workflow/Features
-          sections above and below without being heavy or dark. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-grid opacity-60 mask-fade-y"
@@ -137,27 +214,34 @@ export default function InteractiveProductionDemo() {
 
       <div className="container-page">
         <div className="max-w-2xl">
-          <span className="eyebrow">Live preview · no signup</span>
-          <h2 className="h-section">
-            Catch shortages before production stops.
-          </h2>
+          <span className="eyebrow">Live operational preview</span>
+          <h2 className="h-section">Can we fulfil this order today?</h2>
           <p className="p-section">
-            Operza calculates the impact of every production run on your
-            raw materials — instantly. Adjust the batch size to see how.
+            A real production order — ready to run. Press
+            <span className="font-medium text-slate-800"> Run Production </span>
+            to see how Operza checks materials, deducts stock, and
+            surfaces alerts before the floor commits.
           </p>
         </div>
 
         <div className="mt-12 rounded-2xl border border-slate-200 bg-white shadow-lift overflow-hidden">
-          <DemoHeader qty={qty} onChange={setQty} />
+          <OrderHeader phase={phase} onStart={start} onReset={reset} />
 
-          <InventoryTableDesktop rows={rows} qty={qty} />
-          <InventoryTableMobile rows={rows} qty={qty} />
+          <StatusBar phase={phase} />
 
-          <FinishedGoodsAndAlert
-            qty={qty}
-            finishedAfter={finishedAfter}
-            alert={alert}
-          />
+          <InventoryTableDesktop rows={rows} phase={phase} />
+          <InventoryTableMobile rows={rows} phase={phase} />
+
+          <FinishedGoodsBlock phase={phase} finishedAfter={finishedAfter} />
+
+          {alertRow && (
+            <OperationalAlert
+              row={alertRow}
+              key={`${alertRow.item.name}-${alertRow.visibleStatus}`}
+            />
+          )}
+
+          {phase === "completed" && <RecommendationPanel rows={rows} />}
         </div>
 
         <p className="mt-6 text-center text-sm text-slate-500">
@@ -166,10 +250,6 @@ export default function InteractiveProductionDemo() {
         </p>
 
         <div className="mt-10 flex flex-col items-center gap-5 text-center">
-          <p className="max-w-xl text-sm text-slate-500">
-            The live app handles multi-product BOMs, partial production
-            runs, optimistic concurrency, and full operational history.
-          </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link href="/health-check" className="btn-primary">
               Take Manufacturing Health Check
@@ -192,150 +272,239 @@ export default function InteractiveProductionDemo() {
   );
 }
 
-function DemoHeader({
-  qty,
-  onChange,
+// --- Subcomponents ---
+
+function OrderHeader({
+  phase,
+  onStart,
+  onReset,
 }: {
-  qty: Qty;
-  onChange: (next: Qty) => void;
+  phase: Phase;
+  onStart: () => void;
+  onReset: () => void;
 }) {
+  const running = phase === "checking" || phase === "starting" || phase === "consuming";
+  const done = phase === "completed";
+
   return (
     <div className="border-b border-slate-100 p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-            Product
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+              New order
+            </span>
+            <span className="font-mono text-[11px] uppercase tracking-wider text-slate-400">
+              {ORDER.reference}
+            </span>
+          </div>
+          <p className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
+            {ORDER.quantity} × {PRODUCT.name}
           </p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">
-            {PRODUCT.name}
-          </p>
+          <p className="mt-1 text-sm text-slate-500">{ORDER.customer}</p>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          </span>
-          Interactive
-        </span>
+
+        <div className="flex flex-col items-start gap-1 sm:items-end">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            Delivery due
+          </p>
+          <p className="text-sm font-semibold text-slate-900">{ORDER.dueAt}</p>
+        </div>
       </div>
 
-      <div className="mt-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-            Try a different production batch size
-          </p>
-          <p className="hidden text-[11px] text-slate-400 sm:block">
-            Click to recalculate ↓
-          </p>
-        </div>
-        <div
-          role="radiogroup"
-          aria-label="Production batch size"
-          className="mt-2 grid grid-cols-4 gap-2"
-        >
-          {QUANTITY_OPTIONS.map((opt) => {
-            const active = opt === qty;
-            return (
-              <button
-                key={opt}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => onChange(opt)}
-                className={`relative rounded-lg border px-3 py-3 text-base font-semibold tabular-nums transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 ${
-                  active
-                    ? "border-slate-900 bg-slate-900 text-white shadow-sm"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-                }`}
-              >
-                {opt}
-                <span
-                  className={`mt-0.5 block text-[10px] font-medium uppercase tracking-wide ${
-                    active ? "text-white/65" : "text-slate-400"
-                  }`}
-                >
-                  units
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      <div className="mt-5 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+        {phase === "idle" && (
+          <button
+            type="button"
+            onClick={onStart}
+            className="btn-primary group h-12 px-6 text-base"
+          >
+            <PlayIcon className="h-4 w-4" />
+            Run Production
+          </button>
+        )}
+
+        {running && (
+          <button
+            type="button"
+            disabled
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-slate-900/85 px-6 text-base font-semibold text-white"
+          >
+            <Spinner className="h-4 w-4" />
+            Running production…
+          </button>
+        )}
+
+        {done && (
+          <>
+            <span className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-5 text-sm font-semibold text-emerald-800">
+              <CheckIcon className="h-4 w-4" />
+              Production completed
+            </span>
+            <button
+              type="button"
+              onClick={onReset}
+              className="btn-secondary h-12 text-sm"
+            >
+              Run again
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function InventoryTableDesktop({ rows, qty }: { rows: Row[]; qty: Qty }) {
+function StatusBar({ phase }: { phase: Phase }) {
+  const message = (() => {
+    switch (phase) {
+      case "checking":
+        return "Checking raw materials…";
+      case "starting":
+        return "Production batch starting…";
+      case "consuming":
+        return "Production in progress…";
+      case "completed":
+        return "Production completed in ~2.6s";
+      default:
+        return null;
+    }
+  })();
+
+  if (!message) return null;
+
+  const isActive = phase !== "completed";
+  return (
+    <div
+      key={phase}
+      className={`flex items-center gap-2.5 border-b px-5 py-2.5 text-[12px] font-medium animate-fade-up sm:px-6 ${
+        phase === "completed"
+          ? "border-emerald-100 bg-emerald-50/60 text-emerald-800"
+          : "border-slate-100 bg-slate-50 text-slate-600"
+      }`}
+    >
+      <span className="relative flex h-2 w-2 flex-shrink-0">
+        {isActive ? (
+          <>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-500" />
+          </>
+        ) : (
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+        )}
+      </span>
+      {message}
+    </div>
+  );
+}
+
+function InventoryTableDesktop({
+  rows,
+  phase,
+}: {
+  rows: ComputedRow[];
+  phase: Phase;
+}) {
+  const showRequired = phase !== "idle";
+  const showRemaining = phase === "consuming" || phase === "completed";
+
   return (
     <div className="hidden sm:block">
       <div className="grid grid-cols-[1.4fr_repeat(3,_1fr)_auto] gap-x-4 border-b border-slate-100 bg-slate-50/60 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
         <div>Material</div>
-        <div className="text-right">Before</div>
+        <div className="text-right">Available</div>
         <div className="text-right">Required</div>
-        <div className="text-right">After</div>
+        <div className="text-right">Remaining</div>
         <div className="pl-4 text-right">Status</div>
       </div>
-      {rows.map((row, i) => (
-        <div
-          key={row.item.name}
-          className={`grid grid-cols-[1.4fr_repeat(3,_1fr)_auto] items-center gap-x-4 px-6 py-3.5 text-sm tabular-nums ${
-            i < rows.length - 1 ? "border-b border-slate-100" : ""
-          }`}
-        >
-          <div className="font-medium text-slate-900">{row.item.name}</div>
-          <div className="text-right text-slate-700">
-            {formatValue(row.item.stock, row.item.unit)}
+      {rows.map((row, i) => {
+        const updating = phase === "consuming";
+        return (
+          <div
+            key={row.item.name}
+            className={`grid grid-cols-[1.4fr_repeat(3,_1fr)_auto] items-center gap-x-4 px-6 py-3.5 text-sm tabular-nums transition-colors ${
+              i < rows.length - 1 ? "border-b border-slate-100" : ""
+            } ${updating ? "bg-brand-50/30" : ""}`}
+          >
+            <div className="font-medium text-slate-900">{row.item.name}</div>
+            <div className="text-right text-slate-700">
+              {formatValue(row.item.stock, row.item.unit)}
+            </div>
+            <div className="text-right text-slate-700">
+              {showRequired
+                ? formatValue(row.required, row.item.unit)
+                : <Dash />}
+            </div>
+            <div className={`text-right font-semibold ${row.visibleStatus ? statusColor(row.visibleStatus) : "text-slate-300"}`}>
+              {showRemaining
+                ? formatValue(row.currentAfter, row.item.unit)
+                : <Dash />}
+            </div>
+            <div className="pl-4 text-right">
+              {row.visibleStatus ? (
+                <StatusChip
+                  key={row.visibleStatus}
+                  status={row.visibleStatus}
+                />
+              ) : (
+                <Dash />
+              )}
+            </div>
           </div>
-          <div className="text-right text-slate-700">
-            {formatValue(row.required, row.item.unit)}
-          </div>
-          {/* key={`${qty}-${row.item.name}`} forces a re-mount of the
-              animated span on every qty change, retriggering animate-flash
-              so the value visibly highlights right when it updates. */}
-          <div className="text-right">
-            <span
-              key={`${qty}-${row.item.name}`}
-              className={`-mx-1 inline-block rounded px-1 font-semibold transition-colors animate-flash ${afterColor(row.status)}`}
-            >
-              {formatValue(row.after, row.item.unit)}
-            </span>
-          </div>
-          <div className="pl-4 text-right">
-            <StatusChip status={row.status} />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function InventoryTableMobile({ rows, qty }: { rows: Row[]; qty: Qty }) {
+function InventoryTableMobile({
+  rows,
+  phase,
+}: {
+  rows: ComputedRow[];
+  phase: Phase;
+}) {
+  const showRequired = phase !== "idle";
+  const showRemaining = phase === "consuming" || phase === "completed";
+
   return (
     <div className="divide-y divide-slate-100 sm:hidden">
-      {rows.map((row) => (
-        <div key={row.item.name} className="px-5 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="font-medium text-slate-900">{row.item.name}</div>
-            <StatusChip status={row.status} />
+      {rows.map((row) => {
+        const updating = phase === "consuming";
+        return (
+          <div
+            key={row.item.name}
+            className={`px-5 py-4 transition-colors ${updating ? "bg-brand-50/30" : ""}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="font-medium text-slate-900">{row.item.name}</div>
+              {row.visibleStatus ? (
+                <StatusChip
+                  key={row.visibleStatus}
+                  status={row.visibleStatus}
+                />
+              ) : (
+                <Dash />
+              )}
+            </div>
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-xs tabular-nums">
+              <MiniStat
+                label="Available"
+                value={formatValue(row.item.stock, row.item.unit)}
+              />
+              <MiniStat
+                label="Required"
+                value={showRequired ? formatValue(row.required, row.item.unit) : "—"}
+              />
+              <MiniStat
+                label="Remaining"
+                value={showRemaining ? formatValue(row.currentAfter, row.item.unit) : "—"}
+                tone={row.visibleStatus ?? undefined}
+              />
+            </dl>
           </div>
-          <dl className="mt-3 grid grid-cols-3 gap-2 text-xs tabular-nums">
-            <MiniStat
-              label="Before"
-              value={formatValue(row.item.stock, row.item.unit)}
-            />
-            <MiniStat
-              label="Required"
-              value={formatValue(row.required, row.item.unit)}
-            />
-            <MiniStat
-              label="After"
-              flashKey={`${qty}-${row.item.name}`}
-              value={formatValue(row.after, row.item.unit)}
-              tone={row.status}
-            />
-          </dl>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -344,43 +513,35 @@ function MiniStat({
   label,
   value,
   tone,
-  flashKey,
 }: {
   label: string;
   value: string;
   tone?: Status;
-  flashKey?: string;
 }) {
   return (
     <div>
       <dt className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
         {label}
       </dt>
-      {tone ? (
-        <dd className="mt-0.5">
-          <span
-            key={flashKey}
-            className={`-mx-1 inline-block rounded px-1 font-semibold transition-colors animate-flash ${afterColor(tone)}`}
-          >
-            {value}
-          </span>
-        </dd>
-      ) : (
-        <dd className="mt-0.5 text-slate-700">{value}</dd>
-      )}
+      <dd
+        className={`mt-0.5 font-semibold ${
+          tone ? statusColor(tone) : "text-slate-700"
+        }`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
 
-function FinishedGoodsAndAlert({
-  qty,
+function FinishedGoodsBlock({
+  phase,
   finishedAfter,
-  alert,
 }: {
-  qty: Qty;
+  phase: Phase;
   finishedAfter: number;
-  alert: { tone: "warn" | "danger"; text: string } | null;
 }) {
+  const rendered = Math.round(finishedAfter);
   return (
     <div className="border-t border-slate-100 bg-slate-50/40 px-5 py-5 sm:px-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -392,12 +553,13 @@ function FinishedGoodsAndAlert({
             <span className="text-base font-medium text-slate-500">
               {PRODUCT.finishedGoodsBefore}
             </span>
-            <ArrowRight className="h-3.5 w-3.5 self-center text-slate-400" />
+            <ArrowRightIcon className="h-3.5 w-3.5 self-center text-slate-400" />
             <span
-              key={qty}
-              className="-mx-1 inline-block animate-flash rounded px-1 text-2xl font-semibold text-slate-900 transition-colors"
+              className={`text-2xl font-semibold transition-colors ${
+                phase === "completed" ? "text-emerald-700" : "text-slate-900"
+              }`}
             >
-              {finishedAfter}
+              {rendered}
             </span>
             <span className="text-sm font-medium text-slate-500">units</span>
           </p>
@@ -407,33 +569,90 @@ function FinishedGoodsAndAlert({
           in one transaction.
         </p>
       </div>
-
-      {alert && (
-        <div
-          key={`${alert.tone}-${qty}`}
-          role="status"
-          className={`mt-4 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm animate-fade-up ${
-            alert.tone === "danger"
-              ? "border-red-200 bg-red-50 text-red-800"
-              : "border-amber-200 bg-amber-50 text-amber-800"
-          }`}
-        >
-          <AlertIcon tone={alert.tone} />
-          <div>
-            <span className="font-medium">{alert.text}</span>
-            <span
-              className={`mt-1 block text-xs font-medium ${
-                alert.tone === "danger" ? "text-red-700/80" : "text-amber-700/80"
-              }`}
-            >
-              Operza flags this before you commit — no surprise stockouts.
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+function OperationalAlert({ row }: { row: ComputedRow }) {
+  const tone = row.visibleStatus === "insufficient" ? "danger" : "warn";
+  const heading =
+    tone === "danger"
+      ? `Production cannot complete — ${row.item.name} insufficient.`
+      : `${row.item.name} dropped below safety stock level.`;
+  return (
+    <div
+      role="status"
+      className={`mx-5 mb-5 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm animate-fade-up sm:mx-6 sm:mb-6 ${
+        tone === "danger"
+          ? "border-red-200 bg-red-50 text-red-800"
+          : "border-amber-200 bg-amber-50 text-amber-800"
+      }`}
+    >
+      <AlertIcon tone={tone} />
+      <div>
+        <span className="font-medium">{heading}</span>
+        <span
+          className={`mt-1 block text-xs font-medium ${
+            tone === "danger" ? "text-red-700/80" : "text-amber-700/80"
+          }`}
+        >
+          Operza surfaces this the moment the threshold is crossed — no
+          surprise stockouts mid-run.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function RecommendationPanel({ rows }: { rows: ComputedRow[] }) {
+  const insufficient = rows.filter((r) => r.finalStatus === "insufficient");
+  const low = rows.filter((r) => r.finalStatus === "low");
+
+  let title: string;
+  let body: string;
+  let action: string | null;
+
+  if (insufficient.length > 0) {
+    const names = insufficient.map((r) => r.item.name).join(", ");
+    title = `Production completed with shortfall on ${insufficient.length} material${insufficient.length > 1 ? "s" : ""}.`;
+    body = `Reorder ${names} immediately — the next run will block until stock is replenished.`;
+    action = "Trigger reorder workflow";
+  } else if (low.length > 0) {
+    const names = low.map((r) => r.item.name).join(" and ");
+    title = `Production completed. ${low.length} raw material${low.length > 1 ? "s" : ""} now below alert level.`;
+    body = `Schedule reorders for ${names} before the next batch — Operza recommends acting before the floor runs out.`;
+    action = "View reorder suggestions";
+  } else {
+    title = "Production completed successfully.";
+    body = "All stock levels remain within healthy range.";
+    action = null;
+  }
+
+  return (
+    <div
+      key="recommendation"
+      className="border-t border-slate-100 bg-white px-5 py-5 animate-fade-up sm:px-6"
+    >
+      <div className="flex items-start gap-3">
+        <SparkleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
+        <div className="flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">
+            Operza recommends
+          </p>
+          <p className="mt-1.5 text-sm font-semibold text-slate-900">{title}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
+          {action && (
+            <p className="mt-2 text-xs text-slate-500">
+              In the live app: {action} →
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Atoms ---
 
 function StatusChip({ status }: { status: Status }) {
   if (status === "insufficient") {
@@ -468,7 +687,7 @@ function Chip({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${textClass}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide animate-fade-up ${textClass}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} aria-hidden="true" />
       {children}
@@ -476,13 +695,40 @@ function Chip({
   );
 }
 
-function afterColor(status: Status): string {
-  if (status === "insufficient") return "text-red-700";
-  if (status === "low") return "text-amber-700";
-  return "text-slate-900";
+function Dash() {
+  return <span className="text-slate-300">—</span>;
 }
 
-function ArrowRight({ className = "" }: { className?: string }) {
+function PlayIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M6.3 4.3a1 1 0 011.5-.87l8.1 5.06a1 1 0 010 1.7l-8.1 5.07a1 1 0 01-1.5-.86V4.3z" />
+    </svg>
+  );
+}
+
+function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className={`animate-spin ${className}`}>
+      <circle cx="10" cy="10" r="7" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2.5" />
+      <path d="M17 10a7 7 0 00-7-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={className}>
+      <path
+        fillRule="evenodd"
+        d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4L8.5 12l6.8-6.8a1 1 0 011.4 0z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+function ArrowRightIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={className}>
       <path
@@ -509,6 +755,14 @@ function AlertIcon({ tone }: { tone: "warn" | "danger" }) {
         d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z"
         clipRule="evenodd"
       />
+    </svg>
+  );
+}
+
+function SparkleIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M10 1.5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 1.5zM10 14.25a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5a.75.75 0 01.75-.75zM18.5 10a.75.75 0 01-.75.75h-3.5a.75.75 0 010-1.5h3.5a.75.75 0 01.75.75zM5.75 10a.75.75 0 01-.75.75h-3.5a.75.75 0 010-1.5h3.5a.75.75 0 01.75.75zM16.013 16.013a.75.75 0 01-1.06 0L12.47 13.53a.75.75 0 011.06-1.06l2.483 2.483a.75.75 0 010 1.06zM7.531 7.531a.75.75 0 01-1.061 0L3.987 5.048a.75.75 0 011.06-1.06l2.484 2.482a.75.75 0 010 1.061zM16.013 3.987a.75.75 0 010 1.061L13.53 7.53a.75.75 0 11-1.06-1.06l2.483-2.483a.75.75 0 011.06 0zM7.531 12.47a.75.75 0 010 1.06l-2.484 2.483a.75.75 0 11-1.06-1.06l2.483-2.483a.75.75 0 011.061 0z" />
     </svg>
   );
 }
