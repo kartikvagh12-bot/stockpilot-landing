@@ -1,3 +1,94 @@
+# CURRENT STATE (September 2026) — AUTHORITATIVE
+
+**Read this section first. Everything below it is a historical log and is out of
+date unless it is explicitly marked current.**
+
+## Product truth
+
+Operza's product truth lives in **`kartikvagh12-bot/operza-app`**, not in this
+repository. This repo markets the product; it never defines it.
+
+Product `main` used as the basis for the current marketing refresh:
+
+```
+c3580741dd4b182680253c8204bb5a5b985ace34
+```
+
+Before writing or changing any customer-facing claim here, verify it against
+that repository. `operza-app/docs/PROJECT_STATE.md` is its current-status truth.
+
+## What Operza is now
+
+Operza is manufacturing software for Indian factories. It runs the shop floor
+and the business books.
+
+It ships as three customer-selectable plans, declared in
+`operza-app/lib/capabilities.ts` and named on its onboarding screen:
+
+* **Operza Factory** — run the floor: inventory, production and dispatch. No
+  accounting or books.
+* **Operza Books** — run the books: invoices, bills, payments and statements.
+  No stock, production or dispatch.
+* **Operza Complete** — the whole business: the factory plus connected
+  accounting, including Tally export.
+
+These boundaries are enforced by capability gating in the app. Do not blur them
+in marketing copy. In particular: Factory dispatch does not post an accounting
+invoice, and Books does not receive materials into stock. The connected
+behaviour belongs to Complete.
+
+Beyond the original inventory and production scope, Operza now also has a cost
+and valuation engine, sales margin, double-entry accounting through to Profit &
+Loss and Balance Sheet, and a TallyPrime export path.
+
+## Marketing story (locked)
+
+Governing positioning:
+
+> Operza is manufacturing software for Indian factories. It runs the shop floor
+> and the business books, and in Operza Complete they are one system.
+
+Homepage headline for the refreshed site:
+
+> Run the factory and the books in one system.
+
+The site is being refreshed **from** inventory-and-production-only positioning.
+Homepage section copy that still describes Operza as an inventory tracker is
+legacy and is being replaced, not extended.
+
+## Standing rules for this repository
+
+* **Customer vocabulary follows `operza-app`.** Material not part. Finished
+  goods not FG. Average cost not WAC. Cost changes not cost intelligence.
+  Workspace code not slug. Plan not suite. No database, RPC, migration or
+  transaction vocabulary in anything a visitor reads.
+* **Marketing prose contains zero em dashes (U+2014).** The only exception is
+  the empty-value glyph used inside the interactive demo's tables, which is a
+  data placeholder rather than prose.
+* **No invented pricing**, no free-trial or "no credit card" implication, no
+  fabricated metrics, testimonials, customer logos or ROI claims.
+* **Tally is export only.** Operza exports recorded invoices and bills as a file
+  an accountant imports into TallyPrime. Do not market automatic or direct
+  connector sync, and do not say "coming soon".
+* **Do not claim plan switching.** Changing a workspace plan is not a normal
+  upgrade path today.
+
+## What is stale below
+
+The historical log that follows predates all of the above. Specifically:
+
+* The "Do NOT prioritize right now" list names accounting and ERP expansion as
+  deprioritised. **That is no longer true.** Accounting shipped, and it is now
+  half of the product story.
+* The Streamlit app (`operza.streamlit.app`) and its soft-sunset window are
+  finished. The `SITE.appLegacy` constant that pointed at it has been removed.
+* Homepage architecture notes in the 2026-05 and 2026-06 entries describe the
+  site as it was built then.
+
+Keep the log for context. Do not treat it as instructions.
+
+---
+
 # Brand
 
 Operza

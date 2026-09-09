@@ -35,28 +35,23 @@ export default function Footer() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-12">
           <div className="lg:col-span-4">
             <Link href="/" className="flex items-center gap-2.5">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-3.5 w-3.5"
-                  aria-hidden="true"
-                >
-                  <path d="M3 7l9-4 9 4-9 4-9-4z" />
-                  <path d="M3 12l9 4 9-4" />
-                  <path d="M3 17l9 4 9-4" />
-                </svg>
-              </span>
+              {/* Same mark as the Navbar. The footer previously drew its own
+                  layers icon, so one page showed two different Operza logos. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/operza-logo.png"
+                alt=""
+                width={28}
+                height={28}
+                className="h-7 w-7"
+                aria-hidden="true"
+              />
               <span className="text-sm font-semibold text-slate-900">Operza</span>
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">
-              Inventory and production tracking for manufacturers. Built and
-              hosted in India.
+              Manufacturing software for Indian factories: materials,
+              production and dispatch on the floor, and the invoices, bills
+              and books that go with them.
             </p>
           </div>
 
