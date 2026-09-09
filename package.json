@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:marketing-foundation": "node scripts/test-marketing-foundation.mjs"
+    "test:marketing-foundation": "node scripts/test-marketing-foundation.mjs",
+    "test:marketing-copy": "node scripts/test-marketing-copy.mjs",
+    "test:marketing": "npm run test:marketing-foundation && npm run test:marketing-copy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

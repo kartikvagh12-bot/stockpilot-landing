@@ -1,17 +1,17 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import BlindSpots from "@/components/BlindSpots";
-import HealthCheckCTA from "@/components/HealthCheckCTA";
-import Workflow from "@/components/Workflow";
-import InteractiveProductionDemo from "@/components/InteractiveProductionDemo";
-import Features from "@/components/Features";
-import Screenshots from "@/components/Screenshots";
+import Plans from "@/components/Plans";
+import RunYourFactory from "@/components/RunYourFactory";
+import Costing from "@/components/Costing";
+import RunYourBooks from "@/components/RunYourBooks";
+import BooksAndTally from "@/components/BooksAndTally";
+import CorrectionsAndHistory from "@/components/CorrectionsAndHistory";
+import ProductExperience from "@/components/ProductExperience";
 import FAQ from "@/components/FAQ";
-import FinalCTA from "@/components/FinalCTA";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
-import FloatingAudit from "@/components/FloatingAudit";
 import { SITE } from "@/lib/site";
+import { faqJsonLd } from "@/lib/faq";
 
 export default function HomePage() {
   return (
@@ -19,18 +19,17 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        <BlindSpots />
-        <HealthCheckCTA />
-        <Workflow />
-        <InteractiveProductionDemo />
-        <Features />
-        <Screenshots />
+        <Plans />
+        <RunYourFactory />
+        <Costing />
+        <RunYourBooks />
+        <BooksAndTally />
+        <CorrectionsAndHistory />
+        <ProductExperience />
         <FAQ />
-        <FinalCTA />
         <Contact />
       </main>
       <Footer />
-      <FloatingAudit />
 
       <script
         type="application/ld+json"
@@ -56,6 +55,9 @@ export default function HomePage() {
               logo: `${SITE.domain}/operza-logo.png`,
               email: SITE.email,
             },
+            // Built from lib/faq.ts, the same array the visible FAQ renders,
+            // so the structured data cannot drift from the page.
+            faqJsonLd(),
           ]),
         }}
       />

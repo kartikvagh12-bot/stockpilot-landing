@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { SITE } from "@/lib/site";
 
 // Scenario-based operational simulation (rev-3 → rev-7, 2026-06-01).
 //
@@ -417,18 +415,6 @@ export default function InteractiveProductionDemo() {
       />
 
       <div className="container-page">
-        <div className="max-w-2xl">
-          <span className="eyebrow">Live operational preview</span>
-          <h2 className="h-section">Can we fulfil this order today?</h2>
-          <p className="p-section">
-            A real production order, four possible batch sizes — each one
-            triggers a different operational outcome. Pick a quantity, press
-            <span className="font-medium text-slate-800"> Run Production</span>,
-            and see exactly what Operza checks, deducts, and alerts on before
-            the floor commits.
-          </p>
-        </div>
-
         <div
           className={`mt-12 rounded-2xl border border-slate-200 border-l-4 bg-white shadow-lift overflow-hidden transition-colors duration-300 ${
             workspace === "purchasing" ? "border-l-brand-500" : "border-l-slate-200"
@@ -486,29 +472,6 @@ export default function InteractiveProductionDemo() {
           )}
         </div>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          This is exactly what Operza shows your floor team before every
-          production run.
-        </p>
-
-        <div className="mt-10 flex flex-col items-center gap-5 text-center">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="/health-check" className="btn-primary">
-              Take Manufacturing Health Check
-            </Link>
-            <a href="#contact" className="btn-secondary">
-              Book a 20-minute walkthrough
-            </a>
-            <a
-              href={SITE.app}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-secondary"
-            >
-              Open app
-            </a>
-          </div>
-        </div>
       </div>
     </section>
   );
@@ -646,7 +609,7 @@ function StatusBar({ phase, blocked }: { phase: Phase; blocked: boolean }) {
   const message = (() => {
     switch (phase) {
       case "checking":
-        return "Checking raw materials…";
+        return "Checking materials…";
       case "starting":
         return "Production batch starting…";
       case "consuming":
@@ -853,12 +816,12 @@ function FinishedGoodsBlock({
           {done && blocked && (
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
               <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-              Production blocked — no units posted
+              Production blocked, no units posted
             </p>
           )}
         </div>
         <p className="max-w-xs text-xs leading-5 text-slate-500 sm:text-right">
-          Atomic write — raw materials deducted and finished goods updated
+          Materials deducted and finished goods updated together
           in one transaction.
         </p>
       </div>
@@ -870,7 +833,7 @@ function OperationalAlert({ row }: { row: ComputedRow }) {
   const tone = row.visibleStatus === "insufficient" ? "danger" : "warn";
   const heading =
     tone === "danger"
-      ? `Production cannot complete — ${row.item.name} insufficient.`
+      ? `Production cannot complete. ${row.item.name} is insufficient.`
       : `${row.item.name} dropped below safety stock level.`;
   return (
     <div
@@ -889,8 +852,8 @@ function OperationalAlert({ row }: { row: ComputedRow }) {
             tone === "danger" ? "text-red-700/80" : "text-amber-700/80"
           }`}
         >
-          Operza surfaces this the moment the threshold is crossed — no
-          surprise stockouts mid-run.
+          Operza surfaces this the moment the threshold is crossed, so a
+          stockout does not appear mid-run.
         </span>
       </div>
     </div>
@@ -920,21 +883,21 @@ function RecommendationPanel({
   let reasonText: string | null = null;
 
   if (blocked) {
-    title = `Production blocked — materials would have run out mid-batch.`;
+    title = `Production blocked. Materials would have run out mid-batch.`;
     body = `Operza would prevent this run in the live app. Here's what's possible with your current stock:`;
     const names = insufficient.map((r) => r.item.name).join(" and ");
     reasonText = `${names} ${insufficient.length > 1 ? "fall" : "falls"} below the minimum production requirement.`;
   } else if (low.length >= 2) {
     const names = low.map((r) => r.item.name).join(" and ");
-    title = `Production completed. ${low.length} raw materials now below alert level.`;
-    body = `Schedule reorders for ${names} before the next batch — Operza recommends acting before the floor runs out.`;
+    title = `Production completed. ${low.length} materials now below alert level.`;
+    body = `Schedule reorders for ${names} before the next batch. Operza recommends acting before the floor runs out.`;
   } else if (low.length === 1) {
     const itemName = low[0].item.name;
     title = `Production completed. ${itemName} is approaching its reorder threshold.`;
-    body = `Schedule a top-up for ${itemName} before the next moderate batch — Operza recommends planning ahead.`;
+    body = `Schedule a top-up for ${itemName} before the next moderate batch. Operza recommends planning ahead.`;
   } else {
     title = "Production completed successfully.";
-    body = "All materials remain within healthy stock levels — no replenishment needed.";
+    body = "All materials remain within healthy stock levels, so no replenishment is needed.";
   }
 
   const showNavTile = urgency.belowThreshold > 0;
@@ -1169,11 +1132,11 @@ function PurchasingWorkspace({
                   <span className="font-semibold text-red-800">
                     {urgency.timingLabel}
                   </span>
-                  {" — production blocked until replenishment completes."}
+                  {": production blocked until replenishment completes."}
                 </>
               ) : (
                 <>
-                  Recommended reorder timing —{" "}
+                  Recommended reorder timing:{" "}
                   <span className="font-semibold text-slate-900">
                     {urgency.timingLabel.toLowerCase()}
                   </span>
@@ -1196,7 +1159,7 @@ function PurchasingWorkspace({
       {/* Footer with the run-again escape hatch */}
       <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="text-xs text-slate-500">
-          One operational chain — production → purchasing → stability restored.
+          One operational chain: production → purchasing → stability restored.
         </p>
         <button
           type="button"

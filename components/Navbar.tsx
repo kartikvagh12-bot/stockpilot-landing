@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NAV_LINKS, SITE } from "@/lib/site";
 
+// The previous navbar was transparent at scroll position zero, so on the light
+// hero it read as text floating over the page with no ground. The hero is deep
+// now, and the bar carries its own dark ground from the first pixel, turning
+// opaque with a rule once the page moves under it.
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -15,18 +20,35 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // Close the mobile sheet on Escape, so keyboard users are not trapped.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   return (
     <header
-      className={`sticky top-0 z-40 transition-colors ${
-        scrolled
-          ? "border-b border-slate-200/80 bg-white/85 backdrop-blur"
-          : "border-b border-transparent bg-white/0"
+      className={`sticky top-0 z-50 transition-colors ${
+        scrolled || open
+          ? "border-b border-white/10 bg-[#05070f]/90 backdrop-blur"
+          : "border-b border-white/[0.06] bg-[#05070f]"
       }`}
     >
-      <nav className="container-page flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2" aria-label="Operza home">
+      <nav
+        aria-label="Main"
+        className="container-wide flex h-16 items-center justify-between gap-6"
+      >
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          aria-label="Operza home"
+        >
           <LogoMark />
-          <span className="text-base font-semibold tracking-tight text-slate-900">
+          <span className="text-base font-semibold tracking-tight text-white">
             Operza
           </span>
         </Link>
@@ -36,33 +58,36 @@ export default function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-slate-900"
+              className="rounded-md px-3 py-2 text-sm font-medium text-white/65 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               {link.label}
             </Link>
           ))}
         </div>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <a href="#contact" className="btn-ghost text-sm">
-            Book demo
-          </a>
+        <div className="hidden items-center gap-3 md:flex">
           <a
             href={SITE.app}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary !py-2 !px-4 text-sm"
+            className="rounded-md px-3 py-2 text-sm font-medium text-white/60 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            Open app
-            <ArrowUpRight />
+            Sign in
+          </a>
+          <a
+            href="/#contact"
+            className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#05070f] transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#05070f]"
+          >
+            Book a demo
           </a>
         </div>
 
         <button
           type="button"
-          aria-label="Toggle menu"
+          aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
-          className="inline-flex items-center justify-center rounded-md p-2 text-slate-700 md:hidden"
+          aria-controls="mobile-nav"
+          className="inline-flex items-center justify-center rounded-md p-2 text-white/80 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:hidden"
           onClick={() => setOpen((v) => !v)}
         >
           <svg
@@ -83,69 +108,58 @@ export default function Navbar() {
         </button>
       </nav>
 
-      {open && (
-        <div className="border-t border-slate-200 bg-white md:hidden">
-          <div className="container-page flex flex-col gap-1 py-3">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setOpen(false)}
-                className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <a
-                href="#contact"
-                onClick={() => setOpen(false)}
-                className="btn-secondary !py-2 !px-3 text-sm"
-              >
-                Book demo
-              </a>
-              <a
-                href={SITE.app}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setOpen(false)}
-                className="btn-primary !py-2 !px-3 text-sm"
-              >
-                Open app
-              </a>
-            </div>
-          </div>
+      <div
+        id="mobile-nav"
+        hidden={!open}
+        className="border-t border-white/10 bg-[#05070f] md:hidden"
+      >
+        <div className="container-wide flex flex-col gap-1 py-4">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setOpen(false)}
+              className="rounded-md px-3 py-3 text-base font-medium text-white/80 transition hover:bg-white/[0.06] hover:text-white"
+            >
+              {link.label}
+            </Link>
+          ))}
+          <a
+            href={SITE.app}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="rounded-md px-3 py-3 text-base font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white"
+          >
+            Sign in
+          </a>
+          <a
+            href="/#contact"
+            onClick={() => setOpen(false)}
+            className="mt-3 inline-flex items-center justify-center rounded-lg bg-white px-4 py-3.5 text-sm font-semibold text-[#05070f]"
+          >
+            Book a demo
+          </a>
         </div>
-      )}
+      </div>
     </header>
   );
 }
 
 function LogoMark() {
-  // Square PNG with transparent padding — render at 32px so the hexagon
-  // visually balances the wordmark next to it.
+  // The mark is near-black with a red segment, so on the dark bar it needs a
+  // light plate behind it to stay legible.
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/operza-logo.png"
-      alt=""
-      width={32}
-      height={32}
-      className="h-8 w-8"
-      aria-hidden="true"
-    />
-  );
-}
-
-function ArrowUpRight() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-3.5 w-3.5"
-      aria-hidden="true"
-    >
-      <path d="M6.5 5.5a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 11-2 0V7.914l-6.793 6.793a1 1 0 01-1.414-1.414L11.086 6.5H7.5a1 1 0 01-1-1z" />
-    </svg>
+    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/operza-logo.png"
+        alt=""
+        width={26}
+        height={26}
+        className="h-[26px] w-[26px]"
+        aria-hidden="true"
+      />
+    </span>
   );
 }

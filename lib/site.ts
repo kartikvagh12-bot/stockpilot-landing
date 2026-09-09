@@ -8,11 +8,13 @@ export const SITE = {
   whatsappLink: "https://wa.me/918733865541",
 } as const;
 
+// Every entry points at a section that exists on the homepage. Contact is not
+// a text link because "Book a demo" is the only filled button in the navbar,
+// and Health Check is reached from the page and the footer rather than
+// competing for a nav slot.
 export const NAV_LINKS = [
-  { href: "/#features", label: "Features" },
-  { href: "/#workflow", label: "Workflow" },
-  { href: "/#screenshots", label: "Product" },
-  { href: "/health-check", label: "Health check" },
+  { href: "/#factory", label: "Factory" },
+  { href: "/#books", label: "Books" },
+  { href: "/#costing", label: "Costing" },
   { href: "/#faq", label: "FAQ" },
-  { href: "/#contact", label: "Contact" },
 ] as const;

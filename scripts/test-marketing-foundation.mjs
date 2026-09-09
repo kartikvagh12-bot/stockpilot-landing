@@ -220,19 +220,27 @@ section("G. THE FOOTER TELLS THE TRUTH AND USES ONE MARK");
 }
 
 /* ========================================================================= */
-section("H. THE SURFACES THIS CHANGE DOES NOT OWN WERE LEFT ALONE");
+section("H. THE HOMEPAGE AND THE FOUNDATION AGREE");
 /* ========================================================================= */
 {
-  // Guard rails against scope creep, which for this change is a real risk:
-  // the homepage rewrite is a separate piece of work.
+  // These previously guarded PR scope: the homepage rebuild had not started,
+  // so nav must not point at sections that did not exist and the FAQ must not
+  // carry structured data before its copy was rewritten. Both have now landed,
+  // so the checks assert the finished state rather than the interim one.
+  // Anchor-to-section resolution itself lives in the copy guard, which reads
+  // the rendered surface instead of one constants file.
   const site = read("lib/site.ts");
-  ok("(H1) nav links still point at sections that exist today",
-     /\/#features/.test(site) && /\/#workflow/.test(site) && /\/#screenshots/.test(site));
-  ok("(H2) ...and no future anchor was shipped ahead of its section",
-     !/#factory|#books|#costing|#plans/.test(site),
-     (site.match(/#(factory|books|costing|plans)/) ?? [])[0]);
-  ok("(H3) the visible FAQ has no structured data yet",
-     !/FAQPage/.test(read("app/page.tsx")));
+  const page = read("app/page.tsx");
+  ok("(H1) nav links point at the rebuilt homepage sections",
+     /\/#factory/.test(site) && /\/#books/.test(site)
+     && /\/#costing/.test(site) && /\/#faq/.test(site));
+  ok("(H2) ...and no retired anchor survives in the nav",
+     !/#features|#workflow|#screenshots/.test(site),
+     (site.match(/#(features|workflow|screenshots)/) ?? [])[0]);
+  ok("(H3) the FAQ structured data ships, generated from the visible FAQ",
+     /faqJsonLd\(\)/.test(page) && !/acceptedAnswer/.test(page));
+  ok("(H4) ...so the page never hand-writes a second copy of an answer",
+     !/"@type": "Question"/.test(page));
 }
 
 console.log(
