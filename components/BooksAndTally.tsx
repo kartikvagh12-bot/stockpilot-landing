@@ -12,15 +12,15 @@ import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
 // it and automatic enqueue is not armed in production, so the site does not
 // mention sync, direct delivery, or a future date.
 
+// The trial balance rather than the balance sheet: it shows opening, movement
+// and closing per account and ends on a total row where debits equal credits,
+// which is the "provably balanced" claim made visible.
 const STATEMENT: Shot = {
-  screen: "Balance Sheet",
-  alt: "An Operza balance sheet, showing what the business owns and owes, balanced against the books",
-  sample: true,
-};
-
-const TALLY: Shot = {
-  screen: "Download for Tally",
-  alt: "The Operza Tally screen, generating an export file of recorded invoices and bills",
+  src: "/product/trial-balance.png",
+  screen: "Trial Balance",
+  alt: "An Operza trial balance showing opening, movement and closing amounts for each account across assets, liabilities, equity and income, with a total row where debits equal credits",
+  width: 1337,
+  height: 896,
   sample: true,
 };
 
@@ -89,8 +89,6 @@ export default function BooksAndTally() {
               already use. Operza tracks which entries have already been sent,
               so the same entries are not exported again.
             </p>
-
-            <ScreenshotFrame shot={TALLY} tone="deep" className="mt-8" />
 
             <div className="mt-10">
               <a href="#contact" className="btn-invert">

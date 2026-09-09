@@ -5,15 +5,12 @@ import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
 // a bill receives stock or that an invoice comes from a dispatch. Those are
 // Complete behaviours and are stated separately, at the bottom, labelled.
 
-const BILL_REVIEW: Shot = {
-  screen: "Supplier bill review",
-  alt: "An uploaded supplier bill in Operza with its extracted values ready to verify before recording",
-  sample: true,
-};
-
 const PAYMENTS: Shot = {
+  src: "/product/payments.png",
   screen: "Payments",
-  alt: "A payment in Operza being matched bill by bill against a supplier's open documents",
+  alt: "The Operza payments screen listing money received and paid, each row showing the party, the amount, the account it moved through, and whether it is fully matched or still held as an advance",
+  width: 1483,
+  height: 560,
   sample: true,
 };
 
@@ -52,8 +49,7 @@ export default function RunYourBooks() {
 
         <div className="mt-14 grid gap-10 lg:grid-cols-12 lg:gap-14">
           <div className="lg:col-span-7">
-            <ScreenshotFrame shot={BILL_REVIEW} />
-            <ScreenshotFrame shot={PAYMENTS} className="mt-6 lg:ml-14 lg:mt-8" />
+            <ScreenshotFrame shot={PAYMENTS} />
           </div>
 
           <div className="lg:col-span-5">

@@ -5,14 +5,12 @@ import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
 // same importance. Here one screenshot anchors the section and the claims run
 // beside it as typographic blocks rather than a fourth card grid.
 
-const MATERIALS: Shot = {
-  screen: "Materials",
-  alt: "The Operza materials list, showing stock, alert level and unit for each material",
-};
-
 const PRODUCTION: Shot = {
+  src: "/product/run-production.png",
   screen: "Run production",
-  alt: "The Operza run production screen, checking material availability before a batch",
+  alt: "The Operza run production screen with a product selected, showing the batch size, the yield, and a confirmation that the batch is within current material availability",
+  width: 963,
+  height: 671,
 };
 
 const CLAIMS = [
@@ -68,14 +66,10 @@ export default function RunYourFactory() {
             </p>
           </div>
 
-          {/* Two captures, offset rather than stacked evenly, so the column
-              reads as a composition instead of a gallery. */}
+          {/* One capture, not a gallery. The screen states the section's
+              central promise in the product's own words. */}
           <div className="lg:col-span-7">
-            <ScreenshotFrame shot={MATERIALS} />
-            <ScreenshotFrame
-              shot={PRODUCTION}
-              className="mt-6 lg:ml-12 lg:mt-8"
-            />
+            <ScreenshotFrame shot={PRODUCTION} className="lg:mt-6" />
           </div>
         </div>
       </div>

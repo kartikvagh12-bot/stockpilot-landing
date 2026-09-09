@@ -21,11 +21,12 @@ operational record. The `/health-check` assessment is still the earlier
 factory-scoped version and is being revised separately, so its questions,
 scoring and results copy should not be treated as current positioning.
 
-**Product screenshots are outstanding.** Every product visual currently renders
-a labelled "screenshot pending" placeholder through
-`components/ScreenshotFrame.tsx`. Captures must come from a seeded sample
-workspace, never from customer data, and financial screens carry a visible
-"Sample workspace" chip.
+Product visuals are **real captures from a seeded Operza Complete sample
+workspace** (the Electrical Plastics dataset), held in `public/product/` and
+rendered through `components/ScreenshotFrame.tsx`. `Shot.src` is required, so
+there is no placeholder state: a section either has a real capture or does
+without a visual. Money-bearing captures carry a visible "Sample workspace"
+chip. Never capture from a customer workspace.
 
 ## Stack
 
@@ -85,17 +86,18 @@ Shared pieces:
 
 ## Public assets
 
-`public/` contains four files and **no product screenshots**:
+`public/` contains the brand assets, the Search Console token, and the product
+captures:
 
 | File | Purpose |
 |---|---|
+| `product/*.png` | Seven product captures from the sample workspace. |
 | `operza-logo.png` | The hexagon mark, used by the Navbar and Footer. |
 | `favicon-512.png` | Favicon. |
 | `apple-touch-icon.png` | iOS home-screen icon. |
 | `google3ea2eded30925b65.html` | Google Search Console verification. Do not remove or rename. |
 
-Every "product screenshot" currently on the site is hand-built Tailwind markup
-inside a component, not a real capture.
+No hand-built fake UI remains anywhere on the site.
 
 ## Environment variables
 

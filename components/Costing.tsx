@@ -6,8 +6,11 @@ import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
 // rather than three more bordered cards.
 
 const COST_CHANGES: Shot = {
+  src: "/product/cost-changes.png",
   screen: "Cost changes",
-  alt: "The Operza cost changes screen, listing products that now cost more or less than when they were last made",
+  alt: "The Operza cost changes screen listing products that now cost more or less than when they were last made, each with its old and new cost, the rupee change and the percentage",
+  width: 1181,
+  height: 692,
   sample: true,
 };
 

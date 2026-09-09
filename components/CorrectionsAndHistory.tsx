@@ -9,8 +9,11 @@ import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
 // no absolutes about who can see what, and no mention of the mechanism.
 
 const HISTORY: Shot = {
-  screen: "Inventory history, with a correction",
-  alt: "Operza inventory history showing a correcting entry linked to the earlier entry it compensates",
+  src: "/product/inventory-movements.png",
+  screen: "Inventory movements",
+  alt: "Operza inventory history listing every stock movement with the material, the reason it moved, the change, the stock left afterwards, who recorded it, and a Correct action on each row",
+  width: 1262,
+  height: 952,
 };
 
 export default function CorrectionsAndHistory() {

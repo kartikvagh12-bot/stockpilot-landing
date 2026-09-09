@@ -169,6 +169,35 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-09-10 — Real product screenshots wired (PR 2 follow-up)
+
+Seven captures from a seeded **Operza Complete** sample workspace (the
+Electrical Plastics dataset, which is what Complete ships: `COMPLETE_SAMPLE_INDUSTRY`).
+Nothing was created, edited or run to produce them; every capture is a
+read-only view of data the seeder already made.
+
+Dashboard (low stock + production capacity) · Run production · Cost changes ·
+Dispatch order totals · Payments · Trial Balance · Inventory movements.
+
+`ScreenshotFrame.src` is now REQUIRED and the pending-capture placeholder is
+deleted, so no section can ship a placeholder again. Three declared slots were
+dropped rather than filled: Materials, supplier bill review, and Tally export.
+
+Three screens were deliberately NOT used:
+
+* **Dashboard "Raw materials" tile** (`features/dashboard/dashboard-view.tsx:268`)
+  is retired vocabulary that is still on screen, so the dashboard capture is
+  cropped to start below the tile row.
+* **Balance Sheet** cannot render without pinning a closing-stock value, which
+  is a write. Trial Balance carries the same argument better anyway: it ends on
+  a total row where debits equal credits.
+* **Supplier bill review** has no data in a Complete sample. `buildSampleBillFile`
+  runs only on the Books seed path, so Payments is the Books visual.
+
+Also avoided: the Run production right-hand panel says "4 parts consumed", and
+the dashboard's cost widget says "see Cost intelligence". Both are retired
+words still shipping in the product. Captures were cropped around them.
+
 ## 2026-09-09 — Homepage rebuilt for Factory and Books (PR 2 of 3)
 
 The homepage was still selling the May 2026 product. Replaced the whole

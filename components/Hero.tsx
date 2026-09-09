@@ -6,14 +6,21 @@ import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
 // software is the graphic rather than an illustration beside the pitch.
 
 const DASHBOARD: Shot = {
-  screen: "Dashboard, Operza Complete",
-  alt: "The Operza dashboard, showing low stock, production capacity and money summary cards",
-  sample: true,
+  src: "/product/dashboard-low-stock-and-capacity.png",
+  screen: "Dashboard",
+  alt: "The Operza dashboard showing materials at or below their alert level, and a production capacity table listing how many units of each product can be made and which material is limiting each one",
+  width: 1316,
+  height: 916,
 };
 
+// The money half of the hero claim, from a recorded dispatch. Small, wide, and
+// it carries revenue, manufacturing cost and gross margin in one strip.
 const MARGIN: Shot = {
-  screen: "Dispatch, gross margin panel",
-  alt: "A dispatch line in Operza showing price per unit, cost per unit and gross margin",
+  src: "/product/dispatch-order-totals.png",
+  screen: "Dispatch order totals",
+  alt: "Order totals from a recorded dispatch in Operza: revenue, manufacturing cost, and gross margin with its percentage",
+  width: 618,
+  height: 126,
   sample: true,
 };
 

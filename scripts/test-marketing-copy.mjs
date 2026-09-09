@@ -21,7 +21,7 @@
 // pulling it in here would mean either failing on known debt or whitelisting
 // it, and a whitelist silently blesses new debt that resembles old debt.
 // ---------------------------------------------------------------------------
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -317,6 +317,45 @@ section("H. CONTACT KEEPS ITS EXISTING WRITE PATH");
      !/needs:/.test(contact.slice(contact.indexOf("const payload"), contact.indexOf("if (!payload.name"))));
   ok("(H5) the helper line is the approved wording",
      /use these details to contact you about Operza/.test(contact));
+}
+
+/* ========================================================================= */
+section("I. PRODUCT VISUALS ARE REAL CAPTURES");
+/* ========================================================================= */
+{
+  const frame = read("components/ScreenshotFrame.tsx");
+  ok("(I1) no pending-capture placeholder survives anywhere",
+     !SURFACE.some((f) => /Screenshot pending|PendingCapture|Awaiting an approved capture/.test(read(f))));
+  ok("(I2) the frame demands a real file rather than falling back to a drawing",
+     /src: string;/.test(frame) && !/src\?: string/.test(frame));
+
+  // Collect every declared capture and check it exists on disk.
+  const shots = [];
+  for (const f of SURFACE) {
+    for (const m of read(f).matchAll(/src:\s*"(\/product\/[^"]+)"/g)) shots.push([f, m[1]]);
+  }
+  ok(`(I3) the page ships a small, chosen set of captures (${shots.length})`,
+     shots.length >= 5 && shots.length <= 8, shots.map(([, s]) => s).join(", "));
+  for (const [f, src] of shots)
+    ok(`(I4-${src}) the file exists`, existsSync(join(ROOT, "public", src)), `declared in ${f}`);
+
+  // Every frame needs alt text, and money-bearing ones need the sample chip.
+  const declBlocks = SURFACE.flatMap((f) =>
+    [...read(f).matchAll(/:\s*Shot\s*=\s*\{[\s\S]*?\n\};/g)].map((m) => [f, m[0]]),
+  );
+  for (const [f, block] of declBlocks) {
+    const src = (block.match(/src:\s*"([^"]+)"/) ?? [])[1] ?? "?";
+    ok(`(I5-${src}) has descriptive alt text`,
+       (block.match(/alt:\s*"([^"]{40,})"/) ?? []).length > 0, f);
+  }
+  // The two statements-and-money captures must be labelled as sample data.
+  for (const needle of ["trial-balance", "payments", "cost-changes", "dispatch-order-totals"]) {
+    const block = declBlocks.find(([, b]) => b.includes(needle));
+    ok(`(I6-${needle}) money-bearing capture is marked as a sample workspace`,
+       !!block && /sample:\s*true/.test(block[1]));
+  }
+  ok("(I7) the frame renders that chip visibly",
+     /Sample workspace/.test(frame) && /shot\.sample &&/.test(frame));
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
