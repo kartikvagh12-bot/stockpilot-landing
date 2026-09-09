@@ -169,6 +169,36 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-09-10 — Health Check refreshed, marketing arc COMPLETE (PR 3 of 3)
+
+`/health-check` rebuilt into the homepage's visual family: deep `#05070f`
+ground, brand blue as the interactive accent, grid texture, shared primitives
+(`eyebrow-invert`, `btn-invert`, `container-page`). Red is no longer the page's
+default accent; emerald, amber and red now appear only on the result band.
+
+**The scoring model is frozen and was proved so.** Same eight ids in the same
+order, same option scores and flags by position, same `MAX_SCORE`, same 85 / 60
+thresholds. Only wording moved. A structural fingerprint extracted from both
+main and the branch diffed clean, and an end-to-end run returned exactly the
+predicted 81.
+
+Scope held: it stays a factory-operations check. No accounting questions were
+added; the homepage already explains Factory, Books and Complete. Exactly one
+labelled Operza Complete bridge is allowed, and the guard enforces that count.
+
+Removed: the standalone Consequences section, the money-loss hero framing, the
+"Open app" prospect CTAs, "Setup takes minutes", the broad "most factories"
+claims and all prose em dashes. Added a plain "Operational visibility score"
+descriptor and the self-assessment disclaimer, so the number is not mistaken
+for a benchmark.
+
+Reduced motion: `scrollIntoView` falls back to `auto` and `AnimatedNumber`
+starts at the final value when the OS asks for reduced motion. No dependency
+added.
+
+The copy guard now covers `app/health-check/**`; the HealthCheck exclusion is
+closed and its assertion inverted.
+
 ## 2026-09-10 — Real product screenshots wired (PR 2 follow-up)
 
 Seven captures from a seeded **Operza Complete** sample workspace (the

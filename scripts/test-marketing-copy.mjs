@@ -17,9 +17,8 @@
 // That way the rule keeps working as copy changes, and nobody has to maintain
 // a list of blessed line numbers.
 //
-// HealthCheck.tsx is excluded by design: its copy is rewritten separately, and
-// pulling it in here would mean either failing on known debt or whitelisting
-// it, and a whitelist silently blesses new debt that resembles old debt.
+// The Health Check route is now part of this surface. It was excluded while its
+// copy was still the older version; that exclusion is closed.
 // ---------------------------------------------------------------------------
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -79,7 +78,15 @@ function visibleStrings(file) {
 const COMPONENTS = readdirSync(join(ROOT, "components"))
   .filter((f) => f.endsWith(".tsx"))
   .map((f) => `components/${f}`);
-const SURFACE = ["app/page.tsx", "app/layout.tsx", "lib/faq.ts", "lib/site.ts", ...COMPONENTS];
+const SURFACE = [
+  "app/page.tsx",
+  "app/layout.tsx",
+  "app/health-check/page.tsx",
+  "app/health-check/HealthCheck.tsx",
+  "lib/faq.ts",
+  "lib/site.ts",
+  ...COMPONENTS,
+];
 const strings = SURFACE.flatMap(visibleStrings);
 const show = (rs) => rs.slice(0, 5).map((r) => `${r.file}:${r.line} [${r.kind}] ${r.text.slice(0, 90)}`).join("\n      ");
 
@@ -88,8 +95,9 @@ section("A. THE SWEEP FOUND COPY TO JUDGE");
 /* ========================================================================= */
 ok(`(A1) extracted customer-visible strings (${strings.length} across ${SURFACE.length} files)`,
    strings.length > 150, `only ${strings.length} found; the extractor may be broken`);
-ok("(A2) HealthCheck.tsx is deliberately out of scope",
-   !SURFACE.some((f) => f.includes("HealthCheck.tsx")));
+ok("(A2) the Health Check route is inside the judged surface",
+   SURFACE.includes("app/health-check/HealthCheck.tsx")
+   && SURFACE.includes("app/health-check/page.tsx"));
 
 /* ========================================================================= */
 section("B. NO EM DASH IN RENDERED MARKETING PROSE");
@@ -189,6 +197,15 @@ section("D. LOCKED CLAIM BOUNDARIES");
     ["reorder suggestion feature", /suggested reorder|reorder quantit|reorder suggestion|recommended reorder|reorder timing/i],
     ["replenishment messaging", /replenishment|stability restored|production stability/i],
     ["invented supplier fixtures", /TimberWorks|FastFix Hardware|ChemBond/],
+    // Retired with the Health Check refresh. A cold prospect is never sent to
+    // the login screen, and the page no longer frames itself around money.
+    ["prospect login CTA", /\bOpen app\b|\bOpen Operza\b/],
+    ["setup-time promise", /set ?up (takes|in) (minutes|a few minutes)/i],
+    ["money-loss framing", /quietly losing money|losing money|silently costing|costing you (time|money|margin)/i],
+    ["market-wide generalisation", /\bmost (factories|manufacturers|businesses)\b/i],
+    ["SKU scale claim", /\d+\s*SKUs\b/i],
+    ["predictive replenishment", /predictive|reorder points? (are|exist)|forecasts? (demand|stock)/i],
+    ["inventory-only positioning", /inventory and production tracking/i],
   ];
   for (const [name, re] of forbidden) {
     const hits = strings.filter((r) => re.test(r.text));
@@ -317,6 +334,44 @@ section("H. CONTACT KEEPS ITS EXISTING WRITE PATH");
      !/needs:/.test(contact.slice(contact.indexOf("const payload"), contact.indexOf("if (!payload.name"))));
   ok("(H5) the helper line is the approved wording",
      /use these details to contact you about Operza/.test(contact));
+}
+
+/* ========================================================================= */
+section("J. THE HEALTH CHECK REPORTS RATHER THAN ALARMS");
+/* ========================================================================= */
+{
+  const hc = read("app/health-check/HealthCheck.tsx");
+  const hcStrings = visibleStrings("app/health-check/HealthCheck.tsx");
+
+  ok("(J1) the score is qualified as a self-assessment, not a benchmark",
+     /simple self-assessment based on your answers, not an\s+industry benchmark/.test(hc));
+  ok("(J2) the score carries a plain descriptor",
+     hcStrings.some((r) => /Operational visibility score/.test(r.text)));
+  ok("(J3) the scoring model is untouched: eight questions, 3-point scale",
+     /const MAX_SCORE = QUESTIONS\.length \* 3;/.test(hc)
+     && (hc.match(/\bid:\s*"/g) ?? []).length === 8);
+  ok("(J4) ...and the band thresholds are unchanged",
+     /if \(score >= 85\)/.test(hc) && /if \(score >= 60\)/.test(hc));
+  ok("(J5) the standalone consequences section is gone",
+     !/CONSEQUENCES/.test(hc) && !/function Consequences/.test(hc));
+  ok("(J6) the retired result wording does not survive",
+     !/memory and goodwill|quietly costing|every order you take|what tends to break first/i.test(hc));
+  // The ASSESSMENT stays factory-scoped. Widening the questions into an
+  // accounting quiz would duplicate what the homepage already explains, so the
+  // check is scoped to the question and weakness data rather than the whole
+  // page: exactly one labelled Complete bridge is allowed, and required.
+  const assessmentData = hc.slice(hc.indexOf("const QUESTIONS"), hc.indexOf("// Scoring"));
+  const BOOKS = /\b(invoice|ledger|balance sheet|trial balance|GST|bookkeep|payments?)\b/i;
+  ok("(J7) the questions and weakness copy ask nothing about the books",
+     !BOOKS.test(assessmentData),
+     (assessmentData.match(new RegExp(`.{0,50}${BOOKS.source}.{0,50}`, "i")) ?? [])[0]);
+  const bridges = [...hc.matchAll(/Need the books too\?/g)].length;
+  ok(`(J7b) exactly one labelled Operza Complete bridge (${bridges})`,
+     bridges === 1 && /Operza Complete connects the factory with/.test(hc));
+  ok("(J8) motion honours the OS setting for both scroll and the score count-up",
+     /prefers-reduced-motion: reduce/.test(hc)
+     && /behavior: prefersReducedMotion\(\) \? "auto" : "smooth"/.test(hc)
+     && /if \(prefersReducedMotion\(\)\) \{\s*setValue\(safeTarget\);/.test(hc));
 }
 
 /* ========================================================================= */

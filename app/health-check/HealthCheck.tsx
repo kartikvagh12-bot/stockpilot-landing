@@ -7,9 +7,19 @@ import { SITE } from "@/lib/site";
 // ─────────────────────────────────────────────────────────────────────────────
 // Assessment data
 // ─────────────────────────────────────────────────────────────────────────────
-// Each option carries a 0-3 score and an optional `flag` that surfaces a
-// specific operational weakness in the results card. Max possible score
-// across 8 questions = 24, normalized to 0-100 for the headline number.
+// SCORING IS FROZEN. Question ids, their order, and each option's score and
+// flag BY POSITION are unchanged from the original assessment. We have no
+// evidence base for recalibrating them, so only the wording moved: the prompts
+// and labels now use the vocabulary the product actually ships (materials,
+// finished goods, BOM or recipe, alert level).
+//
+// Each option carries a 0-3 score and an optional `flag` naming one specific
+// gap. Max possible across 8 questions = 24, normalized to 0-100.
+//
+// SCOPE: this stays a factory-operations check. It asks how visible and how
+// well recorded materials, production and finished goods are. It deliberately
+// asks nothing about invoices, bills or books; the homepage explains Factory,
+// Books and Complete, and widening this tool would blur that.
 
 type Option = { label: string; score: number; flag?: WeaknessFlag };
 type Question = { id: string; prompt: string; options: Option[] };
@@ -35,10 +45,10 @@ type WeaknessFlag =
 const QUESTIONS: Question[] = [
   {
     id: "tracking",
-    prompt: "How do you currently track inventory?",
+    prompt: "How do you currently track material and finished-goods stock?",
     options: [
-      { label: "Excel spreadsheets", score: 1.5, flag: "spreadsheet_risk" },
-      { label: "WhatsApp / verbal updates", score: 0.5, flag: "manual_dependency" },
+      { label: "Spreadsheets", score: 1.5, flag: "spreadsheet_risk" },
+      { label: "WhatsApp or verbal updates", score: 0.5, flag: "manual_dependency" },
       { label: "Notebook or paper register", score: 0.5, flag: "manual_dependency" },
       { label: "ERP or dedicated software", score: 3 },
       { label: "No structured system", score: 0, flag: "no_system" },
@@ -46,7 +56,7 @@ const QUESTIONS: Question[] = [
   },
   {
     id: "shortages",
-    prompt: "Have you ever run out of raw materials unexpectedly?",
+    prompt: "How often do material shortages catch the team by surprise?",
     options: [
       { label: "Frequently", score: 0, flag: "shortages_frequent" },
       { label: "Sometimes", score: 1, flag: "shortages_occasional" },
@@ -56,32 +66,34 @@ const QUESTIONS: Question[] = [
   },
   {
     id: "stock_check",
-    prompt: "Can you instantly check current stock levels right now?",
+    prompt:
+      "Can you check current stock without asking someone or doing a fresh count?",
     options: [
-      { label: "Yes — anytime, anywhere", score: 3 },
+      { label: "Yes, from anywhere", score: 3 },
       { label: "Only by asking staff", score: 1, flag: "visibility_lag" },
-      { label: "Sometimes — depends who's around", score: 1.5, flag: "visibility_lag" },
+      { label: "Sometimes, depending who is around", score: 1.5, flag: "visibility_lag" },
       { label: "No", score: 0, flag: "no_visibility" },
     ],
   },
   {
     id: "bom",
-    prompt: "Do you track production consumption per product (BOM)?",
+    prompt: "Do you record what each product consumes through a BOM or recipe?",
     options: [
-      { label: "Yes — formal BOMs per product", score: 3 },
-      { label: "Partially — only for some products", score: 2, flag: "partial_bom" },
-      { label: "Manually — on paper or by memory", score: 1, flag: "manual_bom" },
+      { label: "Yes, formal BOMs or recipes for every product", score: 3 },
+      { label: "For some products only", score: 2, flag: "partial_bom" },
+      { label: "On paper or from memory", score: 1, flag: "manual_bom" },
       { label: "No", score: 0, flag: "no_bom" },
     ],
   },
   {
     id: "key_person",
-    prompt: "What happens if your inventory manager is absent for a day?",
+    prompt:
+      "If the person who normally handles inventory is absent, can the team still find what it needs?",
     options: [
-      { label: "Operations continue smoothly", score: 3 },
-      { label: "Delays happen, but we manage", score: 2, flag: "key_person_risk" },
-      { label: "We struggle to find information", score: 1, flag: "key_person_risk" },
-      { label: "Major disruption — work halts", score: 0, flag: "key_person_critical" },
+      { label: "Yes, everything is in a shared system", score: 3 },
+      { label: "Mostly, with some delay", score: 2, flag: "key_person_risk" },
+      { label: "Not easily, information is hard to locate", score: 1, flag: "key_person_risk" },
+      { label: "No, work stalls until they are back", score: 0, flag: "key_person_critical" },
     ],
   },
   {
@@ -91,12 +103,12 @@ const QUESTIONS: Question[] = [
       { label: "Dedicated software", score: 3 },
       { label: "Spreadsheet", score: 1.5, flag: "spreadsheet_risk" },
       { label: "Manual counting", score: 1, flag: "manual_dependency" },
-      { label: "We don't track properly", score: 0, flag: "no_finished_tracking" },
+      { label: "Not tracked consistently", score: 0, flag: "no_finished_tracking" },
     ],
   },
   {
     id: "alerts",
-    prompt: "Do you receive low-stock alerts automatically?",
+    prompt: "Does your system flag materials that reach their alert level?",
     options: [
       { label: "Yes", score: 3 },
       { label: "No", score: 0, flag: "no_alerts" },
@@ -104,11 +116,12 @@ const QUESTIONS: Question[] = [
   },
   {
     id: "visibility_confidence",
-    prompt: "How confident are you in your overall operational visibility?",
+    prompt:
+      "How confident are you that your current stock and production records match reality?",
     options: [
       { label: "Very confident", score: 3 },
-      { label: "Somewhat confident", score: 2 },
-      { label: "Not confident", score: 1, flag: "low_confidence" },
+      { label: "Fairly confident", score: 2 },
+      { label: "Not very confident", score: 1, flag: "low_confidence" },
       { label: "We mostly estimate", score: 0, flag: "estimating" },
     ],
   },
@@ -116,40 +129,45 @@ const QUESTIONS: Question[] = [
 
 const MAX_SCORE = QUESTIONS.length * 3;
 
-// Each flag maps to a one-line weakness statement shown in the results card.
-// Phrasing is diagnostic, not accusatory — "uses X" not "you don't have Y".
+// One line per flag, stating what the answer indicates. Factual and compact:
+// no financial consequence, no claim about what other factories do, and no
+// implication that Operza predicts anything.
 const WEAKNESS_COPY: Record<WeaknessFlag, string> = {
   spreadsheet_risk:
-    "Spreadsheet-based tracking — version drift and human-error risk compound silently.",
+    "Stock records depend on spreadsheets, so keeping one current version requires manual discipline.",
   manual_dependency:
-    "Heavy reliance on manual records — slow lookups, easy to lose, hard to audit.",
-  no_system: "No structured tracking system — visibility depends entirely on memory.",
+    "Stock records are kept by hand, so looking something up means finding the right note or the right person.",
+  no_system: "There is no shared system for checking current stock.",
   shortages_frequent:
-    "Frequent unplanned raw-material shortages — reorder triggers aren't working.",
+    "Material shortages are usually discovered after they have started affecting planned work.",
   shortages_occasional:
-    "Occasional stockouts — reorder points are reactive, not predictive.",
-  visibility_lag: "Stock visibility depends on asking staff — answers lag reality.",
-  no_visibility: "No way to verify current stock levels — every count is a guess.",
-  partial_bom: "Partial BOM coverage — consumption math doesn't tally across products.",
+    "Material shortages still surface during a run rather than before it.",
+  visibility_lag:
+    "Current stock depends on asking staff rather than checking a shared record.",
+  no_visibility:
+    "There is no way to confirm current stock without counting it again.",
+  partial_bom:
+    "Only some products have a BOM or recipe, so consumption cannot be explained for the rest.",
   manual_bom:
-    "BOM tracked on paper — production doesn't update inventory automatically.",
-  no_bom: "No BOM tracking — finished goods produced without verified consumption.",
+    "Production consumption is not consistently recorded against a BOM or recipe.",
+  no_bom:
+    "Finished units are produced without a recorded BOM or recipe behind them.",
   key_person_risk:
-    "Operations slow when the inventory manager is unavailable — knowledge isn't shared.",
+    "Important operational information depends on one person being available.",
   key_person_critical:
-    "Operations halt without one person — single point of failure in your supply chain.",
-  no_finished_tracking:
-    "Finished goods aren't reliably tracked — hard to commit to delivery windows.",
-  no_alerts:
-    "No automatic low-stock alerts — shortages surface only when work has already stopped.",
+    "Work stops when one person is away, because the operational record is not shared.",
+  no_finished_tracking: "Finished-goods stock is not recorded consistently.",
+  no_alerts: "Low stock depends on someone noticing it manually.",
   low_confidence:
-    "Low confidence in operational data — decisions made on incomplete information.",
-  estimating: "Decisions driven by estimates rather than verified counts.",
+    "The team does not fully trust the current operational record.",
+  estimating:
+    "Day to day decisions are made on estimates rather than a recorded figure.",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scoring
 // ─────────────────────────────────────────────────────────────────────────────
+// Thresholds and normalization are unchanged. Only the labels and prose moved.
 
 type Band = {
   label: string;
@@ -161,28 +179,29 @@ type Band = {
 function bandFor(score: number): Band {
   if (score >= 85) {
     return {
-      label: "Operationally Structured",
+      label: "Operationally structured",
       accent: "good",
-      headline: "Your operation is in good shape.",
+      headline: "Your core factory records are in good shape.",
       body:
-        "You've already removed most of the manual dependencies that hold factories back. The next gains come from tightening real-time visibility and connecting your floor data to decisions.",
+        "Your answers suggest stock and production information is usually available without relying on manual checks. The remaining opportunity is to reduce the few manual handoffs that are still left.",
     };
   }
   if (score >= 60) {
     return {
-      label: "Moderate Operational Risk",
+      label: "Some operational blind spots",
       accent: "warn",
-      headline: "Solid foundation, but blind spots are quietly costing you.",
+      headline:
+        "The basics are in place, but some records still depend on manual checks.",
       body:
-        "Most of the basics are in place, but specific gaps are creating drag — small material shortages, delayed answers, and decisions made on stale data. The patterns below are common at this stage.",
+        "Your operation has structure, but a few gaps can make stock or production information slower to verify than it should be.",
     };
   }
   return {
-    label: "High Operational Blind Spots",
+    label: "High reliance on manual records",
     accent: "alert",
-    headline: "Your operation is running on memory and goodwill.",
+    headline: "Important factory information is difficult to verify quickly.",
     body:
-      "Critical operational data lives in people's heads, on paper, or in spreadsheets no one trusts. This is survivable at small scale, but every order you take adds more risk. The patterns below are what tends to break first.",
+      "Your answers suggest that stock or production information often depends on people, paper or separate files rather than one shared operational record.",
   };
 }
 
@@ -200,6 +219,24 @@ function computeScore(answers: (number | null)[]) {
   const raw = MAX_SCORE > 0 ? (sum / MAX_SCORE) * 100 : 0;
   const normalized = Math.max(0, Math.min(100, Math.round(raw)));
   return { normalized, flags: Array.from(flags) };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Motion
+// ─────────────────────────────────────────────────────────────────────────────
+// The page drives two things from JS that CSS cannot reach: smooth scrolling
+// between steps, and the count-up on the score. Both honour the OS setting.
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function scrollToRef(el: HTMLElement | null) {
+  el?.scrollIntoView({
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+    block: "start",
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,14 +261,7 @@ export default function HealthCheck() {
 
   function start() {
     setStep(0);
-    setTimeout(
-      () =>
-        assessmentRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        }),
-      40,
-    );
+    setTimeout(() => scrollToRef(assessmentRef.current), 40);
   }
 
   function answer(optionIdx: number) {
@@ -251,41 +281,29 @@ export default function HealthCheck() {
   function restart() {
     setAnswers(Array(QUESTIONS.length).fill(null));
     setStep(0);
-    setTimeout(
-      () =>
-        assessmentRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        }),
-      40,
-    );
+    setTimeout(() => scrollToRef(assessmentRef.current), 40);
   }
 
   // Scroll results into view once revealed.
   useEffect(() => {
     if (completed) {
-      const id = window.setTimeout(() => {
-        resultsRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 200);
+      const id = window.setTimeout(() => scrollToRef(resultsRef.current), 200);
       return () => window.clearTimeout(id);
     }
   }, [completed]);
 
   return (
-    <div className="health-check min-h-screen bg-black text-white antialiased">
+    <div className="health-check min-h-screen bg-[#05070f] text-white antialiased">
       <Header />
 
       <main>
         <Hero onStart={start} />
-        <Intro />
+        <WhatItChecks />
         {!completed && (
           <section
             id="assessment"
             ref={assessmentRef}
-            className="relative scroll-mt-20 border-t border-white/5 py-20 sm:py-24"
+            className="relative scroll-mt-20 border-t border-white/[0.06] py-20 sm:py-24"
           >
             <Assessment
               step={step}
@@ -305,8 +323,7 @@ export default function HealthCheck() {
               flags={flags}
               onRestart={restart}
             />
-            <Consequences />
-            <Solution />
+            <WhereOperzaFits />
             <CTA />
           </div>
         )}
@@ -323,33 +340,43 @@ export default function HealthCheck() {
 
 function Header() {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-black/70 backdrop-blur">
-      <div className="container-page flex h-14 items-center justify-between">
+    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#05070f]/90 backdrop-blur">
+      <div className="container-page flex h-16 items-center justify-between">
         <Link
           href="/"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           aria-label="Operza home"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/operza-logo.png"
-            alt=""
-            width={28}
-            height={28}
-            className="h-7 w-7"
-            aria-hidden="true"
-          />
-          <span className="text-sm font-semibold tracking-tight">Operza</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/operza-logo.png"
+              alt=""
+              width={26}
+              height={26}
+              className="h-[26px] w-[26px]"
+              aria-hidden="true"
+            />
+          </span>
+          <span className="text-base font-semibold tracking-tight">Operza</span>
         </Link>
-        <a
-          href={SITE.app}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white transition hover:border-white/20 hover:bg-white/[0.08]"
-        >
-          Open app
-          <ArrowUpRight className="h-3 w-3" />
-        </a>
+
+        <div className="flex items-center gap-3">
+          <a
+            href={SITE.app}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden rounded-md px-3 py-2 text-sm font-medium text-white/60 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:inline-flex"
+          >
+            Sign in
+          </a>
+          <Link
+            href="/#contact"
+            className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#05070f] transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#05070f]"
+          >
+            Book a demo
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -362,69 +389,49 @@ function Header() {
 function Hero({ onStart }: { onStart: () => void }) {
   return (
     <section className="relative isolate overflow-hidden">
-      {/* Industrial grid texture, fading toward the bottom so it doesn't
-          fight with content below. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.6) 1px, transparent 1px)",
-          backgroundSize: "44px 44px",
-          maskImage:
-            "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)",
-        }}
+        className="pointer-events-none absolute inset-0 -z-10 bg-grid-invert mask-fade-edges opacity-[0.13]"
       />
-      {/* Soft red glow behind the title, evokes industrial signal lights. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-[-10%] -z-10 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-red-600/10 blur-3xl"
+        className="pointer-events-none absolute left-1/2 top-[-18%] -z-10 h-[420px] w-[860px] -translate-x-1/2 rounded-full bg-brand-600/12 blur-3xl"
       />
 
       <div className="container-page pt-20 pb-16 sm:pt-28 sm:pb-20 lg:pt-32 lg:pb-24">
         <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-            Operational Audit · 60 seconds
+          <span className="eyebrow-invert">
+            Manufacturing Health Check · 8 questions
           </span>
-          <h1 className="mt-6 text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.75rem]">
-            Is your factory{" "}
-            <span className="text-white/55">quietly losing money?</span>
+          <h1 className="mt-6 text-[2.5rem] font-semibold leading-[1.05] tracking-[-0.028em] sm:text-5xl lg:text-[3.5rem]">
+            How visible is your{" "}
+            <span className="text-white/50">factory operation?</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-white/65 sm:text-lg">
-            Eight questions. No signup. A free operational snapshot showing
-            where small inventory and production blind spots are silently
-            costing you time, materials, and margin.
+            A quick check of how your team tracks materials, production and
+            finished goods. No signup. Get an instant operational snapshot and
+            see where records still depend on manual checks or one person.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={onStart}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-sm font-semibold text-black transition hover:bg-white/90 sm:w-auto"
-            >
+            <button type="button" onClick={onStart} className="btn-invert w-full sm:w-auto">
               Start assessment
               <ArrowRight className="h-4 w-4" />
             </button>
-            <a
-              href="#what-it-checks"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-transparent px-6 py-3.5 text-sm font-semibold text-white/85 transition hover:border-white/20 hover:bg-white/[0.05] sm:w-auto"
-            >
+            <a href="#what-it-checks" className="btn-invert-ghost w-full sm:w-auto">
               What it checks
             </a>
           </div>
 
           <ul className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/45">
             <li className="inline-flex items-center gap-2">
-              <Dot /> Anonymous
-            </li>
-            <li className="inline-flex items-center gap-2">
               <Dot /> No email required
             </li>
             <li className="inline-flex items-center gap-2">
-              <Dot /> Instant results
+              <Dot /> Instant result
+            </li>
+            <li className="inline-flex items-center gap-2">
+              <Dot /> About a minute
             </li>
           </ul>
         </div>
@@ -438,57 +445,49 @@ function Dot() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Intro
+// What it checks
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Intro() {
+const DIMENSIONS = [
+  {
+    n: "01",
+    title: "Can you see what is in stock?",
+    body: "Whether current material and finished-goods stock can be checked without asking around or doing a fresh manual count.",
+  },
+  {
+    n: "02",
+    title: "Does production update the record?",
+    body: "Whether BOMs or recipes and production runs are recorded consistently enough to explain what was consumed and what was produced.",
+  },
+  {
+    n: "03",
+    title: "Can the operation run without one person?",
+    body: "Whether information is shared in a system or depends on a particular employee, notebook or spreadsheet.",
+  },
+];
+
+function WhatItChecks() {
   return (
     <section
       id="what-it-checks"
-      className="border-t border-white/5 py-16 sm:py-20"
+      className="scroll-mt-16 border-t border-white/[0.06] py-16 sm:py-20"
     >
       <div className="container-page">
-        <div className="mx-auto max-w-3xl">
-          <div className="grid gap-10 sm:grid-cols-3">
-            <IntroPoint
-              n="01"
-              title="Most factories rely on memory"
-              body="Inventory sits in someone's head, a notebook, or a spreadsheet only one person fully understands."
-            />
-            <IntroPoint
-              n="02"
-              title="Inefficiencies compound silently"
-              body="A missed reorder. A delayed answer. A wrong count. None of it shows up on a P&L line — until it does."
-            />
-            <IntroPoint
-              n="03"
-              title="Small gaps break production"
-              body="Material shortages, missed deliveries, and rework almost always trace back to operational blind spots."
-            />
-          </div>
+        <div className="mx-auto grid max-w-4xl gap-10 sm:grid-cols-3 sm:gap-8">
+          {DIMENSIONS.map((d) => (
+            <div key={d.n}>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-400">
+                {d.n}
+              </div>
+              <h2 className="mt-3 text-base font-semibold text-white">
+                {d.title}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-white/60">{d.body}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
-  );
-}
-
-function IntroPoint({
-  n,
-  title,
-  body,
-}: {
-  n: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-red-500/80">
-        {n}
-      </div>
-      <h3 className="mt-3 text-base font-semibold text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-white/60">{body}</p>
-    </div>
   );
 }
 
@@ -513,21 +512,15 @@ function Assessment({
     return (
       <div className="container-page">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/65">
-            Step 01
-          </span>
+          <span className="eyebrow-invert">Step 01</span>
           <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl">
             Ready when you are.
           </h2>
           <p className="mt-4 text-base text-white/60">
-            Eight quick questions about how your factory tracks materials,
-            production, and finished goods.
+            Eight questions about how your factory tracks materials, production
+            and finished goods.
           </p>
-          <button
-            type="button"
-            onClick={onStart}
-            className="mt-8 inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-sm font-semibold text-black transition hover:bg-white/90"
-          >
+          <button type="button" onClick={onStart} className="btn-invert mt-8">
             Begin
             <ArrowRight className="h-4 w-4" />
           </button>
@@ -562,7 +555,7 @@ function Assessment({
         </div>
         <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.06]">
           <div
-            className="h-full rounded-full bg-red-500 transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-brand-500 transition-all duration-500 ease-out"
             style={{ width: `${((step + 1) / total) * 100}%` }}
           />
         </div>
@@ -585,9 +578,9 @@ function Assessment({
                     type="button"
                     onClick={() => onAnswer(i)}
                     aria-pressed={isSelected}
-                    className={`group flex w-full items-center justify-between gap-4 rounded-xl border px-4 py-3.5 text-left text-sm font-medium transition ${
+                    className={`group flex w-full items-center justify-between gap-4 rounded-xl border px-4 py-3.5 text-left text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
                       isSelected
-                        ? "border-red-500/60 bg-red-500/10 text-white"
+                        ? "border-brand-400/60 bg-brand-500/10 text-white"
                         : "border-white/10 bg-white/[0.02] text-white/85 hover:border-white/25 hover:bg-white/[0.06]"
                     }`}
                   >
@@ -595,7 +588,7 @@ function Assessment({
                       <span
                         className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
                           isSelected
-                            ? "border-red-500 bg-red-500"
+                            ? "border-brand-400 bg-brand-500"
                             : "border-white/30 bg-transparent group-hover:border-white/50"
                         }`}
                         aria-hidden="true"
@@ -609,7 +602,7 @@ function Assessment({
                     <ArrowRight
                       className={`h-3.5 w-3.5 shrink-0 transition ${
                         isSelected
-                          ? "translate-x-0.5 opacity-100 text-red-300"
+                          ? "translate-x-0.5 opacity-100 text-brand-300"
                           : "opacity-0 group-hover:translate-x-0.5 group-hover:opacity-60"
                       }`}
                     />
@@ -624,7 +617,7 @@ function Assessment({
               type="button"
               onClick={onBack}
               disabled={step === 0}
-              className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition ${
+              className={`inline-flex items-center gap-1.5 rounded-md text-xs font-semibold uppercase tracking-[0.12em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
                 step === 0
                   ? "cursor-not-allowed text-white/20"
                   : "text-white/55 hover:text-white"
@@ -634,9 +627,7 @@ function Assessment({
               Back
             </button>
             <div className="text-xs text-white/35">
-              {selected != null
-                ? "Recorded — advancing…"
-                : "Pick the closest match"}
+              {selected != null ? "Recorded, moving on…" : "Pick the closest match"}
             </div>
           </div>
         </div>
@@ -648,6 +639,8 @@ function Assessment({
 // ─────────────────────────────────────────────────────────────────────────────
 // Results
 // ─────────────────────────────────────────────────────────────────────────────
+// Emerald, amber and red appear ONLY here, carrying the band. They are not the
+// page's default accent, which is brand blue.
 
 function Results({
   score,
@@ -682,14 +675,12 @@ function Results({
   return (
     <section
       id="results"
-      className="border-t border-white/5 py-20 sm:py-24 animate-fade-up"
+      className="border-t border-white/[0.06] py-20 sm:py-24 animate-fade-up"
     >
       <div className="container-page">
         <div className="mx-auto max-w-3xl">
           <div className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/65">
-              Your snapshot
-            </span>
+            <span className="eyebrow-invert">Your snapshot</span>
             <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl">
               {band.headline}
             </h2>
@@ -700,21 +691,26 @@ function Results({
               className={`mx-auto flex h-44 w-44 flex-col items-center justify-center rounded-full bg-white/[0.03] ring-1 ${accentRing}`}
             >
               <AnimatedNumber target={score} />
-              <span className={`mt-1 text-xs font-semibold uppercase tracking-[0.14em] ${accentText}`}>
+              <span
+                className={`mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${accentText}`}
+              >
                 {band.label}
               </span>
             </div>
 
             <div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                Operational visibility score
+              </p>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
                 <div
                   className={`h-full rounded-full ${accentBar} transition-all duration-1000 ease-out`}
                   style={{ width: `${score}%` }}
                 />
               </div>
               <div className="mt-2 flex justify-between text-[10px] font-medium uppercase tracking-[0.12em] text-white/40">
-                <span>High blind spots</span>
-                <span>Moderate</span>
+                <span>Manual</span>
+                <span>Mixed</span>
                 <span>Structured</span>
               </div>
               <p className="mt-5 text-sm leading-6 text-white/65 sm:text-base">
@@ -735,7 +731,7 @@ function Results({
                     className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.025] px-4 py-3.5"
                   >
                     <span
-                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"
+                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400"
                       aria-hidden="true"
                     />
                     <span className="text-sm leading-6 text-white/80">
@@ -748,20 +744,25 @@ function Results({
           )}
 
           {flags.length === 0 && (
-            <div className="mt-12 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] px-5 py-4 text-sm text-emerald-100/85">
-              No critical patterns flagged. You&apos;re running a tight operation —
-              the gains from here come from sharper real-time visibility.
+            <div className="mt-12 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] px-5 py-4 text-sm leading-6 text-emerald-100/85">
+              No major operational gaps were flagged by these answers. The next
+              gains are in keeping the remaining manual steps consistent.
             </div>
           )}
 
-          <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
+          <p className="mt-10 rounded-xl border border-white/10 bg-white/[0.02] px-5 py-4 text-sm leading-6 text-white/55">
+            This is a simple self-assessment based on your answers, not an
+            industry benchmark.
+          </p>
+
+          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
             <p className="text-xs text-white/40">
               This snapshot isn&apos;t stored. Refreshing the page restarts it.
             </p>
             <button
               type="button"
               onClick={onRestart}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-white/55 transition hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-md text-xs font-semibold uppercase tracking-[0.12em] text-white/55 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <ArrowLeft className="h-3 w-3" />
               Retake assessment
@@ -778,8 +779,14 @@ function AnimatedNumber({ target }: { target: number }) {
   const safeTarget = Number.isFinite(target)
     ? Math.max(0, Math.min(100, Math.round(target)))
     : 0;
+  // Reduced motion starts at the final value, so the count-up never runs.
   const [value, setValue] = useState(0);
+
   useEffect(() => {
+    if (prefersReducedMotion()) {
+      setValue(safeTarget);
+      return;
+    }
     let raf = 0;
     const startTime =
       typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -793,6 +800,7 @@ function AnimatedNumber({ target }: { target: number }) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [safeTarget]);
+
   return (
     <span className="text-5xl font-semibold tabular-nums text-white">
       {value}
@@ -801,152 +809,53 @@ function AnimatedNumber({ target }: { target: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Consequences
-// ─────────────────────────────────────────────────────────────────────────────
-
-const CONSEQUENCES = [
-  {
-    title: "Production delays",
-    body:
-      "Lines stop because someone realises mid-shift that a key part is out of stock.",
-  },
-  {
-    title: "Material shortages",
-    body:
-      "Reorder points exist on paper but never get checked — until production halts.",
-  },
-  {
-    title: "Cash locked in overstock",
-    body:
-      "To avoid shortages, you over-order. Working capital sits on the shelf instead of in the bank.",
-  },
-  {
-    title: "Missed delivery windows",
-    body:
-      "You promised a date assuming stock was correct. It wasn't, and the customer notices.",
-  },
-  {
-    title: "Coordination overhead",
-    body:
-      "Hours every week spent on WhatsApp threads asking 'how many do we have?' and 'who ordered that?'.",
-  },
-  {
-    title: "Scaling gets harder",
-    body:
-      "What worked at 50 SKUs collapses at 150. Manual systems don't scale — but the order book does.",
-  },
-];
-
-function Consequences() {
-  return (
-    <section className="border-t border-white/5 py-20 sm:py-24">
-      <div className="container-page">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-red-500/20 bg-red-500/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-red-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-            What this usually leads to
-          </span>
-          <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Operational blind spots don&apos;t stay invisible.
-          </h2>
-          <p className="mt-4 text-base leading-7 text-white/60">
-            The patterns above tend to surface as concrete problems —
-            usually at the worst possible moment.
-          </p>
-        </div>
-
-        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CONSEQUENCES.map((c) => (
-            <div
-              key={c.title}
-              className="group rounded-2xl border border-white/10 bg-white/[0.025] p-6 transition hover:border-white/20 hover:bg-white/[0.045]"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="h-2 w-2 rounded-full bg-red-500"
-                  aria-hidden="true"
-                />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
-                  Risk
-                </span>
-              </div>
-              <h3 className="mt-4 text-base font-semibold text-white">
-                {c.title}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-white/60">{c.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Solution (Operza)
+// Where Operza fits
 // ─────────────────────────────────────────────────────────────────────────────
 
 const CAPABILITIES = [
   {
-    title: "Real-time inventory",
-    body:
-      "One dashboard. Every raw material, current stock, last movement — visible from any phone or laptop.",
+    title: "Materials and alert levels",
+    body: "Current stock, receipts, adjustments and history.",
   },
   {
-    title: "BOMs that update inventory",
-    body:
-      "Define a product once. Every production run automatically deducts the right raw materials.",
+    title: "Products, BOMs and production",
+    body: "Record what each product consumes, and check material availability before a run.",
   },
   {
-    title: "Low-stock alerts",
-    body:
-      "Reorder thresholds per part. The app warns you before the line stops, not after.",
+    title: "Packing, finished goods and dispatch",
+    body: "Record what is packed and what leaves the factory.",
   },
   {
-    title: "Finished goods tracking",
-    body:
-      "Finished units logged per run, ready for dispatch. Commit to delivery windows with confidence.",
+    title: "Costing and capacity",
+    body: "See current manufacturing cost and which material is limiting production.",
   },
   {
-    title: "Full operational logs",
-    body:
-      "Every stock change, every production run, every adjustment — timestamped and auditable.",
+    title: "History and corrections",
+    body: "Recorded movements stay visible, and supported corrections keep the original history rather than silently rewriting it.",
   },
 ];
 
-function Solution() {
+function WhereOperzaFits() {
   return (
-    <section className="border-t border-white/5 py-20 sm:py-24">
+    <section className="border-t border-white/[0.06] py-20 sm:py-24">
       <div className="container-page">
         <div className="grid items-start gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/65">
-              How manufacturers fix this
-            </span>
+            <span className="eyebrow-invert">Where Operza fits</span>
             <h2 className="mt-6 text-3xl font-semibold tracking-tight sm:text-4xl">
-              One system for inventory, production, and finished goods.
+              One shared record for the shop floor.
             </h2>
             <p className="mt-5 text-base leading-7 text-white/65">
-              Operza centralises the data your factory already produces every
-              day — and connects it. Raw materials, BOMs, production runs,
-              finished goods, and logs. No installation, works on a phone.
+              Operza Factory gives the shop floor one shared operational record
+              for materials, products, production, packing, finished goods and
+              dispatch.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a
-                href={SITE.app}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
-              >
-                Open Operza
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
-              <a
-                href="/#contact"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-transparent px-5 py-3 text-sm font-semibold text-white/90 transition hover:border-white/25 hover:bg-white/[0.05]"
-              >
-                Book a demo
-              </a>
+
+            <div className="mt-8 rounded-2xl border border-brand-400/25 bg-brand-500/[0.07] p-5">
+              <p className="text-sm leading-6 text-white/75">
+                Need the books too? Operza Complete connects the factory with
+                invoices, bills, payments, ledgers and statements.
+              </p>
             </div>
           </div>
 
@@ -956,13 +865,11 @@ function Solution() {
                 key={c.title}
                 className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.025] p-5"
               >
-                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-black text-[11px] font-semibold tabular-nums text-white/70">
+                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 bg-[#05070f] text-[11px] font-semibold tabular-nums text-white/70">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>
-                  <h3 className="text-sm font-semibold text-white">
-                    {c.title}
-                  </h3>
+                  <h3 className="text-sm font-semibold text-white">{c.title}</h3>
                   <p className="mt-1.5 text-sm leading-6 text-white/60">
                     {c.body}
                   </p>
@@ -982,37 +889,30 @@ function Solution() {
 
 function CTA() {
   return (
-    <section className="border-t border-white/5 py-20 sm:py-24">
+    <section className="border-t border-white/[0.06] py-20 sm:py-24">
       <div className="container-page">
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.01] px-6 py-14 sm:px-12 sm:py-20">
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.05] to-white/[0.01] px-6 py-14 sm:px-12 sm:py-20">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-red-500/15 blur-3xl"
+            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-600/15 blur-3xl"
           />
           <div className="relative mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Stop guessing. Start seeing.
+              See how Operza would fit your factory.
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-white/65">
-              Open the app, add your parts and products, log your first
-              production run. Setup takes minutes, not weeks.
+              Tell us what you make and where the process currently depends on
+              manual records. We&apos;ll tailor the demo around the parts of
+              Operza that matter to you.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <a
-                href={SITE.app}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-sm font-semibold text-black transition hover:bg-white/90 sm:w-auto"
-              >
-                Open Operza
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
-              <a
-                href="/#contact"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-6 py-3.5 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08] sm:w-auto"
-              >
+              <Link href="/#contact" className="btn-invert w-full sm:w-auto">
                 Book a demo
-              </a>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="/" className="btn-invert-ghost w-full sm:w-auto">
+                Back to Operza
+              </Link>
             </div>
           </div>
         </div>
@@ -1027,12 +927,15 @@ function CTA() {
 
 function FooterLite() {
   return (
-    <footer className="border-t border-white/5 py-10">
+    <footer className="border-t border-white/[0.06] py-10">
       <div className="container-page flex flex-col items-center justify-between gap-3 text-xs text-white/40 sm:flex-row">
         <p>© {new Date().getFullYear()} Operza. Built for manufacturers in India.</p>
         <div className="flex items-center gap-5">
           <Link href="/" className="transition hover:text-white">
             Home
+          </Link>
+          <Link href="/#contact" className="transition hover:text-white">
+            Book a demo
           </Link>
           <a
             href={SITE.app}
@@ -1040,7 +943,7 @@ function FooterLite() {
             rel="noopener noreferrer"
             className="transition hover:text-white"
           >
-            Open app
+            Sign in
           </a>
         </div>
       </div>
@@ -1082,19 +985,6 @@ function ArrowLeft({ className = "h-4 w-4" }: { className?: string }) {
         d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
         clipRule="evenodd"
       />
-    </svg>
-  );
-}
-
-function ArrowUpRight({ className = "h-3.5 w-3.5" }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M6.5 5.5a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 11-2 0V7.914l-6.793 6.793a1 1 0 01-1.414-1.414L11.086 6.5H7.5a1 1 0 01-1-1z" />
     </svg>
   );
 }
