@@ -140,8 +140,13 @@ section("D. METADATA CARRIES THE CURRENT POSITIONING");
   ok("(D9) the health-check metadata no longer positions Operza as inventory software",
      !/inventory and production/i.test(hc) && !/manufacturing inventory/i.test(hc),
      (hc.match(/.{0,50}(inventory and production|manufacturing inventory).{0,50}/i) ?? [])[0]);
-  ok("(D10) ...and still describes Operza truthfully",
-     /manufacturing software for Indian factories/i.test(hc));
+  // PR1 gave this route a generic Operza tagline because its own copy was still
+  // the old assessment. Now that the assessment is current, the metadata
+  // describes what the route actually is, which is the more useful promise for
+  // a search result to make.
+  ok("(D10) ...and describes what the assessment actually checks",
+     /materials, production and finished-goods records/i.test(hc)
+     && /Eight questions, no signup/i.test(hc));
 }
 
 /* ========================================================================= */
