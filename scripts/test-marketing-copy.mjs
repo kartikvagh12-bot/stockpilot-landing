@@ -78,6 +78,10 @@ function visibleStrings(file) {
 const COMPONENTS = readdirSync(join(ROOT, "components"))
   .filter((f) => f.endsWith(".tsx"))
   .map((f) => `components/${f}`);
+const DEMO_FILES = readdirSync(join(ROOT, "components/demos"))
+  .filter((f) => f.endsWith(".tsx"))
+  .map((f) => `components/demos/${f}`);
+
 const SURFACE = [
   "app/page.tsx",
   "app/layout.tsx",
@@ -86,6 +90,7 @@ const SURFACE = [
   "lib/faq.ts",
   "lib/site.ts",
   ...COMPONENTS,
+  ...DEMO_FILES,
 ];
 const strings = SURFACE.flatMap(visibleStrings);
 const show = (rs) => rs.slice(0, 5).map((r) => `${r.file}:${r.line} [${r.kind}] ${r.text.slice(0, 90)}`).join("\n      ");
@@ -132,9 +137,10 @@ section("B. NO EM DASH IN RENDERED MARKETING PROSE");
   // table column changes, and pinning it would only produce churn; what must
   // stay true is that the empty-value glyph never appears outside the demo's
   // tables, which are the only place a blank cell is meaningful.
-  ok(`(B3) every placeholder glyph lives in the demo tables (${glyphCount} across ${glyphFiles.size} file)`,
-     glyphCount > 0 && [...glyphFiles].every((f) => f === "components/InteractiveProductionDemo.tsx"),
-     [...glyphFiles].join(", "));
+  // The empty-value table glyphs went with the old demo, so there is now no
+  // exemption to carry: the surface should hold no em dash at all.
+  ok(`(B3) no em dash of any kind survives on the surface (${glyphCount} glyph, ${stray.length} prose)`,
+     glyphCount === 0 && stray.length === 0, [...glyphFiles].join(", "));
 }
 
 /* ========================================================================= */
@@ -218,30 +224,38 @@ section("D. LOCKED CLAIM BOUNDARIES");
   // back. Checked on the two files that carried it, against rendered strings
   // rather than source, so a leftover internal identifier during a future
   // refactor would not fail the build while nothing reaches the screen.
-  const demoStrings = visibleStrings("components/InteractiveProductionDemo.tsx");
+  const demoStrings = DEMO_FILES.flatMap(visibleStrings);
   const experienceStrings = visibleStrings("components/ProductExperience.tsx");
-  ok("(D4) the demo shows no purchasing or reorder surface",
-     !demoStrings.some((r) => /purchasing|reorder|supplier|replenish/i.test(r.text)),
-     show(demoStrings.filter((r) => /purchasing|reorder|supplier|replenish/i.test(r.text))));
+  // "Supplier" and "supplier bill" are real Operza vocabulary and appear in
+  // the Books example. What must never return is the invented purchasing
+  // SURFACE: a workspace, suggested quantities, or replenishment timing.
+  const FICTIONAL_PURCHASING =
+    /purchasing workspace|suggested reorder|reorder quantit|reorder suggestion|recommended reorder|reorder timing|replenish/i;
+  ok("(D4) the examples show no purchasing or reorder surface",
+     !demoStrings.some((r) => FICTIONAL_PURCHASING.test(r.text)),
+     show(demoStrings.filter((r) => FICTIONAL_PURCHASING.test(r.text))));
   ok("(D5) ...and does not speak as though Operza were recommending purchases",
      !demoStrings.some((r) => /Operza recommends/i.test(r.text)),
      show(demoStrings.filter((r) => /Operza recommends/i.test(r.text))));
   ok("(D6) the section intro no longer promises a reorder suggestion",
      !experienceStrings.some((r) => /reorder|purchasing|supplier/i.test(r.text)),
      show(experienceStrings.filter((r) => /reorder|purchasing|supplier/i.test(r.text))));
-  ok("(D7) ...and still frames the demo as a simplified example",
-     experienceStrings.some((r) => /simplified interactive example/i.test(r.text)));
-  ok("(D8) the demo still ends inside the production flow",
-     demoStrings.some((r) => /Production completed\.$/.test(r.text) || /alert level/.test(r.text)));
+  ok("(D7) ...and still frames the interactions as simplified examples",
+     experienceStrings.some((r) => /simplified examples/i.test(r.text)));
+  ok("(D8) the factory example still ends inside the production flow",
+     /finished units added/i.test(read("components/demos/FactoryDemo.tsx"))
+     && /Dispatched \$\{DISPATCH_QTY\} units/.test(read("components/demos/FactoryDemo.tsx")));
 
   // The Tally paragraph must still make its three approved statements.
-  const tally = read("components/BooksAndTally.tsx");
+  const tally = read("components/CompleteSection.tsx");
+  const flat = (t) => t.replace(/\s+/g, " ");
   ok("(D1) the Tally claim is the approved export sentence",
-     /exports recorded invoices and bills as a file your\s+accountant imports into TallyPrime/.test(tally));
+     /exports recorded invoices and bills as a file your accountant imports into TallyPrime/.test(flat(tally)));
   ok("(D2) ...plus the ledger-name import",
-     /import your existing\s+Tally ledger names/.test(tally));
+     /import your existing Tally ledger names/.test(flat(tally)));
   ok("(D3) ...plus the already-sent invariant, stated as entries not periods",
-     /tracks which entries have already been sent,\s+so the same entries are not exported again/.test(tally));
+     /tracks which entries have already been sent/.test(flat(tally))
+     && !/month|period/i.test(flat(tally).match(/tracks which entries[^.]*\./)?.[0] ?? ""));
 }
 
 /* ========================================================================= */
@@ -253,21 +267,23 @@ section("E. THE CAPABILITY SEAM IS NOT BLURRED");
   // claim stock movement. Both connections belong to Complete and are stated
   // there, labelled.
   const factory = visibleStrings("components/RunYourFactory.tsx");
-  const booksBridge = read("components/RunYourBooks.tsx");
+  const booksBridge = read("components/CompleteSection.tsx");
   ok("(E1) the Factory section does not claim an accounting entry",
      !factory.some((r) => /records the sale|in your books|posts an invoice|accounting/i.test(r.text)),
      show(factory.filter((r) => /records the sale|in your books|accounting/i.test(r.text))));
-  ok("(E2) the Factory dispatch claim stops at the invoice reference",
-     factory.some((r) => /invoice reference/.test(r.text)));
-  ok("(E3) the cross-capability claim is labelled as Operza Complete",
-     /In Operza Complete/.test(booksBridge)
-     && /Dispatches record the sale,\s+and supplier bills can receive their linked materials into stock/.test(booksBridge));
+  ok("(E2) the Factory dispatch claim stops at the reference",
+     factory.some((r) => /records the customer, the reference/i.test(r.text)));
+  ok("(E3) the cross-capability claim lives in the Operza Complete section",
+     /Operza Complete/.test(booksBridge)
+     && /reduces stock and records the sale/i.test(booksBridge)
+     && /receive the material it paid for/i.test(booksBridge));
   ok("(E4) valuation feeding the statements is scoped to Books",
      /Where Books is enabled/.test(read("components/Costing.tsx")));
   const costing = read("components/Costing.tsx");
+  const costingFlat = costing.replace(/\s+/g, " ");
   ok("(E4b) pinning closing stock is stated as something the user does",
-     /You can pin the value at month and year ends/.test(costing)
-     && !/and pinned at month and year ends/.test(costing));
+     /You can pin the value at month and year ends/.test(costingFlat)
+     && !/and pinned at month and year ends/.test(costingFlat));
   ok("(E4c) no unevidenced claim about what most factories do",
      !/most factories/i.test(costing));
   ok("(E5) margin is stated as gross margin, never as profit",
@@ -296,10 +312,10 @@ section("F. NAVIGATION RESOLVES");
   ok("(F2) no retired anchor survives",
      !["features", "workflow", "screenshots", "simulator", "blind-spots"].some((a) => anchors.has(a)),
      [...anchors].join(", "));
-  ok("(F3) the page composes the locked section order",
-     /<Hero \/>[\s\S]*<Plans \/>[\s\S]*<RunYourFactory \/>[\s\S]*<Costing \/>[\s\S]*<RunYourBooks \/>[\s\S]*<BooksAndTally \/>[\s\S]*<CorrectionsAndHistory \/>[\s\S]*<ProductExperience \/>[\s\S]*<FAQ \/>[\s\S]*<Contact \/>/.test(page));
+  ok("(F3) the page composes the current section order",
+     /<Hero \/>[\s\S]*<ProductExperience \/>[\s\S]*<Plans \/>[\s\S]*<RunYourFactory \/>[\s\S]*<Costing \/>[\s\S]*<RunYourBooks \/>[\s\S]*<CompleteSection \/>[\s\S]*<HealthCheckCallout \/>[\s\S]*<FAQ \/>[\s\S]*<Contact \/>/.test(page));
   ok("(F4) the retired sections are gone from the page",
-     !/BlindSpots|HealthCheckCTA|Workflow|Features|Screenshots|FinalCTA|FloatingAudit/.test(page));
+     !/BlindSpots|HealthCheckCTA|Workflow|Features|Screenshots|FinalCTA|FloatingAudit|BooksAndTally|CorrectionsAndHistory/.test(page));
 }
 
 /* ========================================================================= */
@@ -375,43 +391,98 @@ section("J. THE HEALTH CHECK REPORTS RATHER THAN ALARMS");
 }
 
 /* ========================================================================= */
-section("I. PRODUCT VISUALS ARE REAL CAPTURES");
+section("I. THE HOMEPAGE EXPLAINS THROUGH INTERACTION, NOT SCREENSHOTS");
 /* ========================================================================= */
 {
-  const frame = read("components/ScreenshotFrame.tsx");
-  ok("(I1) no pending-capture placeholder survives anywhere",
-     !SURFACE.some((f) => /Screenshot pending|PendingCapture|Awaiting an approved capture/.test(read(f))));
-  ok("(I2) the frame demands a real file rather than falling back to a drawing",
-     /src: string;/.test(frame) && !/src\?: string/.test(frame));
+  // Founder direction (2026-09): the homepage no longer shows the app. Real
+  // captures read as blurry documentation and exposed literal product data, so
+  // the product story is now website-native interfaces the visitor can click.
+  const page = read("app/page.tsx");
+  const surfaceSrc = SURFACE.map(read).join("\n");
 
-  // Collect every declared capture and check it exists on disk.
-  const shots = [];
-  for (const f of SURFACE) {
-    for (const m of read(f).matchAll(/src:\s*"(\/product\/[^"]+)"/g)) shots.push([f, m[1]]);
-  }
-  ok(`(I3) the page ships a small, chosen set of captures (${shots.length})`,
-     shots.length >= 5 && shots.length <= 8, shots.map(([, s]) => s).join(", "));
-  for (const [f, src] of shots)
-    ok(`(I4-${src}) the file exists`, existsSync(join(ROOT, "public", src)), `declared in ${f}`);
+  ok("(I1) no homepage component references a product screenshot",
+     !/\/product\/[a-z0-9-]+\.(png|jpg|webp)/i.test(surfaceSrc),
+     (surfaceSrc.match(/\/product\/[a-z0-9-]+\.\w+/i) ?? [])[0]);
+  for (const shot of ["dashboard", "run-production", "cost-changes", "dispatch",
+                      "payments", "trial-balance", "inventory-movements"])
+    ok(`(I2-${shot}) the retired capture is not referenced`,
+       !new RegExp(`/product/${shot}`, "i").test(surfaceSrc));
 
-  // Every frame needs alt text, and money-bearing ones need the sample chip.
-  const declBlocks = SURFACE.flatMap((f) =>
-    [...read(f).matchAll(/:\s*Shot\s*=\s*\{[\s\S]*?\n\};/g)].map((m) => [f, m[0]]),
-  );
-  for (const [f, block] of declBlocks) {
-    const src = (block.match(/src:\s*"([^"]+)"/) ?? [])[1] ?? "?";
-    ok(`(I5-${src}) has descriptive alt text`,
-       (block.match(/alt:\s*"([^"]{40,})"/) ?? []).length > 0, f);
-  }
-  // The two statements-and-money captures must be labelled as sample data.
-  for (const needle of ["trial-balance", "payments", "cost-changes", "dispatch-order-totals"]) {
-    const block = declBlocks.find(([, b]) => b.includes(needle));
-    ok(`(I6-${needle}) money-bearing capture is marked as a sample workspace`,
-       !!block && /sample:\s*true/.test(block[1]));
-  }
-  ok("(I7) the frame renders that chip visibly",
-     /Sample workspace/.test(frame) && /shot\.sample &&/.test(frame));
+  ok("(I3) the screenshot frame is gone and does not return to the homepage",
+     !existsSync(join(ROOT, "components/ScreenshotFrame.tsx"))
+     && !/ScreenshotFrame/.test(surfaceSrc));
+  ok("(I4) ...and the screenshot assets are gone with it",
+     !existsSync(join(ROOT, "public/product")));
+  ok("(I5) no next/image product visual sneaks back into the homepage story",
+     !/from "next\/image"/.test(SURFACE.filter((f) => f.startsWith("components/")).map(read).join("\n")));
+
+  // What replaced them.
+  const demoSrc = DEMO_FILES.map(read).join("\n");
+  ok(`(I6) the interactive examples exist (${DEMO_FILES.length} panels)`,
+     DEMO_FILES.length >= 4);
+  ok("(I7) every example is labelled as an example, not as live data",
+     /Interactive example/.test(read("components/demos/demo-ui.tsx")));
+  ok("(I8) ...and never claims to be live, real time or customer data",
+     !/\b(live data|real[- ]time|customer data|production data|sample workspace)\b/i.test(demoSrc));
+  ok("(I9) the examples carry no real customer or sample-workspace figures",
+     !/Gurukrupa|Shree Swami|Maharashtra Electrical|Patel Electric|Om Switchgear|Shree Polymers|Balaji Packaging|TimberWorks|INV-00|DSP-0000|RCP-0000|PAY-0000/i.test(demoSrc));
+  ok("(I10) they are local state only: no fetch, no storage, no supabase",
+     !/\bfetch\(|supabase|localStorage|sessionStorage|axios/i.test(demoSrc));
+  ok("(I11) each example that changes state offers a reset",
+     ["FactoryDemo", "BooksDemo", "CompleteDemo", "CostingDemo"].every((d) =>
+       /ResetButton/.test(read(`components/demos/${d}.tsx`))));
+  ok("(I12) state changes are announced, not left to sighted users only",
+     /aria-live="polite"/.test(read("components/demos/demo-ui.tsx")));
+  ok("(I13) motion respects the OS setting",
+     /prefers-reduced-motion: reduce/.test(read("components/demos/demo-ui.tsx"))
+     && /prefersReducedMotion\(\)/.test(read("components/demos/CompleteDemo.tsx")));
 }
 
+/* ========================================================================= */
+section("K. THE FOUNDER DIRECTION IS ON THE PAGE");
+/* ========================================================================= */
+{
+  const surfaceSrc = SURFACE.map(read).join("\n");
+  const flat = surfaceSrc.replace(/\s+/g, " ");
+
+  // The headline is split across a span for the two-tone treatment, so match
+  // what RENDERS: strip the tags and the JSX space expressions from the h1,
+  // then read it back as one sentence.
+  const heroH1 = (read("components/Hero.tsx").match(/<h1[\s\S]*?<\/h1>/) ?? [""])[0]
+    .replace(/\{"\s*"\}/g, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  ok("(K1) the rendered hero headline is the approved line",
+     heroH1 === "Materials, production, dispatch and books. One system.", heroH1);
+  ok("(K2) Open App is present, and not relabelled",
+     (flat.match(/Open App/g) ?? []).length >= 3,
+     `found ${(flat.match(/Open App/g) ?? []).length}`);
+  ok("(K3) ...in the navbar, the hero and the closing area",
+     /Open App/.test(read("components/Navbar.tsx"))
+     && /Open App/.test(read("components/Hero.tsx"))
+     && (/Open App/.test(read("components/Footer.tsx")) || /Open App/.test(read("components/Contact.tsx"))));
+  ok("(K4) every Open App resolves through SITE.app rather than a pasted URL",
+     !/https:\/\/app\.operza\.in/.test(SURFACE.filter((f) => f !== "lib/site.ts").map(read).join("\n")));
+
+  ok("(K5) the Health Check has a homepage section, not just a footer link",
+     existsSync(join(ROOT, "components/HealthCheckCallout.tsx"))
+     && /<HealthCheckCallout \/>/.test(read("app/page.tsx")));
+  ok("(K6) ...linking to the route",
+     /href="\/health-check"/.test(read("components/HealthCheckCallout.tsx")));
+  ok("(K7) ...with the approved framing",
+     /How visible is your factory operation\?/.test(read("components/HealthCheckCallout.tsx"))
+     && /Take the Health Check/.test(read("components/HealthCheckCallout.tsx")));
+
+  const px = read("components/ProductExperience.tsx");
+  for (const mode of ["Factory", "Books", "Complete"])
+    ok(`(K8-${mode}) the ${mode} interactive mode exists`,
+       new RegExp(`label: "${mode}"`).test(px));
+  ok("(K9) the modes are a real tablist, keyboard operable",
+     /role="tablist"/.test(px) && /role="tab"/.test(px)
+     && /role="tabpanel"/.test(px) && /ArrowRight/.test(px));
+}
+
+/* ========================================================================= */
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
 process.exit(failures === 0 ? 0 : 1);

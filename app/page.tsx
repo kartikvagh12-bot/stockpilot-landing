@@ -1,12 +1,12 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import ProductExperience from "@/components/ProductExperience";
 import Plans from "@/components/Plans";
 import RunYourFactory from "@/components/RunYourFactory";
 import Costing from "@/components/Costing";
 import RunYourBooks from "@/components/RunYourBooks";
-import BooksAndTally from "@/components/BooksAndTally";
-import CorrectionsAndHistory from "@/components/CorrectionsAndHistory";
-import ProductExperience from "@/components/ProductExperience";
+import CompleteSection from "@/components/CompleteSection";
+import HealthCheckCallout from "@/components/HealthCheckCallout";
 import FAQ from "@/components/FAQ";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
@@ -19,13 +19,13 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
+        <ProductExperience />
         <Plans />
         <RunYourFactory />
         <Costing />
         <RunYourBooks />
-        <BooksAndTally />
-        <CorrectionsAndHistory />
-        <ProductExperience />
+        <CompleteSection />
+        <HealthCheckCallout />
         <FAQ />
         <Contact />
       </main>

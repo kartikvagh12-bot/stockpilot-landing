@@ -1,77 +1,65 @@
-import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
+// The Factory narrative, separate from the interactive example above it.
+// Grouped into three ideas rather than a grid of feature icons, and with no
+// screenshot: the product story is carried by the interaction, this section
+// says what is actually covered.
 
-// Asymmetric on purpose. The old Workflow section was four equal cards and the
-// old Features section was six equal cells, which flattened everything to the
-// same importance. Here one screenshot anchors the section and the claims run
-// beside it as typographic blocks rather than a fourth card grid.
-
-const PRODUCTION: Shot = {
-  src: "/product/run-production.png",
-  screen: "Run production",
-  alt: "The Operza run production screen with a product selected, showing the batch size, the yield, and a confirmation that the batch is within current material availability",
-  width: 963,
-  height: 671,
-};
-
-const CLAIMS = [
+const GROUPS = [
   {
-    title: "Can we make this today?",
-    body: "The dashboard shows which materials are at or below their alert level, which products are blocked, and which material is limiting you.",
+    title: "What you hold",
+    body: "Materials carry a stock level, an alert level and a unit. Receipts and adjustments are recorded as they happen, so the number on screen is the number someone entered, with a reason attached.",
+    chips: ["Materials", "Alert levels", "Receipts", "Adjustments"],
   },
   {
-    title: "A short run does not half happen.",
-    body: "If any material is short, nothing is deducted and no units are posted. Same in packing: if anything is short, nothing is packed.",
+    title: "What you make",
+    body: "Products carry a recipe, including components you make in house before the final product. A run checks every material first: if one is short, nothing is deducted and no units are posted.",
+    chips: ["Products", "BOMs and recipes", "In-house components", "Shortage check"],
   },
   {
-    title: "Dispatch, recorded properly.",
-    body: "Record the customer, the invoice reference and the products going out. Finished-goods stock drops automatically.",
+    title: "What leaves",
+    body: "Packing turns loose units into packed ones using the packaging set for that product. Dispatch records the customer, the reference and what went out, and finished-goods stock drops with it.",
+    chips: ["Packing", "Finished goods", "Dispatch", "Movement history"],
   },
 ];
 
 export default function RunYourFactory() {
   return (
-    <section id="factory" className="section scroll-mt-16 border-t border-slate-200/70">
+    <section id="factory" className="section scroll-mt-16">
       <div className="container-wide">
-        <div className="grid gap-14 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-5">
-            <span className="eyebrow">Operza Factory</span>
-            <h2 className="h-section">The floor, recorded as it runs.</h2>
-            <p className="p-section">
-              Materials carry a stock level and an alert level. Products carry a
-              recipe, including the components you make in house. A run checks
-              every material, deducts them, adds the finished units and writes
-              the batch to history.
-            </p>
-
-            <div className="mt-12 space-y-8">
-              {CLAIMS.map((c) => (
-                <div key={c.title} className="claim">
-                  <h3 className="text-base font-semibold text-slate-900">
-                    {c.title}
-                  </h3>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-600">
-                    {c.body}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <p className="mt-10 text-sm text-slate-500">
-              <a
-                href="#costing"
-                className="font-medium text-slate-700 underline-offset-4 hover:text-slate-900 hover:underline"
-              >
-                See how costing works
-              </a>
-            </p>
-          </div>
-
-          {/* One capture, not a gallery. The screen states the section's
-              central promise in the product's own words. */}
-          <div className="lg:col-span-7">
-            <ScreenshotFrame shot={PRODUCTION} className="lg:mt-6" />
-          </div>
+        <div className="max-w-2xl">
+          <span className="eyebrow">Operza Factory</span>
+          <h2 className="h-section">Run the floor from one shared record.</h2>
+          <p className="p-section">
+            Every movement on the floor lands in the same place, so the answer
+            to a stock question does not depend on who is in today.
+          </p>
         </div>
+
+        <div className="mt-14 grid gap-10 lg:grid-cols-3 lg:gap-8">
+          {GROUPS.map((g) => (
+            <div key={g.title} className="claim">
+              <h3 className="text-base font-semibold text-slate-900">
+                {g.title}
+              </h3>
+              <p className="mt-2.5 text-sm leading-6 text-slate-600">{g.body}</p>
+              <ul className="mt-5 flex flex-wrap gap-1.5">
+                {g.chips.map((c) => (
+                  <li
+                    key={c}
+                    className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600"
+                  >
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-12 max-w-2xl border-l-2 border-brand-500 pl-5 text-sm leading-7 text-slate-600 sm:text-base">
+          Nothing is quietly rewritten. A recorded movement stays visible, and a
+          correction is recorded against the original rather than replacing it.
+          A production run can be undone while nothing later depends on it.
+        </p>
       </div>
     </section>
   );

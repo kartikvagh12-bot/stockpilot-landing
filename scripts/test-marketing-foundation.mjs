@@ -236,9 +236,9 @@ section("H. THE HOMEPAGE AND THE FOUNDATION AGREE");
   // the rendered surface instead of one constants file.
   const site = read("lib/site.ts");
   const page = read("app/page.tsx");
-  ok("(H1) nav links point at the rebuilt homepage sections",
-     /\/#factory/.test(site) && /\/#books/.test(site)
-     && /\/#costing/.test(site) && /\/#faq/.test(site));
+  ok("(H1) nav links point at real destinations on the rebuilt site",
+     /\/#product/.test(site) && /\/#factory/.test(site)
+     && /\/#books/.test(site) && /\/health-check/.test(site));
   ok("(H2) ...and no retired anchor survives in the nav",
      !/#features|#workflow|#screenshots/.test(site),
      (site.match(/#(features|workflow|screenshots)/) ?? [])[0]);

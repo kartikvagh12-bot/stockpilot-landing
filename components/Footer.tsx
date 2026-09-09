@@ -13,19 +13,19 @@ const COLS: Array<{
   {
     heading: "Product",
     links: [
+      { href: "/#product", label: "See it work" },
       { href: "/#factory", label: "Factory" },
       { href: "/#books", label: "Books" },
-      { href: "/#costing", label: "Costing" },
-      { href: "/#plans", label: "Factory, Books, Complete" },
+      { href: "/#complete", label: "Complete" },
     ],
   },
   {
     heading: "Explore",
     links: [
-      { href: "/health-check", label: "Health Check" },
+      { href: "/health-check", label: "Factory Health Check" },
       { href: "/#faq", label: "FAQ" },
       { href: "/#contact", label: "Book a demo" },
-      { href: SITE.app, label: "Sign in", external: true },
+      { href: SITE.app, label: "Open App", external: true },
     ],
   },
   {

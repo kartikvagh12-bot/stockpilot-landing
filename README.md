@@ -27,12 +27,19 @@ the same order, the same option scores and flags by position, the same
 `MAX_SCORE` and the same 85 / 60 band thresholds. Only the wording changed,
 because there is no evidence base for recalibrating the numbers.
 
-Product visuals are **real captures from a seeded Operza Complete sample
-workspace** (the Electrical Plastics dataset), held in `public/product/` and
-rendered through `components/ScreenshotFrame.tsx`. `Shot.src` is required, so
-there is no placeholder state: a section either has a real capture or does
-without a visual. Money-bearing captures carry a visible "Sample workspace"
-chip. Never capture from a customer workspace.
+**The homepage does not show the app.** Real screenshots were removed on
+founder review: they read as blurry and static, and even sample captures put
+literal product data on a marketing page and made it feel like documentation.
+
+The product story is now **website-native interactive examples** in
+`components/demos/`. Each is a small interface that borrows Operza's visual
+language and lets a visitor click a control and watch a business result change:
+material in and units out, a bill and a payment, a dispatch that moves the floor
+and the books together, and a material cost that moves the margin.
+
+They are local React state only. No fetch, no persistence, no product code, and
+no customer or sample-workspace data. Every value is invented for the website
+and each panel is labelled **Interactive example**.
 
 ## Stack
 
@@ -82,8 +89,8 @@ Shared pieces:
   Every "sign in" link resolves through `SITE.app`.
 - `lib/faq.ts` is the single source for the FAQ. The visible accordion and the
   `FAQPage` structured data both read it, so the two cannot drift.
-- `components/ScreenshotFrame.tsx` renders every product visual from a required
-  real capture. There is no placeholder state.
+- `components/demos/` holds the interactive examples and their shared parts.
+  Local state only: no fetch, no persistence, no product code.
 - `lib/og-card.tsx` renders the social card shared by both image routes.
 - `app/globals.css` holds the `@layer components` primitives
   (`.container-page`, `.btn-primary`, `.section`, `.eyebrow`, `.h-section`,
@@ -97,13 +104,14 @@ captures:
 
 | File | Purpose |
 |---|---|
-| `product/*.png` | Seven product captures from the sample workspace. |
 | `operza-logo.png` | The hexagon mark, used by the Navbar and Footer. |
 | `favicon-512.png` | Favicon. |
 | `apple-touch-icon.png` | iOS home-screen icon. |
 | `google3ea2eded30925b65.html` | Google Search Console verification. Do not remove or rename. |
 
-No hand-built fake UI remains anywhere on the site.
+There are no product screenshots and no fake browser windows. The interactive
+examples are deliberately small: they explain one idea each, and never try to
+recreate an Operza screen.
 
 ## Environment variables
 
@@ -195,6 +203,12 @@ are untouched by it.
 
 Customer-facing copy on this site follows the vocabulary shipped in
 `operza-app`:
+
+**Brand**: black and white with one restrained red accent. The red is
+`#f31820`, sampled from `public/operza-logo.png`, and is the `brand` scale in
+`tailwind.config.ts`. Use it for the primary emphasis, an active tab, a selected
+state and small rules or dots. It is not an error colour, and it is not the page
+background.
 
 - **material**, never "part"
 - **finished goods**, never "FG"

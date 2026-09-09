@@ -107,7 +107,22 @@ export default function Contact() {
               you.
             </p>
 
-            <dl className="mt-12 space-y-6 text-sm">
+            {/* Existing customers land here too, so the way back into the
+                product sits beside the sales copy rather than only in the
+                navbar. */}
+            <div className="mt-8 flex flex-wrap items-center gap-3 rounded-xl border border-white/12 bg-white/[0.03] px-4 py-3.5">
+              <p className="text-sm text-white/60">Already using Operza?</p>
+              <a
+                href={SITE.app}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center rounded-lg border border-white/20 px-3.5 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              >
+                Open App
+              </a>
+            </div>
+
+            <dl className="mt-10 space-y-6 text-sm">
               <ContactRow label="Email" value={SITE.email} href={`mailto:${SITE.email}`} />
               <ContactRow
                 label="WhatsApp"
