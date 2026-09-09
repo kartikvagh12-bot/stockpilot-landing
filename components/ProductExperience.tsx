@@ -1,11 +1,17 @@
 import Link from "next/link";
 import InteractiveProductionDemo from "@/components/InteractiveProductionDemo";
 
-// Wrapper that gives the demo its new framing and its single CTA. The demo's
-// own behaviour is untouched: same state machine, same tiers, same outcomes.
+// Wrapper that supplies the framing and the single CTA around the demo.
 //
-// The demo is a bespoke client-side simulation. It shares no code with the
-// product, so nothing here says it runs real logic.
+// The simulation itself keeps its four production tiers: 25 healthy, 50 one
+// material low, 100 two low, and 200 blocked with nothing posted. What it no
+// longer has is the second half it used to end in, a "Purchasing workspace"
+// with supplier names, suggested reorder quantities and replenishment timing.
+// Operza has Purchases and Suppliers but no reorder-suggestion surface, so
+// that half described a feature that does not exist and was removed.
+//
+// It remains a bespoke client-side simulation sharing no code with operza-app,
+// so nothing here claims it runs real product logic.
 
 export default function ProductExperience() {
   return (

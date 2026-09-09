@@ -76,8 +76,8 @@ Shared pieces:
   Every "sign in" link resolves through `SITE.app`.
 - `lib/faq.ts` is the single source for the FAQ. The visible accordion and the
   `FAQPage` structured data both read it, so the two cannot drift.
-- `components/ScreenshotFrame.tsx` renders every product visual, and renders a
-  labelled placeholder until a capture exists.
+- `components/ScreenshotFrame.tsx` renders every product visual from a required
+  real capture. There is no placeholder state.
 - `lib/og-card.tsx` renders the social card shared by both image routes.
 - `app/globals.css` holds the `@layer components` primitives
   (`.container-page`, `.btn-primary`, `.section`, `.eyebrow`, `.h-section`,
