@@ -169,6 +169,81 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-09-10 — Real product screenshots wired (PR 2 follow-up)
+
+Seven captures from a seeded **Operza Complete** sample workspace (the
+Electrical Plastics dataset, which is what Complete ships: `COMPLETE_SAMPLE_INDUSTRY`).
+Nothing was created, edited or run to produce them; every capture is a
+read-only view of data the seeder already made.
+
+Dashboard (low stock + production capacity) · Run production · Cost changes ·
+Dispatch order totals · Payments · Trial Balance · Inventory movements.
+
+`ScreenshotFrame.src` is now REQUIRED and the pending-capture placeholder is
+deleted, so no section can ship a placeholder again. Three declared slots were
+dropped rather than filled: Materials, supplier bill review, and Tally export.
+
+Three screens were deliberately NOT used:
+
+* **Dashboard "Raw materials" tile** (`features/dashboard/dashboard-view.tsx:268`)
+  is retired vocabulary that is still on screen, so the dashboard capture is
+  cropped to start below the tile row.
+* **Balance Sheet** cannot render without pinning a closing-stock value, which
+  is a write. Trial Balance carries the same argument better anyway: it ends on
+  a total row where debits equal credits.
+* **Supplier bill review** has no data in a Complete sample. `buildSampleBillFile`
+  runs only on the Books seed path, so Payments is the Books visual.
+
+Also avoided: the Run production right-hand panel says "4 parts consumed", and
+the dashboard's cost widget says "see Cost intelligence". Both are retired
+words still shipping in the product. Captures were cropped around them.
+
+## 2026-09-09 — Homepage rebuilt for Factory and Books (PR 2 of 3)
+
+The homepage was still selling the May 2026 product. Replaced the whole
+composition with the locked ten-section story: Hero, Plans, Run your factory,
+Know what it costs, Run your books, Books and Tally, Corrections and history,
+Product experience, FAQ, Book a demo.
+
+Removed and deleted (all had exactly one consumer, `app/page.tsx`):
+`BlindSpots`, `HealthCheckCTA`, `Workflow`, `Features`, `Screenshots`,
+`FinalCTA`, `FloatingAudit`.
+
+Design: deep hero, alternating light and deep rhythm, `container-wide` for
+product sections and reading width for FAQ and Contact, one card language per
+purpose instead of one repeated seven times, and `prefers-reduced-motion`
+honoured globally. No new dependency, no motion library.
+
+**Screenshots are outstanding.** `ScreenshotFrame` renders every product visual
+and falls back to a labelled "screenshot pending" placeholder. It deliberately
+does not imitate the product: the previous site carried four separate systems of
+hand-drawn fake UI, and by the time Operza had a full accounting module those
+mockups were both stale and misleading. Captures need a seeded sample workspace;
+there was no authenticated session available, and signing in or creating a
+workspace to manufacture captures was out of bounds.
+
+`lib/faq.ts` is now the single source for the FAQ; the visible accordion and the
+`FAQPage` structured data both read it.
+
+Contact gained a "What do you need?" qualifier (Running the factory / Running
+the books / Both / Not sure yet). It is prefixed onto the existing `message`
+field as `Needs: <answer>` rather than adding a column, so there is no schema
+change. A dedicated column is tracked separately.
+
+`InteractiveProductionDemo` kept its state machine untouched. Only its section
+header, its trailing three-CTA stack and some rendered prose changed: retired
+vocabulary ("raw materials", "Atomic write") and every prose em dash. Proved
+invariant two ways: all nine pure functions and every scenario constant are
+byte-identical, and the computed tier table (25 healthy, 50 one low, 100 two
+low, 200 blocked, max safe 100, same reorder quantities) is unchanged.
+
+New guard `npm run test:marketing-copy`. It adapts the rendered-string
+extractor from `operza-app/scripts/test-shipping-terminology.mjs` rather than
+grepping source, so comments and identifiers are invisible to it. The em-dash
+exemption is a rule, not a whitelist: a string that IS the glyph is an
+empty-value table placeholder; an em dash inside a sentence is prose.
+
+
 ## 2026-06-01 — Interactive production demo (friction-reducer for cold visitors)
 
 New section `<InteractiveProductionDemo />` between `<Workflow />` and

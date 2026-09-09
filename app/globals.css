@@ -73,6 +73,61 @@ body {
   .ring-divider {
     @apply ring-1 ring-inset ring-slate-200/60;
   }
+
+  /* --- Wide container -------------------------------------------------
+     Prose stays in .container-page. Product visuals get room to breathe,
+     because a screenshot cropped to 1152px stops being readable. */
+  .container-wide {
+    @apply mx-auto w-full max-w-[88rem] px-4 sm:px-6 lg:px-8;
+  }
+
+  /* --- Deep sections ---------------------------------------------------
+     The industrial ground. Carried over from the old BlindSpots band,
+     which was the most confident thing on the previous site, and made
+     reusable so the page can alternate instead of using it once. */
+  .section-deep {
+    @apply relative isolate overflow-hidden bg-[#05070f] text-white;
+  }
+
+  .eyebrow-invert {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/[0.70];
+  }
+
+  .eyebrow-invert::before {
+    content: "";
+    @apply h-1.5 w-1.5 rounded-full bg-brand-400;
+  }
+
+  .h-display {
+    @apply text-[2.75rem] font-semibold leading-[1.03] tracking-[-0.028em] sm:text-6xl lg:text-[4.25rem];
+  }
+
+  .h-deep {
+    @apply text-3xl font-semibold tracking-[-0.02em] sm:text-4xl lg:text-[2.9rem] lg:leading-[1.08];
+  }
+
+  .p-deep {
+    @apply mt-5 max-w-2xl text-base leading-7 text-white/[0.65] sm:text-lg;
+  }
+
+  .btn-invert {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-white px-6 py-3.5 text-sm font-semibold text-[#05070f] transition hover:bg-white/[0.90] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#05070f];
+  }
+
+  .btn-invert-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-white/[0.15] bg-white/[0.04] px-6 py-3.5 text-sm font-semibold text-white transition hover:border-white/[0.30] hover:bg-white/[0.09] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#05070f];
+  }
+
+  /* A claim stated as a line of type rather than as another bordered card.
+     The previous site used one card language seven times; this is the
+     counterweight. */
+  .claim {
+    @apply border-t border-slate-200 pt-5;
+  }
+
+  .claim-invert {
+    @apply border-t border-white/[0.12] pt-5;
+  }
 }
 
 @layer utilities {
@@ -86,5 +141,38 @@ body {
   .mask-fade-y {
     mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
     -webkit-mask-image: linear-gradient(to bottom, black 0%, black 65%, transparent 100%);
+  }
+
+  /* Industrial grid for deep grounds, faded at both edges so a dark band
+     reads as a discrete section rather than a hard slab. */
+  .bg-grid-invert {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .mask-fade-edges {
+    mask-image: linear-gradient(to bottom, transparent 0%, black 16%, black 84%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 16%, black 84%, transparent 100%);
+  }
+}
+
+/* Motion is a small, deliberate budget on this site: three keyframes and a
+   couple of transitions. Honour the OS setting rather than assuming nobody
+   minds. The interactive demo's counter tween is driven by requestAnimationFrame
+   rather than CSS, so it is handled inside that component. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

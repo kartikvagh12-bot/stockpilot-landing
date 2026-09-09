@@ -15,11 +15,18 @@ Live at **https://www.operza.in**. The product itself lives at
 
 ## Status
 
-The site is mid-refresh. Its positioning, metadata and structured data have been
-brought up to date, but **most homepage section copy is still the earlier
-inventory-and-production-only version** and is being rewritten in follow-up
-work. Do not treat the current homepage copy as an approved description of
-Operza.
+The homepage has been rebuilt around the current product: Factory, Books and
+Complete, costing and margin, the books and the TallyPrime export, and the
+operational record. The `/health-check` assessment is still the earlier
+factory-scoped version and is being revised separately, so its questions,
+scoring and results copy should not be treated as current positioning.
+
+Product visuals are **real captures from a seeded Operza Complete sample
+workspace** (the Electrical Plastics dataset), held in `public/product/` and
+rendered through `components/ScreenshotFrame.tsx`. `Shot.src` is required, so
+there is no placeholder state: a section either has a real capture or does
+without a visual. Money-bearing captures carry a visible "Sample workspace"
+chip. Never capture from a customer workspace.
 
 ## Stack
 
@@ -46,25 +53,31 @@ portable between them.
 Homepage section order, as currently shipped:
 
 ```
-Navbar
-  Hero
-  BlindSpots
-  HealthCheckCTA
-  Workflow
-  InteractiveProductionDemo
-  Features
-  Screenshots
-  FAQ
-  FinalCTA
-  Contact
-Footer
-FloatingAudit
+Navbar                              deep
+  Hero                              deep
+  Plans                   #plans    light
+  RunYourFactory          #factory  light
+  Costing                 #costing  DEEP
+  RunYourBooks            #books    light
+  BooksAndTally                     DEEP
+  CorrectionsAndHistory             light
+  ProductExperience                 light   wraps InteractiveProductionDemo
+  FAQ                     #faq      light
+  Contact                 #contact  DEEP
+Footer                              light
 ```
+
+Light and deep sections alternate deliberately. `.section-deep`, `.h-deep`,
+`.btn-invert` and `.bg-grid-invert` in `app/globals.css` carry that treatment.
 
 Shared pieces:
 
 - `lib/site.ts` is the single source for URLs, contact details and nav links.
-  Every "open the app" link resolves through `SITE.app`.
+  Every "sign in" link resolves through `SITE.app`.
+- `lib/faq.ts` is the single source for the FAQ. The visible accordion and the
+  `FAQPage` structured data both read it, so the two cannot drift.
+- `components/ScreenshotFrame.tsx` renders every product visual from a required
+  real capture. There is no placeholder state.
 - `lib/og-card.tsx` renders the social card shared by both image routes.
 - `app/globals.css` holds the `@layer components` primitives
   (`.container-page`, `.btn-primary`, `.section`, `.eyebrow`, `.h-section`,
@@ -73,17 +86,18 @@ Shared pieces:
 
 ## Public assets
 
-`public/` contains four files and **no product screenshots**:
+`public/` contains the brand assets, the Search Console token, and the product
+captures:
 
 | File | Purpose |
 |---|---|
+| `product/*.png` | Seven product captures from the sample workspace. |
 | `operza-logo.png` | The hexagon mark, used by the Navbar and Footer. |
 | `favicon-512.png` | Favicon. |
 | `apple-touch-icon.png` | iOS home-screen icon. |
 | `google3ea2eded30925b65.html` | Google Search Console verification. Do not remove or rename. |
 
-Every "product screenshot" currently on the site is hand-built Tailwind markup
-inside a component, not a real capture.
+No hand-built fake UI remains anywhere on the site.
 
 ## Environment variables
 
@@ -126,22 +140,31 @@ npm run dev
 ## Checks
 
 ```bash
-npm run build                     # type-checks and builds
+npm run build            # type-checks and builds
 npm run lint
-npm run test:marketing-foundation # static guard, see below
+npm run test:marketing   # both static guards
 ```
 
-`npm run test:marketing-foundation` is a dependency-free static check over the
-source. It fails if a set of known regressions comes back: a free-price offer in
-the structured data, `#fragment` URLs in the sitemap, the removed Streamlit
-constant, missing positioning in the metadata, or an em dash in the
-customer-facing copy it covers. It reads files only. It does not build, render
-or make network calls.
+Two dependency-free static guards, neither of which builds, renders or makes
+network calls:
 
-It deliberately covers a narrow surface. The homepage sections and the health
-check still carry older copy, including em dashes, which is removed as those
-surfaces are rewritten. A broader copy guard belongs with that work rather than
-with a whitelist of today's debt.
+`test:marketing-foundation` covers the metadata, structured data, sitemap,
+social cards and footer. It fails if a free-price offer returns to the
+structured data, if `#fragment` URLs come back to the sitemap, if the retired
+Streamlit constant reappears, or if a route advertises a large-image card with
+no image behind it.
+
+`test:marketing-copy` covers the homepage copy. It extracts customer-visible
+strings first, with comments stripped, and judges only those, so an import path
+or a code comment is invisible to it by construction. It fails on an em dash in
+rendered prose, on retired product vocabulary, on a claim outside the locked
+boundaries, on a capability-seam violation, and on a nav anchor with no matching
+section.
+
+The em-dash rule is expressed as a rule rather than a whitelist: a string whose
+entire value is the glyph is an empty-value table placeholder and is exempt,
+while an em dash inside a sentence is prose and is not. `HealthCheck.tsx` is
+out of scope for both guards until its copy is revised.
 
 ### Lead-form smoke test
 
@@ -177,8 +200,14 @@ Customer-facing copy on this site follows the vocabulary shipped in
 - no database, transaction or RPC vocabulary in anything a visitor reads
 
 Marketing prose contains **zero em dashes** (U+2014). The only exceptions are
-the empty-value `—` glyphs inside the interactive demo's tables, which are data
+the empty-value glyphs inside the interactive demo's tables, which are data
 placeholders rather than prose.
+
+Claim boundaries any new copy must respect: Factory has no accounting, Books has
+no stock or production, the connected behaviour belongs to Operza Complete,
+margin is gross margin against manufacturing cost captured at dispatch, Tally is
+export only, and there are no pricing, compliance, certification or
+plan-switching claims.
 
 ## License
 

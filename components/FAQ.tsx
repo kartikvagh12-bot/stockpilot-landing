@@ -1,88 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { FAQ_ITEMS } from "@/lib/faq";
 
-const FAQS = [
-  {
-    q: "Who is Operza built for?",
-    a: "Manufacturers in India — typically 5 to 50 staff — who currently track inventory and production on Excel, paper or WhatsApp. Furniture, garments, packaging, food processing, light fabrication, FMCG private label.",
-  },
-  {
-    q: "Do I need to install anything?",
-    a: "No. Operza runs in the browser. Open it on a laptop in the office or on a phone on the shop floor — same login, same data.",
-  },
-  {
-    q: "Will it work on a slow internet connection?",
-    a: "Yes. The app is lightweight and works on a 3G connection. Data syncs in the background; the UI stays responsive.",
-  },
-  {
-    q: "Can I import my existing parts and products?",
-    a: "Yes. You can paste from Excel or import a CSV during onboarding. We also seed sample data for furniture, garment, packaging or food manufacturers so you can see the workflow before adding your own.",
-  },
-  {
-    q: "Is my data safe?",
-    a: "Each business gets its own isolated workspace, protected at the database level. Only users you invite can see your data. Backups run automatically.",
-  },
-  {
-    q: "How much does it cost?",
-    a: "We're onboarding early customers manually right now. Book a demo and we'll share pricing tailored to your factory size.",
-  },
-];
+// Reads lib/faq.ts, the same array the FAQPage structured data is built from.
+// Accordion semantics: a real button per row, aria-expanded, aria-controls, and
+// the panel kept in the DOM under `hidden` so the control always has something
+// to point at.
 
 export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
+  const baseId = useId();
 
   return (
-    <section id="faq" className="section">
+    <section id="faq" className="section scroll-mt-16">
       <div className="container-page grid gap-12 lg:grid-cols-12">
         <div className="lg:col-span-4">
           <span className="eyebrow">FAQ</span>
-          <h2 className="h-section">Questions we hear all the time.</h2>
+          <h2 className="h-section">Questions we get asked.</h2>
           <p className="p-section">
-            Don&apos;t see your question? Use the contact form below — we
-            usually reply within a working day.
+            Anything else, put it in the form below and we will answer it on the
+            call.
           </p>
         </div>
 
         <div className="lg:col-span-8">
           <div className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            {FAQS.map((item, i) => {
+            {FAQ_ITEMS.map((item, i) => {
               const isOpen = open === i;
+              const panelId = `${baseId}-panel-${i}`;
+              const buttonId = `${baseId}-button-${i}`;
               return (
-                <div key={item.q}>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(isOpen ? null : i)}
-                    className="flex w-full items-center justify-between gap-6 px-5 py-5 text-left transition hover:bg-slate-50/60 sm:px-6"
-                    aria-expanded={isOpen}
-                  >
-                    <span className="text-sm font-semibold text-slate-900 sm:text-base">
-                      {item.q}
-                    </span>
-                    <span
-                      className={`flex h-7 w-7 flex-none items-center justify-center rounded-full border border-slate-200 text-slate-500 transition ${
-                        isOpen
-                          ? "rotate-45 border-slate-900 bg-slate-900 text-white"
-                          : ""
-                      }`}
-                      aria-hidden="true"
+                <div key={item.question}>
+                  <h3>
+                    <button
+                      type="button"
+                      id={buttonId}
+                      aria-expanded={isOpen}
+                      aria-controls={panelId}
+                      onClick={() => setOpen(isOpen ? null : i)}
+                      className="flex w-full items-center justify-between gap-6 px-5 py-5 text-left transition hover:bg-slate-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-900 sm:px-6"
                     >
-                      <svg
-                        viewBox="0 0 12 12"
-                        className="h-3 w-3"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
+                      <span className="text-sm font-semibold text-slate-900 sm:text-base">
+                        {item.question}
+                      </span>
+                      <span
+                        className={`flex h-7 w-7 flex-none items-center justify-center rounded-full border transition ${
+                          isOpen
+                            ? "rotate-45 border-slate-900 bg-slate-900 text-white"
+                            : "border-slate-200 text-slate-500"
+                        }`}
+                        aria-hidden="true"
                       >
-                        <path d="M6 1v10M1 6h10" />
-                      </svg>
-                    </span>
-                  </button>
-                  {isOpen && (
-                    <div className="px-5 pb-5 text-sm leading-7 text-slate-600 sm:px-6">
-                      {item.a}
-                    </div>
-                  )}
+                        <svg
+                          viewBox="0 0 12 12"
+                          className="h-3 w-3"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        >
+                          <path d="M6 1v10M1 6h10" />
+                        </svg>
+                      </span>
+                    </button>
+                  </h3>
+                  <div
+                    id={panelId}
+                    role="region"
+                    aria-labelledby={buttonId}
+                    hidden={!isOpen}
+                    className="px-5 pb-5 text-sm leading-7 text-slate-600 sm:px-6"
+                  >
+                    {item.answer}
+                  </div>
                 </div>
               );
             })}
