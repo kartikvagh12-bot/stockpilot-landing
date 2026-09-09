@@ -16,8 +16,8 @@ export default function ProductExperience() {
           <h2 className="h-section">Try a production run here.</h2>
           <p className="p-section">
             A simplified interactive example of one Operza Factory workflow.
-            Pick a batch size and watch the material check, the deduction, the
-            finished units and the reorder suggestion.
+            Pick a batch size and watch Operza check the materials, deduct them
+            and post the finished units.
           </p>
         </div>
       </div>

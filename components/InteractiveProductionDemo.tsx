@@ -2,62 +2,34 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-// Scenario-based operational simulation (rev-3 → rev-7, 2026-06-01).
+// A simplified interactive example of one Operza Factory workflow: choosing a
+// batch size and running production against a scripted bill of materials.
 //
-// Started life (rev-1/rev-2) as a "quantity calculator" — click
-// 10/25/50/100, watch numbers recompute. That explained inventory
-// math but didn't sell the product. Rev-3 pivoted to a scripted
-// production scenario (idle → checking → starting → consuming →
-// completed). Rev-4 added an in-card reorder reveal. Rev-5 replaced
-// that with a real workspace switch (Production ↔ Purchasing).
-// Rev-6 (current) brings the quantity selector back — but as an
-// operational decision-making input, not a calculator dial:
-// different quantities deliberately trigger different downstream
-// outcomes across the whole chain.
+// SCOPE, and why it is drawn here. This simulation is not the product and
+// shares no code with it, so everything it shows has to correspond to
+// something Operza actually does. It previously carried a second half, a
+// "Purchasing workspace" with supplier names, suggested reorder quantities,
+// recommended reorder timing and replenishment-stability messaging. Operza has
+// Purchases and Suppliers, but no reorder-suggestion surface, so that half was
+// describing a feature that does not exist and has been removed. What is left
+// maps one to one onto the real production flow:
 //
-// Operational decision tiers (anchored in BOM data + alertLevel
-// tuning so each quantity tells a different story):
-//   qty=25  → all OK                                       healthy
-//   qty=50  → Wood Glue LOW                                minor
-//   qty=100 → Wood Planks + Wood Glue LOW                  moderate
-//   qty=200 → Planks + Glue would go INSUFFICIENT          urgent
-//                (production BLOCKED — no units posted)
+//   choose a quantity -> check every material -> deduct them ->
+//   post the finished units -> report which materials fell below alert level
 //
-// Each tier flows through the full chain:
-//   * order header reflects the chosen quantity live
-//   * production sequence runs the same ~2.6s flow
-//   * material rows tween + status chips appear at thresholds
-//   * an operational alert banner (warn / danger tone) fades in
-//   * the recommendation panel copy adapts to the tier
-//   * the workspace-nav tile becomes red & "Urgent" at qty=200
-//   * the purchasing workspace tier-adapts: reorder quantities
-//     scale, coverage labels recompute, the timing insight shifts
-//     from "72h" → "24h" → "Immediate action recommended" with
-//     stability flipping from "restored" → "unstable until replen."
+// and, when the run cannot complete, it stops and says so.
 //
-// Production state (phase, progress, selectedQuantity) is preserved
-// across workspace navigations, so "Back to production" round-trips
-// without replay. Pure client state — useState + RAF + Tailwind
-// keyframes (animate-fade-up, animate-flash, animate-workspace-in).
-// No Framer Motion. No Supabase. No persistence.
+// The four quantity tiers each land on a different truthful outcome, anchored
+// in the BOM figures and alert levels shown on screen:
 //
-// Rev-7 polish (same day, no new modules):
-// * Blocked recovery: a "Maximum safe production" tile inside the
-//   recommendation panel surfaces `maxSafeProductionTier()` (largest
-//   selector tier that won't block — 100 for our scripted BOM) plus
-//   a "Run adjusted batch" CTA. Clicking it sets the selector to the
-//   safe tier and re-runs the sequence — visitor experiences
-//   block → guidance → recovery in a single click.
-// * Operational reasoning: short "Reason · Planks and Glue fall below
-//   minimum production requirement" line in the blocked state, sits
-//   between the recommendation body and the recovery tile.
-// * System metadata footer: small all-caps line "Inventory validated
-//   in 240ms · Logged just now" at the bottom of the recommendation
-//   panel — quiet "this software is real and active" signal.
-// * Workspace identity: the demo card gains a constant 4px left
-//   border that animates color (slate-200 → brand-500) when entering
-//   the Purchasing workspace. Subtle module-identity marker; no
-//   layout shift because the border width is constant.
+//   qty=25   all materials stay above alert          healthy
+//   qty=50   Wood Glue drops below alert             one low
+//   qty=100  Wood Planks and Wood Glue below alert   two low
+//   qty=200  both would go negative                  BLOCKED, nothing posted
+//
+// Pure client state: useState, requestAnimationFrame and the existing Tailwind
+// keyframes (animate-fade-up, animate-flash). No Framer Motion, no Supabase,
+// no persistence.
 
 // --- Domain ---
 
@@ -92,16 +64,6 @@ const ORDER = {
 
 const QUANTITY_OPTIONS = [25, 50, 100, 200] as const;
 type Qty = (typeof QUANTITY_OPTIONS)[number];
-
-// Supplier label per material is authored. Coverage labels are now
-// computed via coverageLabel() so they vary honestly with the order
-// quantity (rev-5 had them authored too — moved to derivation since
-// they're a function of math the visitor can see).
-const SUPPLIER_INFO: Record<string, { supplier: string }> = {
-  "Wood Planks": { supplier: "TimberWorks" },
-  "Screws": { supplier: "FastFix Hardware" },
-  "Wood Glue": { supplier: "ChemBond" },
-};
 
 // --- Phase machine ---
 
@@ -139,32 +101,6 @@ function formatValue(value: number, unit: string): string {
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
-}
-
-// Reorder enough to cover 3 future batches of the chosen size,
-// rounded up to a nice procurement step (50 pcs / 5 L). We do NOT
-// subtract currentAfter — at high quantities currentAfter goes
-// negative, which would inflate the suggestion. coverageLabel()
-// later reports honest post-reorder coverage so the marketing claim
-// matches the data.
-function suggestedReorder(item: BomItem, orderQty: number): number {
-  const required = item.requiredPerUnit * orderQty;
-  const target = required * 3;
-  const step = item.unit === "L" ? 5 : 50;
-  return Math.max(step, Math.ceil(target / step) * step);
-}
-
-function coverageLabel(
-  item: BomItem,
-  currentAfter: number,
-  reorderQty: number,
-  orderQty: number,
-): string {
-  const required = item.requiredPerUnit * orderQty;
-  if (required <= 0) return "—";
-  const totalAfter = currentAfter + reorderQty;
-  const batches = Math.max(1, Math.round(totalAfter / required));
-  return `~${batches} batch${batches !== 1 ? "es" : ""}`;
 }
 
 // --- Derived row shape ---
@@ -233,88 +169,11 @@ function maxSafeProductionTier(): Qty | null {
 
 const MAX_SAFE_PRODUCTION = maxSafeProductionTier();
 
-// Tiny "system metadata" detail used in the recommendation panel
-// footer. Hardcoded (not Math.random) to keep SSR/CSR hydration in
-// lockstep — no risk of "Validated in 217ms" on the server and
-// "Validated in 263ms" on the client.
-const VALIDATION_MS = 240;
-
-// --- Workspace router ---
-
-type Workspace = "production" | "purchasing";
-
-// --- Operational urgency tier (derived from final row statuses) ---
-
-type Urgency = {
-  tier: "healthy" | "minor" | "moderate" | "urgent";
-  belowThreshold: number;
-  navEyebrow: string | null;          // text shown on the workspace-nav tile
-  navTone: "warn" | "danger" | "ok";
-  timingLabel: string;
-  timingTone: "normal" | "danger";
-  stabilityLabel: string;
-  stabilityTone: "ok" | "warn";
-};
-
-function urgencyForRows(rows: ComputedRow[]): Urgency {
-  const insufficient = rows.filter((r) => r.finalStatus === "insufficient").length;
-  const low = rows.filter((r) => r.finalStatus === "low").length;
-  const belowThreshold = insufficient + low;
-
-  if (insufficient > 0) {
-    return {
-      tier: "urgent",
-      belowThreshold,
-      navEyebrow: `Urgent · ${insufficient} material${insufficient > 1 ? "s" : ""} short`,
-      navTone: "danger",
-      timingLabel: "Immediate action recommended",
-      timingTone: "danger",
-      stabilityLabel: "Production capacity unstable until replenishment completes.",
-      stabilityTone: "warn",
-    };
-  }
-  if (low >= 2) {
-    return {
-      tier: "moderate",
-      belowThreshold,
-      navEyebrow: `${low} materials below threshold`,
-      navTone: "warn",
-      timingLabel: "Within the next 24 hours",
-      timingTone: "normal",
-      stabilityLabel: "Production stability restored after replenishment.",
-      stabilityTone: "ok",
-    };
-  }
-  if (low === 1) {
-    return {
-      tier: "minor",
-      belowThreshold,
-      navEyebrow: "1 material approaching threshold",
-      navTone: "warn",
-      timingLabel: "Within the next 72 hours",
-      timingTone: "normal",
-      stabilityLabel: "Production stability restored after replenishment.",
-      stabilityTone: "ok",
-    };
-  }
-  return {
-    tier: "healthy",
-    belowThreshold: 0,
-    navEyebrow: null,
-    navTone: "ok",
-    timingLabel: "Next scheduled review",
-    timingTone: "normal",
-    stabilityLabel: "All materials at healthy levels.",
-    stabilityTone: "ok",
-  };
-}
-
 // --- Component ---
 
 export default function InteractiveProductionDemo() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0); // 0..1 during "consuming"
-  const [workspace, setWorkspace] = useState<Workspace>("production");
   const [selectedQuantity, setSelectedQuantity] = useState<Qty>(100);
 
   const rafRef = useRef<number | null>(null);
@@ -334,7 +193,6 @@ export default function InteractiveProductionDemo() {
   function start() {
     clearTimers();
     setProgress(0);
-    setWorkspace("production");
     setPhase("checking");
 
     timeoutsRef.current.push(
@@ -362,7 +220,6 @@ export default function InteractiveProductionDemo() {
   function reset() {
     clearTimers();
     setProgress(0);
-    setWorkspace("production");
     setPhase("idle");
   }
 
@@ -401,8 +258,6 @@ export default function InteractiveProductionDemo() {
        ?? rows.find((r) => r.visibleStatus === "low"))
     : undefined;
 
-  const urgency = useMemo(() => urgencyForRows(rows), [rows]);
-
   return (
     <section
       id="simulator"
@@ -415,61 +270,43 @@ export default function InteractiveProductionDemo() {
       />
 
       <div className="container-page">
-        <div
-          className={`mt-12 rounded-2xl border border-slate-200 border-l-4 bg-white shadow-lift overflow-hidden transition-colors duration-300 ${
-            workspace === "purchasing" ? "border-l-brand-500" : "border-l-slate-200"
-          }`}
-        >
-          {workspace === "production" ? (
-            <div key="production" className="animate-workspace-in">
-              <OrderHeader
-                phase={phase}
-                selectedQuantity={selectedQuantity}
-                onChangeQuantity={setSelectedQuantity}
-                onStart={start}
-                onReset={reset}
+        <div className="mt-12 overflow-hidden rounded-2xl border border-slate-200 border-l-4 border-l-slate-200 bg-white shadow-lift">
+          <div>
+            <OrderHeader
+              phase={phase}
+              selectedQuantity={selectedQuantity}
+              onChangeQuantity={setSelectedQuantity}
+              onStart={start}
+              onReset={reset}
+            />
+
+            <StatusBar phase={phase} blocked={blocked} />
+
+            <InventoryTableDesktop rows={rows} phase={phase} />
+            <InventoryTableMobile rows={rows} phase={phase} />
+
+            <FinishedGoodsBlock
+              phase={phase}
+              finishedAfter={finishedAfter}
+              blocked={blocked}
+            />
+
+            {alertRow && (
+              <OperationalAlert
+                row={alertRow}
+                key={`${alertRow.item.name}-${alertRow.visibleStatus}`}
               />
+            )}
 
-              <StatusBar phase={phase} blocked={blocked} />
-
-              <InventoryTableDesktop rows={rows} phase={phase} />
-              <InventoryTableMobile rows={rows} phase={phase} />
-
-              <FinishedGoodsBlock
-                phase={phase}
-                finishedAfter={finishedAfter}
-                blocked={blocked}
-              />
-
-              {alertRow && (
-                <OperationalAlert
-                  row={alertRow}
-                  key={`${alertRow.item.name}-${alertRow.visibleStatus}`}
-                />
-              )}
-
-              {phase === "completed" && (
-                <RecommendationPanel
-                  rows={rows}
-                  urgency={urgency}
-                  blocked={blocked}
-                  maxSafe={MAX_SAFE_PRODUCTION}
-                  onOpenPurchasing={() => setWorkspace("purchasing")}
-                  onRunAdjusted={runAdjustedBatch}
-                />
-              )}
-            </div>
-          ) : (
-            <div key="purchasing" className="animate-workspace-in">
-              <PurchasingWorkspace
+            {phase === "completed" && (
+              <RunSummaryPanel
                 rows={rows}
-                urgency={urgency}
-                orderQty={selectedQuantity}
-                onBack={() => setWorkspace("production")}
-                onReset={reset}
+                blocked={blocked}
+                maxSafe={MAX_SAFE_PRODUCTION}
+                onRunAdjusted={runAdjustedBatch}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
       </div>
@@ -821,8 +658,8 @@ function FinishedGoodsBlock({
           )}
         </div>
         <p className="max-w-xs text-xs leading-5 text-slate-500 sm:text-right">
-          Materials deducted and finished goods updated together
-          in one transaction.
+          When the run completes, material stock is deducted and the finished
+          units are added.
         </p>
       </div>
     </div>
@@ -860,19 +697,15 @@ function OperationalAlert({ row }: { row: ComputedRow }) {
   );
 }
 
-function RecommendationPanel({
+function RunSummaryPanel({
   rows,
-  urgency,
   blocked,
   maxSafe,
-  onOpenPurchasing,
   onRunAdjusted,
 }: {
   rows: ComputedRow[];
-  urgency: Urgency;
   blocked: boolean;
   maxSafe: Qty | null;
-  onOpenPurchasing: () => void;
   onRunAdjusted: () => void;
 }) {
   const insufficient = rows.filter((r) => r.finalStatus === "insufficient");
@@ -883,36 +716,32 @@ function RecommendationPanel({
   let reasonText: string | null = null;
 
   if (blocked) {
-    title = `Production blocked. Materials would have run out mid-batch.`;
-    body = `Operza would prevent this run in the live app. Here's what's possible with your current stock:`;
     const names = insufficient.map((r) => r.item.name).join(" and ");
+    title = "Production blocked.";
+    body = "Nothing was deducted and no units were posted.";
     reasonText = `${names} ${insufficient.length > 1 ? "fall" : "falls"} below the minimum production requirement.`;
   } else if (low.length >= 2) {
     const names = low.map((r) => r.item.name).join(" and ");
-    title = `Production completed. ${low.length} materials now below alert level.`;
-    body = `Schedule reorders for ${names} before the next batch. Operza recommends acting before the floor runs out.`;
+    title = "Production completed.";
+    body = `${low.length} materials are now below their alert level: ${names}.`;
   } else if (low.length === 1) {
-    const itemName = low[0].item.name;
-    title = `Production completed. ${itemName} is approaching its reorder threshold.`;
-    body = `Schedule a top-up for ${itemName} before the next moderate batch. Operza recommends planning ahead.`;
+    title = "Production completed.";
+    body = `${low[0].item.name} is now below its alert level.`;
   } else {
-    title = "Production completed successfully.";
-    body = "All materials remain within healthy stock levels, so no replenishment is needed.";
+    title = "Production completed.";
+    body = "Every material stayed above its alert level.";
   }
-
-  const showNavTile = urgency.belowThreshold > 0;
-  const isUrgent = urgency.navTone === "danger";
 
   return (
     <div
-      key="recommendation"
+      key="run-summary"
       className="border-t border-slate-100 bg-white px-5 py-5 animate-fade-up sm:px-6"
     >
       <div className="flex items-start gap-3">
         <SparkleIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
         <div className="flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-700">
-            Operza recommends
+            Run summary
           </p>
           <p className="mt-1.5 text-sm font-semibold text-slate-900">{title}</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">{body}</p>
@@ -924,15 +753,19 @@ function RecommendationPanel({
             </p>
           )}
 
+          {/* The largest selector tier this scripted stock level supports.
+              Derived from the same BOM figures shown in the table above, so
+              the visitor can check it, and it recovers the blocked run
+              without inventing a feature to do it. */}
           {blocked && maxSafe !== null && (
             <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/40 px-4 py-4">
               <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-brand-700">
-                Maximum safe production
+                Largest batch this stock supports
               </p>
               <p className="mt-1.5 flex items-baseline gap-2 tabular-nums">
                 <span className="text-2xl font-bold text-slate-900">{maxSafe}</span>
                 <span className="text-sm text-slate-600">
-                  units with current inventory
+                  units, from the stock shown above
                 </span>
               </p>
               <button
@@ -940,240 +773,16 @@ function RecommendationPanel({
                 onClick={onRunAdjusted}
                 className="mt-3 inline-flex items-center gap-2 rounded-lg border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
               >
-                Run adjusted batch
+                Run that batch instead
                 <ArrowRightIcon className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
-
-          {showNavTile && (
-            <button
-              type="button"
-              onClick={onOpenPurchasing}
-              className={`group mt-3 flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:w-auto sm:min-w-[20rem] ${
-                isUrgent
-                  ? "border-red-300 bg-red-50/40 hover:border-red-400 hover:bg-red-50/60 focus-visible:ring-red-500"
-                  : "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/30 focus-visible:ring-brand-500"
-              }`}
-            >
-              <div>
-                <p
-                  className={`text-[10px] font-semibold uppercase tracking-[0.1em] ${
-                    isUrgent ? "text-red-700" : "text-amber-700"
-                  }`}
-                >
-                  {urgency.navEyebrow}
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-slate-900">
-                  Open Purchasing workspace
-                </p>
-              </div>
-              <ArrowRightIcon
-                className={`h-4 w-4 flex-shrink-0 text-slate-400 transition group-hover:translate-x-0.5 ${
-                  isUrgent ? "group-hover:text-red-600" : "group-hover:text-brand-600"
-                }`}
-              />
-            </button>
-          )}
-
-          {/* Tiny system-metadata line — the "this software is real
-              and active" signal. Quiet, all-caps, wide letterspacing.
-              Hardcoded ms value to avoid SSR/CSR hydration mismatch
-              that Math.random() would introduce. */}
-          <p className="mt-5 text-[10px] font-medium uppercase tracking-[0.1em] text-slate-400">
-            Inventory validated in {VALIDATION_MS}ms · Logged just now
-          </p>
         </div>
       </div>
     </div>
   );
 }
-
-function PurchasingWorkspace({
-  rows,
-  urgency,
-  orderQty,
-  onBack,
-  onReset,
-}: {
-  rows: ComputedRow[];
-  urgency: Urgency;
-  orderQty: Qty;
-  onBack: () => void;
-  onReset: () => void;
-}) {
-  const items = rows
-    .filter((r) => r.finalStatus !== "ok")
-    .map((r) => {
-      const qty = suggestedReorder(r.item, orderQty);
-      return {
-        name: r.item.name,
-        unit: r.item.unit,
-        qty,
-        supplier: SUPPLIER_INFO[r.item.name]?.supplier ?? "—",
-        coverage: coverageLabel(r.item, r.currentAfter, qty, orderQty),
-      };
-    });
-
-  const noReplen = items.length === 0;
-
-  return (
-    <>
-      <div className="border-b border-slate-100 bg-slate-50/40 p-5 sm:p-6">
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-          >
-            <ArrowLeftIcon className="h-3 w-3" />
-            Back to production
-          </button>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-700">
-            <PackageIcon className="h-2.5 w-2.5" />
-            Workspace
-          </span>
-        </div>
-        <p className="mt-3 text-xl font-semibold text-slate-900 sm:text-2xl">
-          Purchasing
-        </p>
-        <p className="mt-1 text-sm text-slate-500">
-          Replenishment suggestions generated from production order{" "}
-          <span className="font-mono text-slate-700">{ORDER.reference}</span>{" "}
-          ({orderQty} × {PRODUCT.name}).
-        </p>
-      </div>
-
-      {/* Suggestions table — desktop */}
-      {!noReplen && (
-        <div className="hidden sm:block">
-          <div className="grid grid-cols-[1.3fr_1.3fr_1fr_1fr] gap-x-4 border-b border-slate-100 bg-slate-50/60 px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-            <div>Material</div>
-            <div>Supplier</div>
-            <div className="text-right">Suggested qty</div>
-            <div className="text-right">Coverage</div>
-          </div>
-          {items.map((it, i) => (
-            <div
-              key={it.name}
-              style={{ animationDelay: `${i * 90}ms` }}
-              className={`grid grid-cols-[1.3fr_1.3fr_1fr_1fr] items-center gap-x-4 px-6 py-3.5 text-sm tabular-nums animate-fade-up ${
-                i < items.length - 1 ? "border-b border-slate-100" : ""
-              }`}
-            >
-              <div className="font-medium text-slate-900">{it.name}</div>
-              <div className="text-slate-700">{it.supplier}</div>
-              <div className="text-right font-semibold text-slate-900">
-                {it.qty.toLocaleString("en-IN")} {it.unit}
-              </div>
-              <div className="text-right text-slate-700">{it.coverage}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Suggestions — mobile */}
-      {!noReplen && (
-        <div className="divide-y divide-slate-100 sm:hidden">
-          {items.map((it, i) => (
-            <div
-              key={it.name}
-              style={{ animationDelay: `${i * 90}ms` }}
-              className="px-5 py-4 animate-fade-up"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-medium text-slate-900">{it.name}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {it.supplier} · {it.coverage}
-                  </p>
-                </div>
-                <span className="text-sm font-semibold text-slate-900 tabular-nums">
-                  {it.qty.toLocaleString("en-IN")} {it.unit}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* If no replenishment needed (qty=25 path, if user navigates
-          here anyway), show an "all clear" panel instead of an empty
-          table. In practice the workspace-nav tile is hidden in that
-          tier so this is mostly defensive. */}
-      {noReplen && (
-        <div className="px-5 py-6 text-center sm:px-6">
-          <p className="text-sm font-semibold text-slate-900">
-            No replenishment scheduled.
-          </p>
-          <p className="mt-1 text-sm text-slate-500">
-            All materials remain within healthy stock levels.
-          </p>
-        </div>
-      )}
-
-      {/* Operational insights — tier-adaptive */}
-      <div
-        className={`border-t border-slate-100 px-5 py-5 animate-fade-up sm:px-6 ${
-          urgency.timingTone === "danger" ? "bg-red-50/40" : "bg-brand-50/20"
-        }`}
-        style={{ animationDelay: `${items.length * 90 + 60}ms` }}
-      >
-        <ul className="space-y-2.5 text-sm">
-          <li className="flex items-start gap-2.5 text-slate-700">
-            {urgency.timingTone === "danger" ? (
-              <AlertIcon tone="danger" />
-            ) : (
-              <ClockIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
-            )}
-            <span>
-              {urgency.timingTone === "danger" ? (
-                <>
-                  <span className="font-semibold text-red-800">
-                    {urgency.timingLabel}
-                  </span>
-                  {": production blocked until replenishment completes."}
-                </>
-              ) : (
-                <>
-                  Recommended reorder timing:{" "}
-                  <span className="font-semibold text-slate-900">
-                    {urgency.timingLabel.toLowerCase()}
-                  </span>
-                  .
-                </>
-              )}
-            </span>
-          </li>
-          <li className="flex items-start gap-2.5 text-slate-700">
-            {urgency.stabilityTone === "warn" ? (
-              <AlertIcon tone="warn" />
-            ) : (
-              <CheckIcon className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
-            )}
-            <span>{urgency.stabilityLabel}</span>
-          </li>
-        </ul>
-      </div>
-
-      {/* Footer with the run-again escape hatch */}
-      <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p className="text-xs text-slate-500">
-          One operational chain: production → purchasing → stability restored.
-        </p>
-        <button
-          type="button"
-          onClick={onReset}
-          className="btn-secondary h-10 text-sm"
-        >
-          Run scenario again
-        </button>
-      </div>
-    </>
-  );
-}
-
-// --- Atoms ---
 
 function StatusChip({ status }: { status: Status }) {
   if (status === "insufficient") {
@@ -1261,18 +870,6 @@ function ArrowRightIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function ArrowLeftIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className={className}>
-      <path
-        fillRule="evenodd"
-        d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
 function AlertIcon({ tone }: { tone: "warn" | "danger" }) {
   return (
     <svg
@@ -1288,43 +885,6 @@ function AlertIcon({ tone }: { tone: "warn" | "danger" }) {
         d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z"
         clipRule="evenodd"
       />
-    </svg>
-  );
-}
-
-function PackageIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M10 2.5L3 5.5v9L10 17.5l7-3v-9L10 2.5z" />
-      <path d="M3 5.5l7 3 7-3" />
-      <path d="M10 8.5v9" />
-    </svg>
-  );
-}
-
-function ClockIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      aria-hidden="true"
-      className={className}
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="10" cy="10" r="7" />
-      <path d="M10 6v4l2.5 2" />
     </svg>
   );
 }

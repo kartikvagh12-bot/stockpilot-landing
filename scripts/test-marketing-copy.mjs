@@ -106,6 +106,7 @@ section("B. NO EM DASH IN RENDERED MARKETING PROSE");
   // extracted set, because a bare glyph inside a ternary is not prose and the
   // extractor correctly ignores it, which would make this check vacuous.
   const stray = [];
+  const glyphFiles = new Set();
   let glyphCount = 0;
   for (const f of SURFACE) {
     strip(read(f)).split("\n").forEach((line, i) => {
@@ -113,13 +114,19 @@ section("B. NO EM DASH IN RENDERED MARKETING PROSE");
       const bare = line.match(/"—"|>—</g) ?? [];
       const total = (line.match(/—/g) ?? []).length;
       glyphCount += bare.length;
+      if (bare.length) glyphFiles.add(f);
       if (bare.length !== total) stray.push(`${f}:${i + 1} ${line.trim().slice(0, 90)}`);
     });
   }
   ok("(B2) every remaining em dash is a standalone placeholder glyph",
      stray.length === 0, stray.slice(0, 5).join("\n      "));
-  ok(`(B3) there are exactly five of them, all in the demo tables (${glyphCount})`,
-     glyphCount === 5);
+  // Stated as a rule rather than a count. The exact number moves whenever a
+  // table column changes, and pinning it would only produce churn; what must
+  // stay true is that the empty-value glyph never appears outside the demo's
+  // tables, which are the only place a blank cell is meaningful.
+  ok(`(B3) every placeholder glyph lives in the demo tables (${glyphCount} across ${glyphFiles.size} file)`,
+     glyphCount > 0 && [...glyphFiles].every((f) => f === "components/InteractiveProductionDemo.tsx"),
+     [...glyphFiles].join(", "));
 }
 
 /* ========================================================================= */
@@ -148,7 +155,9 @@ section("C. VOCABULARY FOLLOWS THE SHIPPED PRODUCT");
     ["cost intelligence", /cost\s+intelligence/i],
     ["suite", /\bsuites?\b/i],
     ["slug", /\bslugs?\b/i],
-    ["database / RPC / migration vocabulary", /\b(database|RPC|migration|SQL|schema|rollback|transactional)\b/i],
+    // "transactional" alone let "in one transaction" ship on the demo card.
+    ["database / RPC / migration vocabulary",
+     /\b(database|RPC|migration|SQL|schema|rollback|transactions?|transactional)\b/i],
   ];
   for (const [name, re, pre] of banned) {
     const hits = strings.filter((r) => re.test(pre ? pre(r.text) : r.text));
@@ -176,11 +185,37 @@ section("D. LOCKED CLAIM BOUNDARIES");
     ["ROI claim", /save \d+%|increase your margin|\d+x (faster|return)/i],
     ["plan switching", /upgrade (later|anytime)|switch plans|change your plan/i],
     ["demo runs real logic", /same logic the real product|runs the real/i],
+    ["Purchasing workspace", /purchasing workspace/i],
+    ["reorder suggestion feature", /suggested reorder|reorder quantit|reorder suggestion|recommended reorder|reorder timing/i],
+    ["replenishment messaging", /replenishment|stability restored|production stability/i],
+    ["invented supplier fixtures", /TimberWorks|FastFix Hardware|ChemBond/],
   ];
   for (const [name, re] of forbidden) {
     const hits = strings.filter((r) => re.test(r.text));
     ok(`(D-${name}) no "${name}" claim`, hits.length === 0, show(hits));
   }
+
+  // The demo previously ended in a "Purchasing workspace" with supplier names,
+  // suggested reorder quantities and replenishment timing. Operza has Purchases
+  // and Suppliers but no reorder-suggestion surface, so none of that may come
+  // back. Checked on the two files that carried it, against rendered strings
+  // rather than source, so a leftover internal identifier during a future
+  // refactor would not fail the build while nothing reaches the screen.
+  const demoStrings = visibleStrings("components/InteractiveProductionDemo.tsx");
+  const experienceStrings = visibleStrings("components/ProductExperience.tsx");
+  ok("(D4) the demo shows no purchasing or reorder surface",
+     !demoStrings.some((r) => /purchasing|reorder|supplier|replenish/i.test(r.text)),
+     show(demoStrings.filter((r) => /purchasing|reorder|supplier|replenish/i.test(r.text))));
+  ok("(D5) ...and does not speak as though Operza were recommending purchases",
+     !demoStrings.some((r) => /Operza recommends/i.test(r.text)),
+     show(demoStrings.filter((r) => /Operza recommends/i.test(r.text))));
+  ok("(D6) the section intro no longer promises a reorder suggestion",
+     !experienceStrings.some((r) => /reorder|purchasing|supplier/i.test(r.text)),
+     show(experienceStrings.filter((r) => /reorder|purchasing|supplier/i.test(r.text))));
+  ok("(D7) ...and still frames the demo as a simplified example",
+     experienceStrings.some((r) => /simplified interactive example/i.test(r.text)));
+  ok("(D8) the demo still ends inside the production flow",
+     demoStrings.some((r) => /Production completed\.$/.test(r.text) || /alert level/.test(r.text)));
 
   // The Tally paragraph must still make its three approved statements.
   const tally = read("components/BooksAndTally.tsx");
@@ -212,6 +247,12 @@ section("E. THE CAPABILITY SEAM IS NOT BLURRED");
      && /Dispatches record the sale,\s+and supplier bills can receive their linked materials into stock/.test(booksBridge));
   ok("(E4) valuation feeding the statements is scoped to Books",
      /Where Books is enabled/.test(read("components/Costing.tsx")));
+  const costing = read("components/Costing.tsx");
+  ok("(E4b) pinning closing stock is stated as something the user does",
+     /You can pin the value at month and year ends/.test(costing)
+     && !/and pinned at month and year ends/.test(costing));
+  ok("(E4c) no unevidenced claim about what most factories do",
+     !/most factories/i.test(costing));
   ok("(E5) margin is stated as gross margin, never as profit",
      /gross margin/i.test(read("components/Costing.tsx"))
      && !/net profit|profit you made|actual profit/i.test(read("components/Costing.tsx")));

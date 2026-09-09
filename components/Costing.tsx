@@ -39,10 +39,11 @@ export default function Costing() {
           <span className="eyebrow-invert">Costing and margin</span>
           <h2 className="mt-6 h-deep">What a unit costs you, kept current.</h2>
           <p className="p-deep">
-            Most factories price from a number someone worked out once. Operza
-            keeps it current. Every material receipt updates its average cost,
-            and every product cost is built up through the recipe, including
-            in-house components, plus labour, overhead and packing.
+            When material costs change, an old costing number goes stale.
+            Operza keeps the cost current. Every material receipt updates its
+            average cost, and every product cost is built up through the
+            recipe, including in-house components, plus labour, overhead and
+            packing.
           </p>
         </div>
 
@@ -64,9 +65,9 @@ export default function Costing() {
         {/* Valuation is an accounting surface, so the claim is scoped rather
             than stated for every workspace. Factory has no Books. */}
         <p className="mt-14 max-w-3xl border-l-2 border-brand-500 pl-5 text-sm leading-7 text-white/60 sm:text-base">
-          Where Books is enabled, closing stock is valued from your purchase and
-          production records and pinned at month and year ends, and your Profit
-          &amp; Loss and Balance Sheet use exactly those figures.
+          Where Books is enabled, closing stock is valued from your purchase
+          and production records. You can pin the value at month and year ends,
+          and your Profit &amp; Loss and Balance Sheet use those pinned figures.
         </p>
 
         <div className="mt-12">
