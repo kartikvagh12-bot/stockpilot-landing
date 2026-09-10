@@ -461,16 +461,19 @@ section("K. THE FOUNDER DIRECTION IS ON THE PAGE");
   const surfaceSrc = SURFACE.map(read).join("\n");
   const flat = surfaceSrc.replace(/\s+/g, " ");
 
-  // The headline is split across a span for the two-tone treatment, so match
-  // what RENDERS: strip the tags and the JSX space expressions from the h1,
-  // then read it back as one sentence.
+  // Match what RENDERS, not the source: strip any tags and JSX space
+  // expressions from the h1 and collapse the wrapping of the literal, so a
+  // reflow of the same words can never fail this and a changed word always
+  // does.
   const heroH1 = (read("components/Hero.tsx").match(/<h1[\s\S]*?<\/h1>/) ?? [""])[0]
     .replace(/\{"\s*"\}/g, " ")
     .replace(/<[^>]+>/g, "")
     .replace(/\s+/g, " ")
     .trim();
   ok("(K1) the rendered hero headline is the approved line",
-     heroH1 === "Materials, production, dispatch and books. One system.", heroH1);
+     heroH1
+       === "Run what you make, what you move, what you sell, and the books behind it.",
+     heroH1);
   ok("(K2) Open App is present, and not relabelled",
      (flat.match(/Open App/g) ?? []).length >= 3,
      `found ${(flat.match(/Open App/g) ?? []).length}`);

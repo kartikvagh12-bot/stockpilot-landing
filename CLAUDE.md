@@ -50,7 +50,7 @@ Governing positioning:
 
 Homepage headline (founder-set, 2026-09-10):
 
-> Materials, production, dispatch and books. One system.
+> Run what you make, what you move, what you sell, and the books behind it.
 
 The site is being refreshed **from** inventory-and-production-only positioning.
 Homepage section copy that still describes Operza as an inventory tracker is

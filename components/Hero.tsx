@@ -4,8 +4,9 @@ import { SITE } from "@/lib/site";
 // the interactive examples start immediately below, so the hero's job is to
 // say plainly what Operza covers.
 //
-// The strip under the copy is a diagram, not a product image. It names the
-// four things the headline lists, in the order they happen.
+// The strip under the copy is a diagram, not a product image. It puts the
+// headline's four things in the order they actually happen on a factory day,
+// starting one step earlier than the headline does, at the materials.
 
 const FLOW = ["Materials", "Production", "Dispatch", "Books"];
 
@@ -26,9 +27,15 @@ export default function Hero() {
           <span className="eyebrow-invert">
             Manufacturing software for Indian factories
           </span>
-          <h1 className="mt-7 h-display">
-            Materials, production, dispatch and books.{" "}
-            <span className="text-white/50">One system.</span>
+          {/* text-balance only: the sizing and the measure are unchanged.
+              Left to itself the line broke as 27 / 28 / 16 characters on a
+              desktop, stranding "books behind it." and splitting "and the"
+              off the clause it belongs to. Balanced, the breaks land on the
+              commas and the last clause stays whole. Below `sm` the lines are
+              already full, so nothing about the phone rendering changes. */}
+          <h1 className="mt-7 h-display text-balance">
+            Run what you make, what you move, what you sell, and the books
+            behind it.
           </h1>
           <p className="mt-7 max-w-2xl text-base leading-7 text-white/70 sm:text-lg sm:leading-8">
             Operza records what comes into the factory, what gets made, packed
@@ -63,7 +70,7 @@ export default function Hero() {
           </p>
         </div>
 
-        {/* The headline's four nouns, in the order they happen. */}
+        {/* What the headline covers, named as stages, in order. */}
         <ul className="mt-16 flex flex-wrap items-center gap-x-3 gap-y-3 border-t border-white/[0.08] pt-8 sm:gap-x-5 lg:mt-20">
           {FLOW.map((step, i) => (
             <li key={step} className="flex items-center gap-3 sm:gap-5">
