@@ -114,7 +114,12 @@ export default function ProductExperience() {
                 aria-labelledby={`mode-tab-${m.id}`}
                 hidden={i !== active}
               >
-                {i === active && m.render()}
+                {/* Every panel stays mounted so its local state survives a tab
+                    switch: run the Factory example, look at Books, come back,
+                    and the numbers are where you left them. `hidden` keeps the
+                    inactive ones out of the page for keyboard and assistive
+                    tech alike. */}
+                {m.render()}
               </div>
             ))}
           </div>

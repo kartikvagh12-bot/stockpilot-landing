@@ -433,6 +433,22 @@ section("I. THE HOMEPAGE EXPLAINS THROUGH INTERACTION, NOT SCREENSHOTS");
        /ResetButton/.test(read(`components/demos/${d}.tsx`))));
   ok("(I12) state changes are announced, not left to sighted users only",
      /aria-live="polite"/.test(read("components/demos/demo-ui.tsx")));
+  // Two interaction invariants that browser review caught. Both are the kind
+  // of bug that reads as "the example is broken" rather than as a typo.
+  const complete = read("components/demos/CompleteDemo.tsx");
+  ok("(I13a) the Complete example allows one dispatch per reset",
+     /const inFlight = step !== 0;/.test(complete)
+     && /disabled=\{inFlight\}/.test(complete)
+     && !/disabled=\{s\.invoiced\}/.test(complete)
+     // The render flag alone is not enough: React state is stale inside a
+     // burst of clicks, so the handler must test a synchronously written ref.
+     && /const started = useRef\(false\);/.test(complete)
+     && /if \(started\.current\) return;\s*\n\s*started\.current = true;/.test(complete)
+     && /started\.current = false;/.test(complete));
+  const px = read("components/ProductExperience.tsx");
+  ok("(I13b) every tab panel stays mounted, so its state survives a switch",
+     /hidden=\{i !== active\}/.test(px) && !/i === active && m\.render\(\)/.test(px));
+
   ok("(I13) motion respects the OS setting",
      /prefers-reduced-motion: reduce/.test(read("components/demos/demo-ui.tsx"))
      && /prefersReducedMotion\(\)/.test(read("components/demos/CompleteDemo.tsx")));

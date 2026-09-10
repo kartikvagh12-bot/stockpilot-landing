@@ -43,10 +43,25 @@ export default function CompleteDemo() {
   const finished = useAnimatedNumber(s.finished);
   const receivable = useAnimatedNumber(s.receivable);
 
+  // The reveal takes about 1.3s and `invoiced` only turns true at the end of
+  // it. Guarding on that left a window where a second click deducted another
+  // four units and restarted the timers, so one example produced two
+  // dispatches. `step` covers the whole lifecycle: anything other than idle
+  // means a dispatch is already in flight or finished.
+  const inFlight = step !== 0;
+
+  // `inFlight` is what the button renders from, but it cannot be what
+  // `dispatch` tests: a click handler never sees a state update queued by an
+  // earlier click in the same task, so a fast burst reads step === 0 every
+  // time and deducts once per click. This ref is written synchronously, so
+  // the second click sees the first one immediately. It is not a second
+  // source of truth: reset clears both, and they always agree by the next
+  // render.
+  const started = useRef(false);
+
   function dispatch() {
-    if (s.invoiced) return;
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
+    if (started.current) return;
+    started.current = true;
 
     setS((p) => ({ ...p, finished: p.finished - DISPATCH_QTY }));
     setStep(1);
@@ -72,6 +87,7 @@ export default function CompleteDemo() {
   function reset() {
     timers.current.forEach(clearTimeout);
     timers.current = [];
+    started.current = false;
     setS(START);
     setStep(0);
     clear();
@@ -126,7 +142,7 @@ export default function CompleteDemo() {
           </div>
 
           <div className="mt-6">
-            <DemoButton onClick={dispatch} disabled={s.invoiced} variant="accent">
+            <DemoButton onClick={dispatch} disabled={inFlight} variant="accent">
               Dispatch {DISPATCH_QTY} units
             </DemoButton>
           </div>
