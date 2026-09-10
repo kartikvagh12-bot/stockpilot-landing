@@ -65,14 +65,16 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-2 md:flex">
+          {/* Open App is a real website function for existing customers, so it
+              is an outlined button rather than a quiet text link. */}
           <a
             href={SITE.app}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-md px-3 py-2 text-sm font-medium text-white/60 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="inline-flex items-center justify-center rounded-lg border border-white/20 px-3.5 py-2 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
-            Sign in
+            Open App
           </a>
           <a
             href="/#contact"
@@ -129,14 +131,14 @@ export default function Navbar() {
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setOpen(false)}
-            className="rounded-md px-3 py-3 text-base font-medium text-white/60 transition hover:bg-white/[0.06] hover:text-white"
+            className="mt-3 inline-flex items-center justify-center rounded-lg border border-white/20 px-4 py-3.5 text-sm font-semibold text-white"
           >
-            Sign in
+            Open App
           </a>
           <a
             href="/#contact"
             onClick={() => setOpen(false)}
-            className="mt-3 inline-flex items-center justify-center rounded-lg bg-white px-4 py-3.5 text-sm font-semibold text-[#05070f]"
+            className="mt-2 inline-flex items-center justify-center rounded-lg bg-white px-4 py-3.5 text-sm font-semibold text-[#05070f]"
           >
             Book a demo
           </a>

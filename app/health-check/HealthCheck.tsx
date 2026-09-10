@@ -368,7 +368,7 @@ function Header() {
             rel="noopener noreferrer"
             className="hidden rounded-md px-3 py-2 text-sm font-medium text-white/60 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:inline-flex"
           >
-            Sign in
+            Open App
           </a>
           <Link
             href="/#contact"
@@ -943,7 +943,7 @@ function FooterLite() {
             rel="noopener noreferrer"
             className="transition hover:text-white"
           >
-            Sign in
+            Open App
           </a>
         </div>
       </div>

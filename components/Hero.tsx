@@ -1,28 +1,14 @@
-import ScreenshotFrame, { type Shot } from "@/components/ScreenshotFrame";
+import { SITE } from "@/lib/site";
 
-// Deep hero. The previous one was left text plus a hand-built fake dashboard,
-// which is the default SaaS template and also no longer resembled the app.
-// Here the copy sits above and the product runs wide underneath it, so the
-// software is the graphic rather than an illustration beside the pitch.
+// Typographic hero on the deep ground. No screenshot and no fake app window:
+// the interactive examples start immediately below, so the hero's job is to
+// say plainly what Operza covers.
+//
+// The strip under the copy is a diagram, not a product image. It puts the
+// headline's four things in the order they actually happen on a factory day,
+// starting one step earlier than the headline does, at the materials.
 
-const DASHBOARD: Shot = {
-  src: "/product/dashboard-low-stock-and-capacity.png",
-  screen: "Dashboard",
-  alt: "The Operza dashboard showing materials at or below their alert level, and a production capacity table listing how many units of each product can be made and which material is limiting each one",
-  width: 1316,
-  height: 916,
-};
-
-// The money half of the hero claim, from a recorded dispatch. Small, wide, and
-// it carries revenue, manufacturing cost and gross margin in one strip.
-const MARGIN: Shot = {
-  src: "/product/dispatch-order-totals.png",
-  screen: "Dispatch order totals",
-  alt: "Order totals from a recorded dispatch in Operza: revenue, manufacturing cost, and gross margin with its percentage",
-  width: 618,
-  height: 126,
-  sample: true,
-};
+const FLOW = ["Materials", "Production", "Dispatch", "Books"];
 
 export default function Hero() {
   return (
@@ -33,54 +19,79 @@ export default function Hero() {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-[-28%] -z-10 h-[540px] w-[1000px] -translate-x-1/2 rounded-full bg-brand-600/12 blur-3xl"
+        className="pointer-events-none absolute left-1/2 top-[-24%] -z-10 h-[460px] w-[900px] -translate-x-1/2 rounded-full bg-brand-600/10 blur-3xl"
       />
 
-      <div className="container-wide pt-20 pb-16 sm:pt-28 lg:pt-32 lg:pb-24">
-        <div className="max-w-4xl animate-fade-up">
-          <span className="eyebrow-invert">For manufacturers in India</span>
-          <h1 className="mt-7 h-display">
-            Run the factory and the books{" "}
-            <span className="text-white/50">in one system.</span>
+      <div className="container-wide pt-20 pb-20 sm:pt-28 lg:pt-32 lg:pb-28">
+        <div className="max-w-5xl animate-fade-up">
+          <span className="eyebrow-invert">
+            Manufacturing software for Indian factories
+          </span>
+          {/* text-balance only: the sizing and the measure are unchanged.
+              Left to itself the line broke as 27 / 28 / 16 characters on a
+              desktop, stranding "books behind it." and splitting "and the"
+              off the clause it belongs to. Balanced, the breaks land on the
+              commas and the last clause stays whole. Below `sm` the lines are
+              already full, so nothing about the phone rendering changes. */}
+          <h1 className="mt-7 h-display text-balance">
+            Run what you make, what you move, what you sell, and the books
+            behind it.
           </h1>
           <p className="mt-7 max-w-2xl text-base leading-7 text-white/70 sm:text-lg sm:leading-8">
-            Operza records what happens on the shop floor and the money that
-            moves with it. In Operza Complete the two are connected, so a
-            dispatch drops finished-goods stock and records the sale in your
-            books in the same step.
+            Operza records what comes into the factory, what gets made, packed
+            and dispatched, and the invoices, bills and payments around it. With
+            Operza Complete, the shop floor and the books stay connected.
           </p>
 
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
             <a href="#contact" className="btn-invert">
               Book a demo
               <ArrowRight />
             </a>
-            <a href="#plans" className="btn-invert-ghost">
-              See what Operza does
+            <a
+              href={SITE.app}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-invert-ghost"
+            >
+              Open App
+            </a>
+            <a
+              href="#product"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-3.5 text-sm font-semibold text-white/60 underline-offset-4 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              Explore Operza
             </a>
           </div>
 
           <p className="mt-6 text-sm text-white/45">
-            Operza runs in your browser, on a laptop or a phone.
+            Use it from a laptop or phone, without running the factory from
+            spreadsheets.
           </p>
         </div>
 
-        {/* Product plate. The margin crop overlaps the dashboard on large
-            screens and stacks underneath it on small ones, so the "both sides"
-            claim in the paragraph above has something to point at. */}
-        <div className="relative mt-16 lg:mt-20">
-          <ScreenshotFrame
-            shot={DASHBOARD}
-            tone="deep"
-            priority
-            className="lg:mr-[16%]"
-          />
-          <ScreenshotFrame
-            shot={MARGIN}
-            tone="deep"
-            className="mt-4 lg:absolute lg:-bottom-10 lg:right-0 lg:mt-0 lg:w-[38%]"
-          />
-        </div>
+        {/* What the headline covers, named as stages, in order. */}
+        <ul className="mt-16 flex flex-wrap items-center gap-x-3 gap-y-3 border-t border-white/[0.08] pt-8 sm:gap-x-5 lg:mt-20">
+          {FLOW.map((step, i) => (
+            <li key={step} className="flex items-center gap-3 sm:gap-5">
+              <span className="flex items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 rounded-full bg-brand-500"
+                />
+                <span className="text-sm font-medium text-white/75 sm:text-base">
+                  {step}
+                </span>
+              </span>
+              {i < FLOW.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className="h-px w-6 bg-white/15 sm:w-10"
+                />
+              )}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

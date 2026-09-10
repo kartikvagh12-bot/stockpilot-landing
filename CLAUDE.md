@@ -48,9 +48,9 @@ Governing positioning:
 > Operza is manufacturing software for Indian factories. It runs the shop floor
 > and the business books, and in Operza Complete they are one system.
 
-Homepage headline for the refreshed site:
+Homepage headline (founder-set, 2026-09-10):
 
-> Run the factory and the books in one system.
+> Run what you make, what you move, what you sell, and the books behind it.
 
 The site is being refreshed **from** inventory-and-production-only positioning.
 Homepage section copy that still describes Operza as an inventory tracker is
@@ -62,9 +62,16 @@ legacy and is being replaced, not extended.
   goods not FG. Average cost not WAC. Cost changes not cost intelligence.
   Workspace code not slug. Plan not suite. No database, RPC, migration or
   transaction vocabulary in anything a visitor reads.
-* **Marketing prose contains zero em dashes (U+2014).** The only exception is
-  the empty-value glyph used inside the interactive demo's tables, which is a
-  data placeholder rather than prose.
+* **Marketing prose contains zero em dashes (U+2014).** No exceptions remain.
+* **The homepage shows no product screenshots.** The product story is the
+  interactive examples in `components/demos/`: local state, invented values,
+  each labelled "Interactive example". Never put customer or sample-workspace
+  data on the site.
+* **Brand is black, white and one red**, `#f31820`, sampled from the logo and
+  held in the `brand` scale. Restrained: emphasis, active tab, selected state,
+  small rules. Not an error colour.
+* **Open App is a website function** and belongs in the navbar, the hero and the
+  closing area. Do not relabel it "Sign in".
 * **No invented pricing**, no free-trial or "no credit card" implication, no
   fabricated metrics, testimonials, customer logos or ROI claims.
 * **Tally is export only.** Operza exports recorded invoices and bills as a file
@@ -168,6 +175,39 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-09-10 — Homepage rebuilt as interactive, brand moved to black/white/red
+
+Founder review reopened the website arc. The complaint was not accuracy, it was
+presentation: real screenshots looked blurry and static, sample captures still
+put literal product data on a marketing page and made it read like
+documentation, the Health Check had lost its prominence, "Open App" had been
+removed from the main flow, the hero line was too abstract, and the blue accent
+was not the Operza identity.
+
+**Screenshots are gone.** All seven captures, `ScreenshotFrame`, and the whole
+capture pipeline were deleted. The homepage no longer SHOWS the app; it explains
+the product through interaction.
+
+**New: `components/demos/`.** Four small website-native examples, all local
+React state, no fetch, no persistence, no product code, no customer or
+sample-workspace data. Factory (material in, units made, units out), Books (bill,
+payment, outstanding), Complete (one dispatch that moves stock and the books),
+and a costing widget (material cost moves the margin). Each is labelled
+"Interactive example" and has a Reset.
+
+**Brand is now black, white and one red.** `#f31820`, sampled from the logo,
+replaces the blue `brand` ramp. Red is for emphasis, active tabs, selected
+states and small rules. The Health Check inherited it through the shared token;
+its assessment and scoring were NOT touched, and a fingerprint diff proves it.
+
+Also: `InteractiveProductionDemo` (898 lines) deleted, superseded by the much
+smaller Factory example. Open App restored to the navbar, hero, contact and
+footer. The Health Check got a real homepage section.
+
+One defect found and fixed during review: the animated numbers depended entirely
+on requestAnimationFrame, so in a throttled or backgrounded tab the value never
+landed. There is now a guaranteed settle.
 
 ## 2026-09-10 — Health Check refreshed, marketing arc COMPLETE (PR 3 of 3)
 

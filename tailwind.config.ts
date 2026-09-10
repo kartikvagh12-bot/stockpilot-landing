@@ -8,18 +8,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Operza red. 500 is the exact red sampled from public/operza-logo.png
+        // (#f31820, rgb 243 24 32), which is the only saturated colour in the
+        // mark. The rest of the ramp is a single hue built around it, so the
+        // site has ONE red rather than several near-misses.
+        //
+        // This replaced a blue ramp. The token name stays `brand` so every
+        // existing accent moves with it, including the Health Check.
         brand: {
-          50: "#eef4ff",
-          100: "#dae6ff",
-          200: "#bcd2ff",
-          300: "#8eb2ff",
-          400: "#5e89ff",
-          500: "#3f63f7",
-          600: "#2c43ed",
-          700: "#2533c9",
-          800: "#222ea3",
-          900: "#1f2c80",
-          950: "#161a4d",
+          50: "#fff1f1",
+          100: "#ffdfe0",
+          200: "#ffc5c7",
+          300: "#ff9b9f",
+          400: "#fb5f67",
+          500: "#f31820",
+          600: "#d90d16",
+          700: "#b60c13",
+          800: "#960f15",
+          900: "#7c1318",
+          950: "#430508",
         },
       },
       fontFamily: {
