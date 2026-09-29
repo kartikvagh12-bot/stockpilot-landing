@@ -11,101 +11,75 @@
 // purpose: a heading ahead of the page's h1 would make the outline read
 // backwards. The label names the section through aria-labelledby.
 //
-// The space is built around the copy. The text sits on the main reading
-// plane, the section's own pearl ground, lit evenly from the upper left.
-// That plane ends where the copy ends: --x0 is where the text column starts
-// (the container edge plus its padding) and --xr is the column's widest line
-// (56rem) plus a margin, so every surface below is placed from the text, not
-// from the viewport. Around the reading zone, a few large surfaces:
-//
-//   - a top fold, a shaded surface that recedes down onto the plane above
-//     the copy, with occlusion where it meets it;
-//   - a ledge, a lit surface coming forward beneath the copy;
-//   - an inner return at the plane's right edge, turned away from the light,
-//     with a deep charcoal seam at its back where a red light leaks out;
-//   - a large folded slab beyond it, filling the rest of the width, creased
-//     so its upper facet catches the light and its lower facet falls into
-//     cool graphite shade.
-//
-// Nothing crosses the copy. Below 1280px the copy fills the width, so --xr
-// sits near the right edge, the copy is padded clear of it, and the slab
-// becomes a narrow fold at the side. Static; CSS and DOM only (no canvas, SVG,
-// image or dependency).
+// The background is an abstract light wallpaper across the whole section:
+// a few very large, soft, curved sheets that overlap and flow across it, each
+// shaded like a gently lit surface (bright on its upper side, a soft shadow
+// along its lower edge), so the field has depth without depicting anything.
+// A fine dot texture drifts over the field and fades out toward the edges,
+// and one curve carries a faint red rim light. Contrast stays low where the
+// copy sits, so the text reads first. Static; CSS and DOM only (no canvas,
+// SVG, image or dependency).
 
-const SPACE_CSS = `
-.oi-space {
-  --x0: calc(max(0px, (100% - 88rem) / 2) + 2rem);
-  --xr: calc(var(--x0) + 56rem + 48px);
-  --t: 44px;
-  --b: 64px;
-  --f: 72px;
-  --s: 56px;
-  --d: 26px;
-  --crease: 46%;
+const FIELD_CSS = `
+.oi-field {
   background:
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.09) var(--t), rgba(15, 23, 42, 0.035) calc(var(--t) + 2px), rgba(15, 23, 42, 0) calc(var(--t) + 56px)),
-    linear-gradient(to top, rgba(15, 23, 42, 0.07) var(--b), rgba(15, 23, 42, 0) calc(var(--b) + 26px)),
-    radial-gradient(60% 90% at 20% 30%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
-    #f4f6f8;
+    radial-gradient(70% 90% at 18% 20%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
+    linear-gradient(160deg, #f8fafb 0%, #f1f4f7 55%, #e9edf1 100%);
 }
-.oi-layer {
+.oi-sheet {
+  position: absolute;
+}
+.oi-sheet-a {
+  left: -20%;
+  top: 38%;
+  width: 150%;
+  height: 120%;
+  transform: rotate(-7deg);
+  background: linear-gradient(175deg, #ffffff 0%, #f3f6f8 30%, #e8edf1 100%);
+  box-shadow: 0 -28px 64px -20px rgba(15, 23, 42, 0.15), inset 0 18px 30px -18px rgba(255, 255, 255, 1);
+}
+.oi-sheet-b {
+  left: 34%;
+  top: -60%;
+  width: 110%;
+  height: 120%;
+  transform: rotate(14deg);
+  background: linear-gradient(200deg, #eef2f5 0%, #f7f9fa 55%, #ffffff 100%);
+  box-shadow: 0 26px 60px -24px rgba(15, 23, 42, 0.14), inset 0 -16px 28px -16px rgba(255, 255, 255, 1);
+}
+.oi-sheet-c {
+  left: 58%;
+  top: 22%;
+  width: 70%;
+  height: 130%;
+  transform: rotate(-22deg);
+  background: linear-gradient(150deg, #fbfcfd 0%, #eef2f5 60%, #e3e8ed 100%);
+  box-shadow:
+    -18px -10px 50px -24px rgba(15, 23, 42, 0.14),
+    inset 10px 8px 26px -14px rgba(243, 24, 32, 0.16);
+}
+.oi-dots {
   position: absolute;
   inset: 0;
+  background-image: radial-gradient(circle, rgba(100, 116, 139, 0.22) 1px, transparent 1.6px);
+  background-size: 18px 18px;
+  -webkit-mask-image: radial-gradient(60% 80% at 78% 55%, black 0%, transparent 75%);
+  mask-image: radial-gradient(60% 80% at 78% 55%, black 0%, transparent 75%);
 }
-.oi-top {
-  clip-path: polygon(0 0, calc(var(--xr) + var(--f)) 0, calc(var(--xr) + var(--s)) calc(var(--t) + var(--d)), var(--xr) var(--t), 0 var(--t));
-  background:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.6) 0, rgba(255, 255, 255, 0) 5px),
-    linear-gradient(to bottom, #e9edf1 0%, #dde3e9 100%);
-}
-.oi-ledge {
-  clip-path: polygon(0 calc(100% - var(--b)), var(--xr) calc(100% - var(--b)), calc(var(--xr) + var(--s)) calc(100% - var(--b) - var(--d)), calc(var(--xr) + var(--f)) 100%, 0 100%);
-  background:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0, rgba(255, 255, 255, 0.95) 1px, rgba(255, 255, 255, 0) 2px),
-    radial-gradient(34% 120% at calc(var(--xr) + 30px) 100%, rgba(243, 24, 32, 0.08) 0%, rgba(243, 24, 32, 0) 70%),
-    linear-gradient(to bottom, #fbfcfd 0%, #eef2f5 100%);
-}
-.oi-return {
-  clip-path: polygon(var(--xr) var(--t), calc(var(--xr) + var(--s)) calc(var(--t) + var(--d)), calc(var(--xr) + var(--s)) calc(100% - var(--b) - var(--d)), var(--xr) calc(100% - var(--b)));
-  background:
-    linear-gradient(to right, rgba(255, 255, 255, 0.7) 0, rgba(255, 255, 255, 0) 3px),
-    linear-gradient(to right, rgba(243, 24, 32, 0) 60%, rgba(243, 24, 32, 0.1) 100%),
-    linear-gradient(to right, #cfd6de 0%, #aab4bf 100%);
-}
-.oi-seam {
-  left: calc(var(--xr) + var(--s) - 1px);
-  top: calc(var(--t) + var(--d) + 12%);
-  bottom: calc(var(--b) + var(--d) + 12%);
-  width: 3px;
-  right: auto;
-  background: linear-gradient(to bottom, rgba(42, 48, 57, 0) 0%, #2a3039 18%, #6b1418 50%, #2a3039 82%, rgba(42, 48, 57, 0) 100%);
-  box-shadow: 0 0 12px 1px rgba(243, 24, 32, 0.18), 0 0 40px 8px rgba(243, 24, 32, 0.06);
-}
-.oi-slab-up {
-  clip-path: polygon(calc(var(--xr) + var(--s)) calc(var(--t) + var(--d)), calc(var(--xr) + var(--f)) 0, 100% 0, 100% calc(var(--crease) - 10%), calc(var(--xr) + var(--s)) var(--crease));
-  background:
-    linear-gradient(to bottom right, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.8) 100%),
-    linear-gradient(100deg, #e2e7ec 0%, #f4f6f8 35%, #fbfcfd 100%);
-}
-.oi-slab-down {
-  clip-path: polygon(calc(var(--xr) + var(--s)) var(--crease), 100% calc(var(--crease) - 10%), 100% 100%, calc(var(--xr) + var(--f)) 100%, calc(var(--xr) + var(--s)) calc(100% - var(--b) - var(--d)));
-  background:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0, rgba(255, 255, 255, 0) 3px),
-    radial-gradient(40% 60% at 0% 60%, rgba(243, 24, 32, 0.08) 0%, rgba(243, 24, 32, 0) 70%),
-    linear-gradient(100deg, #b9c2cc 0%, #cfd6de 40%, #dde3e9 100%);
-}
-.oi-copy { padding-top: calc(var(--t) + 52px); padding-bottom: calc(var(--b) + 44px); }
-@media (min-width: 768px) and (max-width: 1279px) {
-  .oi-space { --xr: calc(100% - 22%); --t: 36px; --b: 52px; --f: 48px; --s: 40px; --d: 18px; }
-  .oi-copy { padding-right: calc(22% + 32px); }
+.oi-calm {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(50% 72% at 26% 50%, rgba(250, 251, 252, 0.8) 0%, rgba(250, 251, 252, 0.5) 55%, rgba(250, 251, 252, 0) 100%);
 }
 @media (max-width: 767px) {
-  .oi-space { --xr: calc(100% - 64px); --t: 26px; --b: 36px; --f: 30px; --s: 20px; --d: 12px; --crease: 42%; }
-  .oi-copy { padding-right: 84px; padding-top: calc(var(--t) + 36px); padding-bottom: calc(var(--b) + 32px); }
-}
-@media (max-width: 379px) {
-  .oi-space { --xr: calc(100% - 40px); --f: 20px; --s: 14px; --d: 8px; }
-  .oi-copy { padding-right: 56px; }
+  .oi-sheet-a { left: -40%; top: 62%; width: 190%; }
+  .oi-sheet-b { left: 20%; top: -70%; width: 150%; }
+  .oi-sheet-c { left: 62%; top: 55%; width: 110%; }
+  .oi-dots {
+    -webkit-mask-image: radial-gradient(80% 45% at 70% 100%, black 0%, transparent 75%);
+    mask-image: radial-gradient(80% 45% at 70% 100%, black 0%, transparent 75%);
+  }
+  .oi-calm { background: radial-gradient(90% 60% at 40% 42%, rgba(250, 251, 252, 0.82) 0%, rgba(250, 251, 252, 0.5) 60%, rgba(250, 251, 252, 0) 100%); }
 }
 `;
 
@@ -113,19 +87,18 @@ export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="oi-space relative overflow-hidden text-slate-900"
+      className="oi-field relative overflow-hidden text-slate-900"
     >
-      <style>{SPACE_CSS}</style>
+      <style>{FIELD_CSS}</style>
       <div className="pointer-events-none absolute inset-0">
-        <div className="oi-layer oi-top" />
-        <div className="oi-layer oi-ledge" />
-        <div className="oi-layer oi-return" />
-        <div className="oi-layer oi-slab-up" />
-        <div className="oi-layer oi-slab-down" />
-        <div className="oi-layer oi-seam" />
+        <div className="oi-sheet oi-sheet-b rounded-[50%]" />
+        <div className="oi-sheet oi-sheet-a rounded-[50%]" />
+        <div className="oi-sheet oi-sheet-c rounded-[50%]" />
+        <div className="oi-dots" />
+        <div className="oi-calm" />
       </div>
 
-      <div className="oi-copy container-wide relative">
+      <div className="container-wide relative py-16 sm:py-20 xl:py-24">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
