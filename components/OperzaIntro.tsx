@@ -70,7 +70,9 @@
 // Two views of the same body are precomputed, each cropped to what its layout
 // actually shows, and each viewport renders only its own set. From 1280px the
 // desktop body sits below the bottom right corner beside the copy, its upper
-// cap rising into the section, sized per width so its rim clears the text.
+// cap rising into the section. It is placed from the copy column's right edge
+// (the container edge plus 58rem), not the viewport's, so the gap between the
+// text and its rim is the same at every width.
 // Below 1280px the copy is too wide to sit beside it, so the section gains a
 // bottom band and the body rises into that band under the copy: the desktop
 // view on tablets, the phone view below 768px.
@@ -128,6 +130,12 @@ function buildBody(o: typeof BODY, view: View) {
   const redDir = norm(o.redDir as Vec);
   const [left, right, top, bottom] = view.crop;
   const shadows: string[] = [];
+  // For the dark body behind the points: every front-facing point's projected
+  // position (for the silhouette), and where the surface faces the light and
+  // the red most directly (for its shading).
+  const rim: [number, number][] = [];
+  let lit = { k: -1, x: 0, y: 0 };
+  let glow = { k: -1, x: 0, y: 0 };
 
   for (let phi = o.latFrom; phi <= o.latTo + 1e-6; phi += o.latStep) {
     for (let i = 0; i < o.lon; i++) {
@@ -151,15 +159,23 @@ function buildBody(o: typeof BODY, view: View) {
       if (facing <= 0.02) continue;
 
       const scale = view.focal / (o.cam - point[2]);
+      const px = point[0] * scale;
+      const py = point[1] * scale;
+      rim.push([px, py]);
+      const kLit = dot(normal, light);
+      if (kLit > lit.k) lit = { k: kLit, x: px, y: py };
+
       const depth = o.cam / (o.cam - point[2]);
       const lambert = Math.max(0, dot(normal, light));
       const bright = o.base + (1 - o.base) * lambert ** 1.3;
       const alpha =
         bright * smooth(0.02, 0.5, facing) * smooth(0.55, 1.35, depth);
       if (alpha < 0.04) continue;
-      const sx = point[0] * scale;
-      const sy = point[1] * scale;
+      const sx = px;
+      const sy = py;
       if (sx < left || sx > right || sy < top || sy > bottom) continue;
+      const kRed = dot(normal, redDir);
+      if (kRed > glow.k) glow = { k: kRed, x: sx, y: sy };
 
       const accent = i % o.meridianEvery === 0;
       const size = Math.min(
@@ -182,18 +198,92 @@ function buildBody(o: typeof BODY, view: View) {
       );
     }
   }
-  return shadows.join(",");
+  return { points: shadows.join(","), outline: hull(rim), lit, glow };
 }
 
-const DESKTOP = buildBody(BODY, { focal: 1100, crop: [-1500, 80, -860, -230] });
+// The silhouette. The perspective projection of an ellipsoid is itself an
+// ellipse, so rather than trace the rim point by point, fit that ellipse: take
+// the convex hull of the projected front-facing points, find its principal
+// axes, and measure the hull's full extent along each. The body is then drawn
+// as a rotated, fully rounded box, which gives a perfectly smooth silhouette.
+function hull(pts: [number, number][]) {
+  const sorted = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o: number[], a: number[], b: number[]) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const half = (list: [number, number][]) => {
+    const out: [number, number][] = [];
+    for (const p of list) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], p) <= 0) out.pop();
+      out.push(p);
+    }
+    return out.slice(0, -1);
+  };
+  const ring = half(sorted).concat(half([...sorted].reverse()));
+  const mx = ring.reduce((a, p) => a + p[0], 0) / ring.length;
+  const my = ring.reduce((a, p) => a + p[1], 0) / ring.length;
+  let sxx = 0, syy = 0, sxy = 0;
+  for (const [x, y] of ring) {
+    sxx += (x - mx) ** 2;
+    syy += (y - my) ** 2;
+    sxy += (x - mx) * (y - my);
+  }
+  const angle = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  const [c, sn] = [Math.cos(angle), Math.sin(angle)];
+  const u = ring.map(([x, y]) => x * c + y * sn);
+  const v = ring.map(([x, y]) => -x * sn + y * c);
+  const [u0, u1, v0, v1] = [Math.min(...u), Math.max(...u), Math.min(...v), Math.max(...v)];
+  const cu = (u0 + u1) / 2;
+  const cv = (v0 + v1) / 2;
+  return {
+    cx: cu * c - cv * sn,
+    cy: cu * sn + cv * c,
+    rx: (u1 - u0) / 2 + 1,
+    ry: (v1 - v0) / 2 + 1,
+    angle: (angle * 180) / Math.PI,
+  };
+}
+
+// The dark body under the points, per view: the fitted silhouette ellipse,
+// shaded as matte graphite lit from the same light as the points, with the
+// red light inside it where the visible surface faces RED_DIR most. Because
+// the red is part of the body's own fill, it can only ever show inside the
+// silhouette. Gradient centres are given in the ellipse box's own (unrotated)
+// frame.
+function bodyStyle(view: ReturnType<typeof buildBody>) {
+  const e = view.outline;
+  const a = (e.angle * Math.PI) / 180;
+  const local = (x: number, y: number) => {
+    const dx = x - e.cx;
+    const dy = y - e.cy;
+    const lx = dx * Math.cos(a) + dy * Math.sin(a) + e.rx;
+    const ly = -dx * Math.sin(a) + dy * Math.cos(a) + e.ry;
+    return `${lx.toFixed(0)}px ${ly.toFixed(0)}px`;
+  };
+  const r = (f: number) => `${(Math.max(e.rx, e.ry) * f).toFixed(0)}px`;
+  return {
+    left: `${(e.cx - e.rx).toFixed(1)}px`,
+    top: `${(e.cy - e.ry).toFixed(1)}px`,
+    width: `${(2 * e.rx).toFixed(1)}px`,
+    height: `${(2 * e.ry).toFixed(1)}px`,
+    transform: `rotate(${e.angle.toFixed(2)}deg)`,
+    background: [
+      `radial-gradient(${r(0.4)} ${r(0.26)} at ${local(view.glow.x, view.glow.y)}, rgba(243, 24, 32, 0.4) 0%, rgba(217, 13, 22, 0.15) 45%, rgba(217, 13, 22, 0) 100%)`,
+      `radial-gradient(${r(1.25)} ${r(1.25)} at ${local(view.lit.x, view.lit.y)}, #4b515b 0%, #30343c 22%, #1b1e24 50%, #101217 78%, #0a0b0e 100%)`,
+    ].join(", "),
+  };
+}
+
+const DESKTOP = buildBody(BODY, { focal: 1100, crop: [-1500, 420, -860, -230] });
 const PHONE = buildBody(BODY, { focal: 560, crop: [-340, 90, -420, -110] });
+const DESKTOP_BODY = bodyStyle(DESKTOP);
+const PHONE_BODY = bodyStyle(PHONE);
 
 const SCENE_CSS = `
 .oi-ground {
   background:
-    radial-gradient(55% 85% at 86% 100%, rgba(22, 25, 33, 0.85) 0%, rgba(12, 14, 19, 0.55) 45%, rgba(3, 4, 8, 0) 80%),
-    radial-gradient(30% 50% at 70% 88%, rgba(120, 10, 16, 0.14) 0%, rgba(120, 10, 16, 0) 70%),
-    linear-gradient(180deg, #030408 0%, #020305 100%);
+    radial-gradient(60% 85% at 10% 8%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 60%),
+    radial-gradient(45% 75% at 90% 100%, rgba(100, 116, 139, 0.16) 0%, rgba(100, 116, 139, 0) 70%),
+    linear-gradient(180deg, #f6f8fa 0%, #eef2f5 60%, #e6ebf0 100%);
 }
 .oi-body {
   position: absolute;
@@ -201,13 +291,21 @@ const SCENE_CSS = `
   height: 0;
 }
 .oi-body-desktop {
-  left: calc(100% - 20px);
+  left: calc(max(0px, (100% - 88rem) / 2) + 58rem + 550px);
   top: calc(100% + 250px);
 }
 .oi-body-phone {
   display: none;
   left: 80%;
-  top: calc(100% + 150px);
+  top: calc(100% + 182px);
+}
+.oi-shadow {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 24px 48px rgba(15, 23, 42, 0.28)) drop-shadow(0 4px 10px rgba(15, 23, 42, 0.18));
+}
+.oi-backing {
+  position: absolute;
 }
 .oi-points {
   position: absolute;
@@ -216,51 +314,28 @@ const SCENE_CSS = `
   width: 2px;
   height: 2px;
 }
-.oi-core {
-  position: absolute;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.26) 0%, rgba(217, 13, 22, 0.12) 38%, rgba(217, 13, 22, 0.04) 62%, rgba(217, 13, 22, 0) 80%);
-}
-.oi-body-desktop .oi-core { left: -620px; top: -560px; width: 620px; height: 360px; }
-.oi-body-phone .oi-core { left: -340px; top: -330px; width: 420px; height: 260px; }
-.oi-scrim {
-  background: radial-gradient(46% 95% at 18% 46%, rgba(2, 3, 5, 0.95) 0%, rgba(2, 3, 5, 0.88) 58%, rgba(2, 3, 5, 0) 90%);
-}
 @keyframes oiTurn {
   from { transform: rotate(-1.5deg) translate3d(-3px, 2px, 0); }
   to { transform: rotate(1.5deg) translate3d(3px, -2px, 0); }
 }
-@keyframes oiCore {
-  from { transform: translate3d(-12px, 6px, 0); }
-  to { transform: translate3d(12px, -6px, 0); }
-}
 .oi-move-body { animation: oiTurn 56s ease-in-out infinite alternate; }
-.oi-move-core { animation: oiCore 38s ease-in-out infinite alternate; }
 @media (min-width: 1800px) {
-  .oi-body-desktop { transform: scale(1.12); }
-}
-@media (min-width: 1280px) and (max-width: 1599px) {
-  .oi-body-desktop { left: calc(100% + 90px); transform: scale(0.9); }
+  .oi-body-desktop { left: calc(max(0px, (100% - 88rem) / 2) + 58rem + 646px); transform: scale(1.12); }
 }
 @media (min-width: 768px) and (max-width: 1279px) {
-  .oi-body-desktop { left: calc(100% - 60px); top: calc(100% + 290px); transform: scale(0.7); }
-  .oi-body-desktop .oi-core { top: -520px; }
-}
-@media (max-width: 1279px) {
-  .oi-scrim {
-    background: linear-gradient(180deg, rgba(2, 3, 5, 0.95) 0%, rgba(2, 3, 5, 0.9) calc(100% - 250px), rgba(2, 3, 5, 0) calc(100% - 150px));
-  }
+  .oi-body-desktop { left: calc(100% - 60px); top: calc(100% + 322px); transform: scale(0.7); }
 }
 @media (max-width: 767px) {
   .oi-body-desktop { display: none; }
   .oi-body-phone { display: block; }
   .oi-ground {
     background:
-      radial-gradient(90% 40% at 80% 100%, rgba(22, 25, 33, 0.85) 0%, rgba(12, 14, 19, 0.5) 50%, rgba(3, 4, 8, 0) 85%),
-      linear-gradient(180deg, #030408 0%, #020305 100%);
+      radial-gradient(90% 50% at 20% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 70%),
+      linear-gradient(180deg, #f6f8fa 0%, #eef2f5 60%, #e6ebf0 100%);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .oi-move-body, .oi-move-core { animation: none; }
+  .oi-move-body { animation: none; }
 }
 `;
 
@@ -268,49 +343,51 @@ export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="relative z-10 bg-[#030408] text-white"
+      className="relative bg-[#eef2f5] text-slate-900"
     >
       <style>{SCENE_CSS}</style>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="oi-ground absolute inset-0" />
         <div className="oi-body oi-body-desktop">
-          <div className="oi-core oi-move-core" />
           <div className="oi-move-body absolute inset-0">
+            <div className="oi-shadow">
+              <div className="oi-backing rounded-full" style={DESKTOP_BODY} />
+            </div>
             <div
               className="oi-points rounded-full"
-              style={{ boxShadow: DESKTOP }}
+              style={{ boxShadow: DESKTOP.points }}
             />
           </div>
         </div>
         <div className="oi-body oi-body-phone">
-          <div className="oi-core oi-move-core" />
           <div className="oi-move-body absolute inset-0">
+            <div className="oi-shadow">
+              <div className="oi-backing rounded-full" style={PHONE_BODY} />
+            </div>
             <div
               className="oi-points rounded-full"
-              style={{ boxShadow: PHONE }}
+              style={{ boxShadow: PHONE.points }}
             />
           </div>
         </div>
-        <div className="oi-scrim absolute inset-0" />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 top-full h-12 bg-gradient-to-b from-[#030408] to-transparent" />
 
-      <div className="container-wide relative pt-10 pb-60 sm:pt-16 xl:py-20">
+      <div className="container-wide relative pt-10 pb-52 sm:pt-16 xl:py-20">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
-            className="text-sm font-semibold uppercase tracking-[0.14em] text-brand-500"
+            className="text-sm font-semibold uppercase tracking-[0.14em] text-brand-600"
           >
             What is Operza?
           </p>
-          <p className="mt-3 text-[21px] font-semibold leading-tight tracking-[-0.02em] text-white sm:mt-4 sm:text-3xl lg:text-[2rem]">
+          <p className="mt-3 text-[21px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:mt-4 sm:text-3xl lg:text-[2rem]">
             Operza is a web-based{" "}
-            <span className="text-brand-500">
+            <span className="text-brand-600">
               manufacturing operations and accounting platform
             </span>{" "}
             built for manufacturers.
           </p>
-          <div className="mt-5 max-w-3xl space-y-4 text-base leading-7 text-white/70 sm:mt-6 sm:text-lg sm:leading-8">
+          <div className="mt-5 max-w-3xl space-y-4 text-base leading-7 text-slate-600 sm:mt-6 sm:text-lg sm:leading-8">
             <p>
               It helps digitize the day-to-day flow of a manufacturing
               business, from materials, products and BOMs through production,

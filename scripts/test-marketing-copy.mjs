@@ -550,14 +550,15 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   ok("(L6b) the label holds only its text: no line, dash, dot or icon before it",
      labelTag.trim() === "What is Operza?" && !/aria-hidden/.test(introMarkup), labelTag.trim());
   const labelOpen = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>/) ?? [""])[0];
-  // The intro is dark, so its red is the logo red (brand-500), which holds AA
-  // contrast on that ground. Pinned exactly: the label and the one red phrase.
+  // The intro is light, so its red is brand-600, which holds AA contrast on
+  // that ground where the logo red (brand-500) does not. Pinned exactly: the
+  // label and the one red phrase.
   const reds = (tag) => [...tag.matchAll(/\btext-brand-\d+\b/g)].map((m) => m[0]);
   const phraseOpen = (introMarkup.match(/<span\b[^>]*text-brand-\d+[^>]*>/) ?? [""])[0];
-  ok("(L6c) ...and the label itself is set in the logo red, text-brand-500",
-     reds(labelOpen).join() === "text-brand-500", labelOpen);
+  ok("(L6c) ...and the label itself is set in text-brand-600",
+     reds(labelOpen).join() === "text-brand-600", labelOpen);
   ok("(L6c-phrase) ...as is the red phrase in the definition",
-     reds(phraseOpen).join() === "text-brand-500", phraseOpen);
+     reds(phraseOpen).join() === "text-brand-600", phraseOpen);
   const accents = [...introMarkup.matchAll(/<span\b[^>]*text-brand-\d+[^>]*>([\s\S]*?)<\/span>/g)]
     .map((m) => m[1].replace(/\s+/g, " ").trim());
   ok(`(L6d) red inside the prose is short and sparing (${accents.length} phrase)`,
