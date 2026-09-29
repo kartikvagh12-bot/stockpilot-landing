@@ -5,193 +5,174 @@
 // a feature section: no CTA, no card behind the copy. The hero stays the main
 // marketing statement and keeps the page's only h1.
 //
-// A cool pearl-and-slate band between the dark navbar and the dark hero. Red
-// in the copy is carried by text alone: the label, and one short phrase in the
-// definition. No ornament before the label. No heading element on purpose: a
+// Red in the copy is carried by text alone: the label, and one short phrase in
+// the definition, both in the logo red, which holds AA contrast on this dark
+// ground. No ornament before the label. No heading element on purpose: a
 // heading ahead of the page's h1 would make the outline read backwards. The
 // label names the section through aria-labelledby.
 //
-// The background is an abstract industrial sculpture across the full band,
-// built from CSS only (no canvas, SVG, image or dependency). Back to front,
-// all empty layers behind the text:
-//   1. base: a pearl-to-slate gradient with a soft diffused light at the top
-//      left, so the copy side is lit rather than blank;
-//   2. a faint floor mesh, low and to the right, as secondary texture only;
-//   3. a broad curved canopy sweeping in from the top left, carrying the copy
-//      on its lit pearl face. It is sized from the content container, not the
-//      viewport, so its edge clears the text at every width; on phones it
-//      turns into a tall curve whose edge shows along the right side;
-//   4. a charcoal slab and a silver slab angled on the right, overlapping,
-//      with soft shadows between them;
-//   5. Operza red as light from inside the piece: a glow behind the silver
-//      slab that leaks out around its edge, and a soft seam of red where the
-//      front curve meets the slabs;
-//   6. a broad front curve rising across the bottom of the band;
-//   7. a slate vignette at the edges.
-// Motion: the slabs, the front curve and the red light drift a few pixels at
-// different slow speeds, transform only, so the layers separate a little
-// without layout shift. All of it stops under prefers-reduced-motion, here
-// and in the global rule.
+// The background is one sculptural form on a near-black ground: a large
+// curved sheet of points, like a surface of connected measurements. It is
+// real CSS 3D rather than a picture. The sheet is a run of narrow dotted
+// strips, each turned around a shared axis, so together they bend into a
+// curve; perspective makes the dots tighten as the surface falls away, and
+// each strip's brightness follows its angle to a light from the upper left,
+// so the curve reads as lit. A low red glow sits inside the curl as the one
+// accent. A dark falloff behind the copy keeps the text clear. CSS and DOM
+// only: no canvas, SVG, image or dependency.
+//
+// On a phone the copy fills the width, so the sheet moves below the text into
+// a taller bottom band, and the falloff keeps the whole text column dark.
+//
+// Motion: the sheet and the glow drift a few pixels at different slow speeds,
+// transform only, so there is a little parallax and no layout shift. It stops
+// under prefers-reduced-motion, here and in the global rule.
+//
+// The hero's red glow starts above its own top edge and is clipped there.
+// With a dark block above, that clipped edge would show as a line, so the art
+// is clipped inside its own layer and the section lays a short fade of the
+// ground colour over the top of the hero's padding, which is taller than the
+// fade, so it never reaches hero copy.
+
+// The sheet: strips every STEP degrees from FROM to TO around the axis, on
+// the inside of the curve (SIDE -1), so the surface sweeps toward the viewer
+// at its edges and falls away in the middle. LIGHT is the angle the light
+// comes from; BASE is how much of the shadow side still shows.
+const RADIUS = 489;
+const STRIP = 64;
+const FROM = -62;
+const TO = 70;
+const STEP = 7.5;
+const SIDE = -1;
+const LIGHT = -38;
+const BASE = 0.07;
+
+const STRIPS = Array.from(
+  { length: Math.floor((TO - FROM) / STEP) + 1 },
+  (_, i) => {
+    const angle = FROM + i * STEP;
+    const facing = Math.cos(((angle - LIGHT) * Math.PI) / 180);
+    return {
+      angle,
+      light: +(BASE + (1 - BASE) * Math.max(0, facing) ** 2.2).toFixed(3),
+    };
+  },
+);
 
 const SCENE_CSS = `
-.oi-base {
-  background:
-    radial-gradient(70% 95% at 14% 8%, rgba(245, 247, 250, 0.95) 0%, rgba(245, 247, 250, 0) 62%),
-    linear-gradient(165deg, #d6dce4 0%, #c3cbd5 52%, #a9b3c0 100%);
+.oi-stage {
+  perspective: 1200px;
+  perspective-origin: 64% 38%;
 }
-.oi-mesh-wrap {
-  perspective: 600px;
-  perspective-origin: 70% 30%;
-  -webkit-mask-image: radial-gradient(50% 55% at 80% 70%, black 0%, transparent 70%);
-  mask-image: radial-gradient(50% 55% at 80% 70%, black 0%, transparent 70%);
-}
-.oi-mesh {
+.oi-sheet {
   position: absolute;
-  left: -40%;
-  right: -40%;
-  bottom: 0;
-  height: 220%;
-  transform-origin: 50% 100%;
-  transform: rotateX(78deg);
-  background-image:
-    linear-gradient(to right, rgba(30, 41, 59, 0.16) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 41, 59, 0.16) 1px, transparent 1px);
-  background-size: 96px 96px;
+  left: 68%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(-38deg) rotateX(8deg) rotateZ(-20deg);
 }
-.oi-canopy {
-  left: calc(max(0px, (100% - 88rem) / 2) - 66rem);
-  top: -80%;
-  width: 132rem;
-  height: 230%;
-  transform: rotate(14deg);
-  background: radial-gradient(40% 40% at 68% 55%, #f7f9fb 0%, #eef1f5 50%, #dfe4ea 80%, #cdd4dd 100%);
-  box-shadow:
-    0 30px 60px -20px rgba(15, 23, 42, 0.22),
-    inset -2px -3px 0 rgba(255, 255, 255, 0.85);
-}
-.oi-slab-back {
-  left: 56%;
-  top: -12%;
-  width: 56%;
-  height: 92%;
-  clip-path: polygon(30% 0%, 100% 0%, 100% 70%, 0% 100%);
-  background: linear-gradient(205deg, #8f9aa8 0%, #6f7a88 55%, #58626f 100%);
-  opacity: 0.85;
+.oi-strip {
+  position: absolute;
+  left: -900px;
+  top: ${-STRIP / 2}px;
+  width: 1800px;
+  height: ${STRIP}px;
+  background-image: radial-gradient(circle at center, rgba(226, 232, 240, 0.95) 0 1.3px, transparent 1.9px);
+  background-size: 14px 14px;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 22%, black 70%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, black 22%, black 70%, transparent 100%);
+  opacity: calc(var(--oi-light) * var(--oi-strength));
+  backface-visibility: visible;
 }
 .oi-glow {
-  left: 58%;
-  top: 48%;
-  width: 34%;
-  height: 46%;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.7) 0%, rgba(217, 13, 22, 0.28) 40%, rgba(217, 13, 22, 0) 72%);
-  filter: blur(22px);
+  left: 76%;
+  top: 56%;
+  width: 560px;
+  height: 320px;
+  margin-left: -280px;
+  margin-top: -160px;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.34) 0%, rgba(217, 13, 22, 0.12) 45%, rgba(217, 13, 22, 0) 72%);
+  filter: blur(26px);
 }
-.oi-slab-wrap {
-  filter: drop-shadow(0 28px 36px rgba(15, 23, 42, 0.28));
+.oi-scrim {
+  background:
+    radial-gradient(62% 90% at 22% 46%, rgba(5, 7, 15, 0.92) 0%, rgba(5, 7, 15, 0.7) 45%, rgba(5, 7, 15, 0) 80%),
+    linear-gradient(180deg, rgba(5, 7, 15, 0.55) 0%, rgba(5, 7, 15, 0) 22%, rgba(5, 7, 15, 0) 78%, rgba(5, 7, 15, 0.7) 100%);
 }
-.oi-slab {
-  position: absolute;
-  inset: 0;
-  clip-path: polygon(24% 0%, 100% 0%, 100% 58%, 0% 100%);
-  background: linear-gradient(158deg, #f4f6f9 0%, #d2d8df 42%, #a7b1bd 100%);
+@keyframes oiDrift {
+  from { transform: translate3d(-4px, 3px, 0); }
+  to { transform: translate3d(4px, -3px, 0); }
 }
-.oi-slab-pos {
-  left: 62%;
-  top: 6%;
-  width: 46%;
-  height: 76%;
+@keyframes oiDriftGlow {
+  from { transform: translate3d(-10px, 0, 0) scale(1); }
+  to { transform: translate3d(10px, 4px, 0) scale(1.05); }
 }
-.oi-seam {
-  left: 40%;
-  top: 70%;
-  width: 60%;
-  height: 26%;
-  background: radial-gradient(50% 50% at 62% 60%, rgba(217, 13, 22, 0.46) 0%, rgba(217, 13, 22, 0) 70%);
-  filter: blur(16px);
-}
-.oi-dune {
-  left: -20%;
-  right: -20%;
-  top: 86%;
-  height: 140%;
-  background: linear-gradient(180deg, #eef1f5 0%, #d3d9e1 26%, #b8c1cc 100%);
-  box-shadow:
-    0 -26px 60px -24px rgba(15, 23, 42, 0.3),
-    inset 0 2px 0 rgba(255, 255, 255, 0.9);
-  transform: rotate(-3deg);
-}
-.oi-vignette {
-  background: radial-gradient(130% 140% at 35% 35%, rgba(15, 23, 42, 0) 55%, rgba(15, 23, 42, 0.2) 100%);
-}
-@keyframes oiDriftA {
-  from { transform: translate3d(0, -4px, 0); }
-  to { transform: translate3d(0, 4px, 0); }
-}
-@keyframes oiDriftB {
-  from { transform: translate3d(-6px, 0, 0) scale(1); }
-  to { transform: translate3d(6px, 3px, 0) scale(1.05); }
-}
-@keyframes oiDriftDune {
-  from { transform: rotate(-3deg) translate3d(0, 3px, 0); }
-  to { transform: rotate(-3deg) translate3d(0, -3px, 0); }
-}
-.oi-move-slab { animation: oiDriftA 38s ease-in-out infinite alternate; }
-.oi-move-back { animation: oiDriftA 46s ease-in-out infinite alternate-reverse; }
-.oi-move-glow { animation: oiDriftB 30s ease-in-out infinite alternate; }
-.oi-move-dune { animation: oiDriftDune 42s ease-in-out infinite alternate; }
+.oi-move-sheet { animation: oiDrift 40s ease-in-out infinite alternate; }
+.oi-move-glow { animation: oiDriftGlow 28s ease-in-out infinite alternate; }
 @media (max-width: 767px) {
-  .oi-mesh-wrap { display: none; }
-  .oi-canopy { left: -154%; top: -54%; width: 262%; height: 202%; transform: none; background: radial-gradient(70% 55% at 80% 50%, #f7f9fb 0%, #eef1f5 45%, #d9dfe6 80%, #c8d0da 100%); }
-  .oi-slab-back { left: 52%; top: -14%; width: 80%; height: 34%; }
-  .oi-slab-pos { left: 64%; top: -4%; width: 60%; height: 30%; }
-  .oi-glow { left: 30%; top: 88%; width: 90%; height: 20%; opacity: 0.7; }
-  .oi-seam { left: -10%; top: 86%; width: 120%; height: 16%; }
-  .oi-dune { top: 93%; }
+  .oi-stage { perspective: 900px; perspective-origin: 60% 90%; }
+  .oi-sheet { left: 66%; top: 104%; transform: rotateY(-38deg) rotateX(8deg) rotateZ(-20deg) scale(0.6); }
+  .oi-glow { left: 70%; top: 96%; width: 360px; height: 220px; margin-left: -180px; margin-top: -110px; }
+  .oi-scrim {
+    background:
+      linear-gradient(180deg, rgba(5, 7, 15, 0.9) 0%, rgba(5, 7, 15, 0.86) 78%, rgba(5, 7, 15, 0.1) 92%, rgba(5, 7, 15, 0.25) 100%);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .oi-move-slab, .oi-move-back, .oi-move-glow, .oi-move-dune { animation: none; }
+  .oi-move-sheet, .oi-move-glow { animation: none; }
 }
 `;
-
-const LAYER = "pointer-events-none absolute -z-10";
 
 export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="relative isolate overflow-hidden bg-[#c3cbd5] text-slate-900"
+      className="relative z-10 bg-[#05070f] text-white"
     >
       <style>{SCENE_CSS}</style>
-      <div className={`${LAYER} oi-base inset-0`} />
-      <div className={`${LAYER} oi-mesh-wrap inset-0`}>
-        <div className="oi-mesh" />
+      <div
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        style={{ ["--oi-strength" as string]: 1 }}
+      >
+        <div className="oi-glow oi-move-glow absolute" />
+        <div className="oi-stage absolute inset-0">
+          <div className="oi-move-sheet absolute inset-0">
+            <div className="oi-sheet">
+              {STRIPS.map((s) => (
+                <div
+                  key={s.angle}
+                  className="oi-strip"
+                  style={{
+                    ["--oi-light" as string]: s.light,
+                    transform: `rotateX(${s.angle}deg) translateZ(${SIDE * RADIUS}px)`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="oi-scrim absolute inset-0" />
       </div>
-      <div className={`${LAYER} oi-slab-back oi-move-back`} />
-      <div className={`${LAYER} oi-glow oi-move-glow`} />
-      <div className={`${LAYER} oi-slab-wrap oi-slab-pos oi-move-slab`}>
-        <div className="oi-slab" />
-      </div>
-      <div className={`${LAYER} oi-canopy rounded-[50%]`} />
-      <div className={`${LAYER} oi-seam oi-move-glow`} />
-      <div className={`${LAYER} oi-dune oi-move-dune rounded-[50%]`} />
-      <div className={`${LAYER} oi-vignette inset-0`} />
+      <div className="pointer-events-none absolute inset-x-0 top-full h-12 bg-gradient-to-b from-[#05070f] to-transparent" />
 
-      <div className="container-wide py-10 sm:py-16 lg:py-20">
+      <div className="container-wide relative pt-10 pb-24 sm:py-16 lg:py-20">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
-            className="text-sm font-semibold uppercase tracking-[0.14em] text-brand-600"
+            className="text-sm font-semibold uppercase tracking-[0.14em] text-brand-500"
           >
             What is Operza?
           </p>
-          <p className="mt-3 text-[21px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:mt-4 sm:text-3xl lg:text-[2rem]">
+          <p className="mt-3 text-[21px] font-semibold leading-tight tracking-[-0.02em] text-white sm:mt-4 sm:text-3xl lg:text-[2rem]">
             Operza is a web-based{" "}
-            <span className="text-brand-600">
+            <span className="text-brand-500">
               manufacturing operations and accounting platform
             </span>{" "}
             built for manufacturers.
           </p>
-          <div className="mt-5 max-w-3xl space-y-4 text-base leading-7 text-slate-600 sm:mt-6 sm:text-lg sm:leading-8">
+          <div className="mt-5 max-w-3xl space-y-4 text-base leading-7 text-white/70 sm:mt-6 sm:text-lg sm:leading-8">
             <p>
               It helps digitize the day-to-day flow of a manufacturing
               business, from materials, products and BOMs through production,

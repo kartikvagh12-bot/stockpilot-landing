@@ -550,8 +550,10 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   ok("(L6b) the label holds only its text: no line, dash, dot or icon before it",
      labelTag.trim() === "What is Operza?" && !/aria-hidden/.test(introMarkup), labelTag.trim());
   const labelOpen = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>/) ?? [""])[0];
+  // Any shade of the brand red that holds contrast on the intro's ground:
+  // brand-600 on light, the logo red (brand-500) or lighter on dark.
   ok("(L6c) ...and the label itself is set in the brand red",
-     /\btext-brand-600\b/.test(labelOpen), labelOpen);
+     /\btext-brand-(?:400|500|600)\b/.test(labelOpen), labelOpen);
   const accents = [...introMarkup.matchAll(/<span\b[^>]*text-brand-\d+[^>]*>([\s\S]*?)<\/span>/g)]
     .map((m) => m[1].replace(/\s+/g, " ").trim());
   ok(`(L6d) red inside the prose is short and sparing (${accents.length} phrase)`,
