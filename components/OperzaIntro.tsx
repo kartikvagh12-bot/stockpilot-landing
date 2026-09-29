@@ -5,34 +5,34 @@
 // a feature section: no CTA, no card behind the copy. The hero stays the main
 // marketing statement and keeps the page's only h1.
 //
-// Red in the copy is carried by text alone: the label, and one short phrase in
-// the definition, both in the logo red, which holds AA contrast on this dark
-// ground. No ornament before the label. No heading element on purpose: a
-// heading ahead of the page's h1 would make the outline read backwards. The
-// label names the section through aria-labelledby.
+// The copy is dark slate on a light ground. Red is carried by text alone: the
+// label and one short phrase in the definition, both brand-600, which holds AA
+// contrast on this ground. No ornament before the label. No heading element on
+// purpose: a heading ahead of the page's h1 would make the outline read
+// backwards. The label names the section through aria-labelledby.
 //
-// The background is one giant rounded body on a deep black ground: a point
-// surface on an ellipsoid, seen from very close, cropped by the section so
-// only its upper cap shows, rising from the bottom right. The points are computed here, at build time, from
-// real 3D geometry (see BODY below); nothing is random. Every point is drawn
-// as one entry in a single element's box-shadow list, so the whole body is
-// one DOM node and one layer however many points it has. A soft red light
-// sits inside the body as the one accent, and a dark falloff keeps the copy
-// column quiet. CSS and DOM only: no canvas, SVG, image or dependency.
+// The background is one scene lit from the upper left. A pearl room brightens
+// toward the copy and deepens through silver into graphite toward the lower
+// right, where a very large rounded body, a point surface on an ellipsoid seen
+// from close up, rises out of it. The body has no hard edge: its volume is a
+// set of soft gradients that fade to nothing before the rim, and its dotted
+// rows turn from silver over the dark core to slate where the room shows
+// through, so the rows themselves draw the curve. A faint red light sits
+// inside the body. A soft pearl falloff behind the copy keeps the text clear;
+// the body is placed so no point lands in a line of text at any width.
 //
-// Motion: the body turns by a couple of degrees and drifts a few pixels over
-// a minute, and the red light drifts on its own slower cycle. The red light
-// is a plain soft gradient with no blur filter: a filtered layer drifting
-// over the point layer cost frames on large screens. Only whole
-// layers move, never single points, transform only, so there is no layout
-// shift. All of it stops under prefers-reduced-motion, here and in the global
-// rule.
+// The points are computed here, at build time, from real 3D geometry (see
+// BODY below); nothing is random. Every point is one entry in a single
+// element's box-shadow list, so the body is one DOM node and one layer however
+// many points it has. CSS and DOM only: no canvas, SVG, image or dependency.
 //
-// The hero's red glow starts above its own top edge and is clipped there.
-// With a dark block above, that clipped edge would show as a line, so the art
-// is clipped inside its own layer and the section lays a short fade of the
-// ground colour over the top of the hero's padding, which is taller than the
-// fade, so it never reaches hero copy.
+// Motion: the whole body (volume and points together) turns by a couple of
+// degrees and drifts a few pixels over a minute. Nothing else moves and no
+// blur filter is animated. Transform only, so there is no layout shift, and
+// it stops under prefers-reduced-motion, here and in the global rule.
+//
+// The section meets the dark hero at a clean light-to-dark edge; the hero is
+// not changed.
 
 // ---------------------------------------------------------------------------
 // The body. An ellipsoid with radii RX, RY, RZ, sampled on latitude bands
@@ -62,17 +62,16 @@
 // turned with the body. Points whose normal faces away from the camera are
 // dropped (the far side). Brightness is the Lambert term of the normal against
 // LIGHT (upper left, toward the viewer), so one side catches a soft silver
-// highlight and the other falls into shadow. Opacity is that brightness,
-// faded where the surface turns edge-on to the camera and where it falls away
-// in depth. Points in shadow on the side facing RED_DIR take on a little of
-// the logo red: light from inside the body showing through.
+// highlight and the other falls into shadow. Toward the rim, where the surface
+// turns edge-on, points shift from silver to slate and hold a steady opacity,
+// so the rows stay legible against the light room. Points in shadow on the
+// side facing RED_DIR take on a little red: light from inside the body.
 //
 // Two views of the same body are precomputed, each cropped to what its layout
 // actually shows, and each viewport renders only its own set. From 1280px the
-// desktop body sits below the bottom right corner beside the copy, its upper
-// cap rising into the section. It is placed from the copy column's right edge
-// (the container edge plus 58rem), not the viewport's, so the gap between the
-// text and its rim is the same at every width.
+// desktop body sits below the bottom right corner beside the copy. It is
+// placed from the copy column's right edge (the container edge plus 58rem),
+// not the viewport's, so its relation to the text is the same at every width.
 // Below 1280px the copy is too wide to sit beside it, so the section gains a
 // bottom band and the body rises into that band under the copy: the desktop
 // view on tablets, the phone view below 768px.
@@ -130,9 +129,9 @@ function buildBody(o: typeof BODY, view: View) {
   const redDir = norm(o.redDir as Vec);
   const [left, right, top, bottom] = view.crop;
   const shadows: string[] = [];
-  // For the dark body behind the points: every front-facing point's projected
-  // position (for the silhouette), and where the surface faces the light and
-  // the red most directly (for its shading).
+  // For the soft volume behind the points: every front-facing point's projected
+  // position (to fit the silhouette), and where the surface faces the light
+  // and, among visible points, the red most directly (for its shading).
   const rim: [number, number][] = [];
   let lit = { k: -1, x: 0, y: 0 };
   let glow = { k: -1, x: 0, y: 0 };
@@ -168,8 +167,13 @@ function buildBody(o: typeof BODY, view: View) {
       const depth = o.cam / (o.cam - point[2]);
       const lambert = Math.max(0, dot(normal, light));
       const bright = o.base + (1 - o.base) * lambert ** 1.3;
+      // Silver where the body faces the viewer over its dark core, turning to
+      // slate toward the rim, where the room shows through: the rows stay
+      // visible all the way round and draw the curve without an edge.
+      const edge = 1 - smooth(0.12, 0.55, facing);
       const alpha =
-        bright * smooth(0.02, 0.5, facing) * smooth(0.55, 1.35, depth);
+        (bright * smooth(0.55, 1.35, depth) * (1 - edge) + 0.5 * edge) *
+        smooth(0, 0.12, facing);
       if (alpha < 0.04) continue;
       const sx = px;
       const sy = py;
@@ -186,10 +190,15 @@ function buildBody(o: typeof BODY, view: View) {
         0.7,
         (1 - lambert) ** 1.5 * Math.max(0, dot(normal, redDir)) * o.redGain,
       );
+      const base = [
+        226 + (100 - 226) * edge,
+        232 + (116 - 232) * edge,
+        240 + (139 - 240) * edge,
+      ];
       const rgb = [
-        226 + (243 - 226) * red,
-        232 + (24 - 232) * red,
-        240 + (32 - 240) * red,
+        base[0] + (243 - base[0]) * red,
+        base[1] + (24 - base[1]) * red,
+        base[2] + (32 - base[2]) * red,
       ].map(Math.round);
       const a = Math.min(1, alpha * (accent ? o.accentGain : 1));
 
@@ -202,10 +211,10 @@ function buildBody(o: typeof BODY, view: View) {
 }
 
 // The silhouette. The perspective projection of an ellipsoid is itself an
-// ellipse, so rather than trace the rim point by point, fit that ellipse: take
+// ellipse, so fit that ellipse rather than trace the rim point by point: take
 // the convex hull of the projected front-facing points, find its principal
-// axes, and measure the hull's full extent along each. The body is then drawn
-// as a rotated, fully rounded box, which gives a perfectly smooth silhouette.
+// axes, and measure the hull's full extent along each. It sizes and orients
+// the body's soft volume (see bodyStyle); it is never drawn as an edge.
 function hull(pts: [number, number][]) {
   const sorted = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cross = (o: number[], a: number[], b: number[]) =>
@@ -243,12 +252,13 @@ function hull(pts: [number, number][]) {
   };
 }
 
-// The dark body under the points, per view: the fitted silhouette ellipse,
-// shaded as matte graphite lit from the same light as the points, with the
-// red light inside it where the visible surface faces RED_DIR most. Because
-// the red is part of the body's own fill, it can only ever show inside the
-// silhouette. Gradient centres are given in the ellipse box's own (unrotated)
-// frame.
+// The body's volume, per view. There is no solid disc: the fitted silhouette
+// ellipse only sizes a box of soft gradients, all of which fade to nothing
+// before its rim (closest-side), so the body dissolves into the room around
+// it. It is darkest on the side turned away from the light, lighter toward the
+// lit near side, and carries the red light inside it where the visible
+// surface faces RED_DIR most. Gradient centres are in the box's own
+// (unrotated) frame.
 function bodyStyle(view: ReturnType<typeof buildBody>) {
   const e = view.outline;
   const a = (e.angle * Math.PI) / 180;
@@ -259,6 +269,7 @@ function bodyStyle(view: ReturnType<typeof buildBody>) {
     const ly = -dx * Math.sin(a) + dy * Math.cos(a) + e.ry;
     return `${lx.toFixed(0)}px ${ly.toFixed(0)}px`;
   };
+  const far = local(e.cx + (e.cx - view.lit.x) * 0.7, e.cy + (e.cy - view.lit.y) * 0.7);
   const r = (f: number) => `${(Math.max(e.rx, e.ry) * f).toFixed(0)}px`;
   return {
     left: `${(e.cx - e.rx).toFixed(1)}px`,
@@ -267,23 +278,26 @@ function bodyStyle(view: ReturnType<typeof buildBody>) {
     height: `${(2 * e.ry).toFixed(1)}px`,
     transform: `rotate(${e.angle.toFixed(2)}deg)`,
     background: [
-      `radial-gradient(${r(0.4)} ${r(0.26)} at ${local(view.glow.x, view.glow.y)}, rgba(243, 24, 32, 0.4) 0%, rgba(217, 13, 22, 0.15) 45%, rgba(217, 13, 22, 0) 100%)`,
-      `radial-gradient(${r(1.25)} ${r(1.25)} at ${local(view.lit.x, view.lit.y)}, #4b515b 0%, #30343c 22%, #1b1e24 50%, #101217 78%, #0a0b0e 100%)`,
+      `radial-gradient(${r(0.34)} ${r(0.22)} at ${local(view.glow.x, view.glow.y)}, rgba(243, 24, 32, 0.34) 0%, rgba(217, 13, 22, 0.12) 50%, rgba(217, 13, 22, 0) 100%)`,
+      `radial-gradient(${r(1.05)} ${r(1.05)} at ${far}, rgba(8, 9, 12, 0.92) 0%, rgba(14, 16, 20, 0.78) 35%, rgba(24, 27, 33, 0.4) 65%, rgba(24, 27, 33, 0) 100%)`,
+      `radial-gradient(closest-side at 50% 50%, rgba(30, 34, 41, 0.9) 0%, rgba(38, 43, 51, 0.78) 55%, rgba(52, 58, 68, 0.45) 80%, rgba(70, 77, 88, 0) 100%)`,
     ].join(", "),
   };
 }
 
-const DESKTOP = buildBody(BODY, { focal: 1100, crop: [-1500, 420, -860, -230] });
-const PHONE = buildBody(BODY, { focal: 560, crop: [-340, 90, -420, -110] });
+const DESKTOP = buildBody(BODY, { focal: 1250, crop: [-860, 440, -780, -200] });
+const PHONE = buildBody(BODY, { focal: 640, crop: [-460, 140, -560, -80] });
 const DESKTOP_BODY = bodyStyle(DESKTOP);
 const PHONE_BODY = bodyStyle(PHONE);
 
 const SCENE_CSS = `
 .oi-ground {
   background:
-    radial-gradient(60% 85% at 10% 8%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 60%),
-    radial-gradient(45% 75% at 90% 100%, rgba(100, 116, 139, 0.16) 0%, rgba(100, 116, 139, 0) 70%),
-    linear-gradient(180deg, #f6f8fa 0%, #eef2f5 60%, #e6ebf0 100%);
+    radial-gradient(55% 90% at 8% 10%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 62%),
+    radial-gradient(60% 110% at 100% 100%, rgba(22, 25, 31, 0.55) 0%, rgba(40, 46, 55, 0.28) 45%, rgba(60, 68, 80, 0) 80%),
+    radial-gradient(55% 90% at 72% 55%, rgba(148, 160, 176, 0.32) 0%, rgba(148, 160, 176, 0) 70%),
+    radial-gradient(30% 45% at 78% 96%, rgba(190, 24, 32, 0.1) 0%, rgba(190, 24, 32, 0) 70%),
+    linear-gradient(100deg, #f7f9fb 0%, #f2f5f7 40%, #e9eef2 65%, #dfe5ea 100%);
 }
 .oi-body {
   position: absolute;
@@ -291,21 +305,18 @@ const SCENE_CSS = `
   height: 0;
 }
 .oi-body-desktop {
-  left: calc(max(0px, (100% - 88rem) / 2) + 58rem + 550px);
-  top: calc(100% + 250px);
+  left: calc(max(0px, (100% - 88rem) / 2) + 58rem + 600px);
+  top: calc(100% + 260px);
 }
 .oi-body-phone {
   display: none;
-  left: 80%;
-  top: calc(100% + 182px);
+  left: 86%;
+  top: calc(100% + 262px);
 }
-.oi-shadow {
+.oi-volume {
   position: absolute;
-  inset: 0;
-  filter: drop-shadow(0 24px 48px rgba(15, 23, 42, 0.28)) drop-shadow(0 4px 10px rgba(15, 23, 42, 0.18));
-}
-.oi-backing {
-  position: absolute;
+  -webkit-mask-image: radial-gradient(closest-side, black 55%, transparent 100%);
+  mask-image: radial-gradient(closest-side, black 55%, transparent 100%);
 }
 .oi-points {
   position: absolute;
@@ -314,25 +325,32 @@ const SCENE_CSS = `
   width: 2px;
   height: 2px;
 }
+.oi-read {
+  background: radial-gradient(54% 80% at 24% 52%, rgba(246, 248, 250, 0.94) 0%, rgba(246, 248, 250, 0.86) 55%, rgba(246, 248, 250, 0) 100%);
+}
 @keyframes oiTurn {
   from { transform: rotate(-1.5deg) translate3d(-3px, 2px, 0); }
   to { transform: rotate(1.5deg) translate3d(3px, -2px, 0); }
 }
 .oi-move-body { animation: oiTurn 56s ease-in-out infinite alternate; }
 @media (min-width: 1800px) {
-  .oi-body-desktop { left: calc(max(0px, (100% - 88rem) / 2) + 58rem + 646px); transform: scale(1.12); }
+  .oi-body-desktop { left: calc(max(0px, (100% - 88rem) / 2) + 58rem + 726px); transform: scale(1.12); }
 }
 @media (min-width: 768px) and (max-width: 1279px) {
-  .oi-body-desktop { left: calc(100% - 60px); top: calc(100% + 322px); transform: scale(0.7); }
+  .oi-body-desktop { left: calc(100% - 10px); top: calc(100% + 490px); transform: scale(0.85); }
+  .oi-read { background: linear-gradient(180deg, rgba(246, 248, 250, 0.9) 0%, rgba(246, 248, 250, 0.8) calc(100% - 200px), rgba(246, 248, 250, 0) calc(100% - 100px)); }
 }
 @media (max-width: 767px) {
   .oi-body-desktop { display: none; }
   .oi-body-phone { display: block; }
   .oi-ground {
     background:
-      radial-gradient(90% 50% at 20% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 70%),
-      linear-gradient(180deg, #f6f8fa 0%, #eef2f5 60%, #e6ebf0 100%);
+      radial-gradient(90% 55% at 15% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 70%),
+      radial-gradient(110% 45% at 100% 100%, rgba(22, 25, 31, 0.5) 0%, rgba(40, 46, 55, 0.25) 50%, rgba(60, 68, 80, 0) 85%),
+      radial-gradient(60% 25% at 70% 98%, rgba(190, 24, 32, 0.1) 0%, rgba(190, 24, 32, 0) 70%),
+      linear-gradient(180deg, #f7f9fb 0%, #f2f5f7 45%, #e9eef2 75%, #dfe5ea 100%);
   }
+  .oi-read { background: linear-gradient(180deg, rgba(246, 248, 250, 0.9) 0%, rgba(246, 248, 250, 0.82) calc(100% - 180px), rgba(246, 248, 250, 0) calc(100% - 90px)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .oi-move-body { animation: none; }
@@ -350,9 +368,7 @@ export default function OperzaIntro() {
         <div className="oi-ground absolute inset-0" />
         <div className="oi-body oi-body-desktop">
           <div className="oi-move-body absolute inset-0">
-            <div className="oi-shadow">
-              <div className="oi-backing rounded-full" style={DESKTOP_BODY} />
-            </div>
+            <div className="oi-volume" style={DESKTOP_BODY} />
             <div
               className="oi-points rounded-full"
               style={{ boxShadow: DESKTOP.points }}
@@ -361,18 +377,17 @@ export default function OperzaIntro() {
         </div>
         <div className="oi-body oi-body-phone">
           <div className="oi-move-body absolute inset-0">
-            <div className="oi-shadow">
-              <div className="oi-backing rounded-full" style={PHONE_BODY} />
-            </div>
+            <div className="oi-volume" style={PHONE_BODY} />
             <div
               className="oi-points rounded-full"
               style={{ boxShadow: PHONE.points }}
             />
           </div>
         </div>
+        <div className="oi-read absolute inset-0" />
       </div>
 
-      <div className="container-wide relative pt-10 pb-52 sm:pt-16 xl:py-20">
+      <div className="container-wide relative pt-10 pb-44 sm:pt-16 xl:py-20">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
