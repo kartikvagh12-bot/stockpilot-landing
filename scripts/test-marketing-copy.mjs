@@ -520,25 +520,24 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   ok("(L3) the intro asks the orientation question",
      /What is Operza\?/.test(intro));
   ok("(L4) the intro gives the locked definition",
-     intro.includes("Operza is software for manufacturers to manage factory operations and business accounting."),
+     intro.includes("Operza is a manufacturing operations and accounting platform for manufacturers."),
+     intro);
+  ok("(L5) ...and the locked supporting sentence",
+     intro.includes("It connects materials, production, inventory, dispatch, sales, purchases and accounting in one system, so your factory operations and business records stay together."),
      intro);
 
-  // Each plan sentence names only what that plan does. Factory claims no
-  // accounting, Books claims no stock movement, and the connection is stated
-  // for Complete alone.
-  const sentence = (lead) => (intro.match(new RegExp(`${lead}[^.]*\\.`)) ?? [""])[0];
-  const factory = sentence("Use Operza Factory");
-  const books = sentence("Use Operza Books");
-  const complete = sentence("Operza Complete");
-  ok("(L5) Factory is materials, production and dispatch",
-     factory === "Use Operza Factory for materials, production and dispatch.", factory);
-  ok("(L6) Books is invoices, bills, payments and statements",
-     books === "Use Operza Books for invoices, bills, payments and statements.", books);
-  ok("(L7) only Complete brings the floor and the books together",
-     complete === "Operza Complete brings the factory floor and the books together in one system.", complete);
-  ok("(L8) ...and neither single plan borrows the other's half",
-     !/invoice|bill|payment|statement|account|books/i.test(factory)
-     && !/material|stock|production|dispatch|inventory/i.test(books));
+  // The intro defines Operza. Factory, Books and Complete are explained further
+  // down the page, so the plan explainer must not creep back in here.
+  const planExplainer = ["Use Operza Factory", "Use Operza Books", "Operza Complete brings"]
+    .filter((p) => intro.includes(p));
+  ok("(L6) the intro does not explain the plans",
+     planExplainer.length === 0, planExplainer.join(", "));
+  // Judged on markup, not the comment that explains why.
+  const introMarkup = strip(introSrc);
+  ok("(L7) the intro stays a definition: no border setting it apart",
+     !/\bborder(?:-[a-z]+)?\b/.test(introMarkup));
+  ok("(L8) ...and no grid or column layout",
+     !/\bgrid\b|grid-cols|col-span/.test(introMarkup));
 
   // The hero keeps the page's only h1, and nothing ahead of it outranks it.
   ok("(L9) the intro adds no heading element ahead of the hero's h1",
