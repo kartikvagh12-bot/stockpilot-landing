@@ -522,16 +522,26 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   ok("(L4) the intro gives the locked definition",
      intro.includes("Operza is a manufacturing operations and accounting platform for manufacturers."),
      intro);
-  ok("(L5) ...and the locked supporting sentence",
-     intro.includes("Operza covers materials, production, inventory, dispatch, sales, purchases and accounting, with Operza Complete bringing factory operations and business records together in one system."),
+  ok("(L5) ...and the locked supporting paragraph",
+     intro.includes("Across Operza Factory and Operza Books, Operza helps manufacturers manage materials, production, inventory, dispatch, sales, purchases and business records. Operza Complete brings both sides together in one connected system, so the factory floor and the books stay in sync."),
      intro);
 
-  // The intro defines Operza. Factory, Books and Complete are explained further
-  // down the page, so the plan explainer must not creep back in here.
-  const planExplainer = ["Use Operza Factory", "Use Operza Books", "Operza Complete brings"]
+  // The intro defines Operza. The per-plan explainer that the first version
+  // carried ("Use Operza Factory for…", "Use Operza Books for…", "Operza
+  // Complete brings the factory floor…") was retired and stays retired; the
+  // plans are explained further down the page.
+  const planExplainer = ["Use Operza Factory", "Use Operza Books", "Operza Complete brings the factory floor"]
     .filter((p) => intro.includes(p));
-  ok("(L6) the intro does not explain the plans",
+  ok("(L6) the intro does not explain the plans one by one",
      planExplainer.length === 0, planExplainer.join(", "));
+  // The capability boundary: the list is spread across Factory and Books, and
+  // only the sentence that names Complete claims the two are connected.
+  const introSentences = intro.split(/(?<=\.)\s+/);
+  const CONNECTED = /together|connected|in sync|one system/i;
+  const connectedClaims = introSentences.filter((s) => CONNECTED.test(s));
+  ok("(L6b) only Operza Complete is said to connect the floor and the books",
+     connectedClaims.length > 0 && connectedClaims.every((s) => /^Operza Complete\b/.test(s)),
+     connectedClaims.join(" | "));
   // Judged on markup, not the comment that explains why.
   const introMarkup = strip(introSrc);
   ok("(L7) the intro stays a definition: no border setting it apart",

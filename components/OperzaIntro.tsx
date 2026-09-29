@@ -1,52 +1,46 @@
 // Orientation before the hero. A cold visitor meets the hero's headline about
 // what Operza lets them run before anything has said what Operza is, so this
-// answers that one question in two sentences. It is a definition, not a
-// section: no border, no grid, and no plan explanation, which the page covers
-// further down. The hero stays the main marketing statement and keeps the
-// page's only h1.
+// answers that question first. It is an introduction, not a feature section:
+// no border, no grid, no CTA. The hero stays the main marketing statement and
+// keeps the page's only h1.
 //
-// Same deep ground and container as the navbar and the hero, and no bottom
-// padding, because the hero's own top padding already provides the gap. No
-// heading element on purpose: a heading ahead of the page's h1 would make the
-// outline read backwards. The label names the section through
+// A white band between the dark navbar and the dark hero, so the definition
+// reads as its own step before the hero starts. Red is used once, on the
+// label. No heading element on purpose: a heading ahead of the page's h1
+// would make the outline read backwards. The label names the section through
 // aria-labelledby.
 //
-// The hero's red glow starts above its own top edge and is clipped there. With
-// the navbar directly above, that edge was hidden; with this block above, it
-// showed as a hard line. So this block does not clip (no `section-deep`, which
-// sets overflow-hidden) and lays a short fade of the ground colour over the
-// top of the hero's padding, letting the glow come in gradually. The fade is
-// shorter than the hero's smallest top padding, so it never reaches hero copy.
+// Plan boundaries follow operza-app/lib/capabilities.ts: the capabilities are
+// listed across Factory and Books, and only Complete connects the two.
 
 export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="relative z-10 bg-[#05070f] text-white"
+      className="bg-white text-slate-900"
     >
-      <div className="container-wide pt-8 sm:pt-10">
+      <div className="container-wide py-12 sm:py-14 lg:py-16">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
-            className="text-xs font-semibold uppercase tracking-[0.14em] text-white/50"
+            className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.14em] text-brand-600"
           >
+            <span aria-hidden="true" className="h-0.5 w-8 bg-brand-600" />
             What is Operza?
           </p>
-          <p className="mt-3 text-lg font-medium leading-snug text-white sm:text-xl">
+          <p className="mt-4 text-2xl font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:text-3xl lg:text-[2rem]">
             Operza is a manufacturing operations and accounting platform for
             manufacturers.
           </p>
-          <p className="mt-2 max-w-3xl text-[15px] leading-6 text-white/60 sm:text-base sm:leading-7">
-            Operza covers materials, production, inventory, dispatch, sales,
-            purchases and accounting, with Operza Complete bringing factory
-            operations and business records together in one system.
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+            Across Operza Factory and Operza Books, Operza helps manufacturers
+            manage materials, production, inventory, dispatch, sales, purchases
+            and business records. Operza Complete brings both sides together
+            in one connected system, so the factory floor and the books stay in
+            sync.
           </p>
         </div>
       </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-full h-12 bg-gradient-to-b from-[#05070f] to-transparent"
-      />
     </section>
   );
 }
