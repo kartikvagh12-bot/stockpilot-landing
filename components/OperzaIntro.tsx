@@ -11,117 +11,101 @@
 // purpose: a heading ahead of the page's h1 would make the outline read
 // backwards. The label names the section through aria-labelledby.
 //
-// The section is a white tunnel of nested architectural frames. Its edges are
-// the outermost opening; each frame after it sits deeper, so it is smaller and
-// closer to one vanishing point (--vx, --vy), set well right of centre on wide
-// screens so the copy has calm space on the left. Below 1280px the copy
-// fills the width, so the section gains a band under it and the vanishing
-// point drops into that band, where the tunnel's deep end shows. A frame at depth i is drawn at scale s = 1 / (1 + k * i), with the step k
-// set per breakpoint (shallower on very wide screens, so no rib edge lines up
-// with the copy's margin): its box is
-// the section's box pulled toward the vanishing point by (1 - s), and its
-// thickness, corner radius and shadow scale with s too, so the ribs tighten
-// as they recede.
+// The space is built around the copy. The text sits on the main reading
+// plane, the section's own pearl ground, lit evenly from the upper left.
+// That plane ends where the copy ends: --x0 is where the text column starts
+// (the container edge plus its padding) and --xr is the column's widest line
+// (56rem) plus a margin, so every surface below is placed from the text, not
+// from the viewport. Around the reading zone, a few large surfaces:
 //
-// Each frame is a thick rounded rib: a pearl face lit from the upper left,
-// and inside it a recessed well, shaded darker along its upper and left
-// edges where the rib in front of it occludes the light. Corners are rounded
-// with clip-path, so each rib is a solid shape, not an outline. Faces and wells
-// darken slightly with depth, so the far end reads deeper. At the far end a
-// small rear opening carries the one red light, a thin seam with a soft glow.
-// A soft pearl falloff behind the copy keeps the text clear. Static; CSS and
-// DOM only (no canvas, SVG, image or dependency).
+//   - a top fold, a shaded surface that recedes down onto the plane above
+//     the copy, with occlusion where it meets it;
+//   - a ledge, a lit surface coming forward beneath the copy;
+//   - an inner return at the plane's right edge, turned away from the light,
+//     with a deep charcoal seam at its back where a red light leaks out;
+//   - a large folded slab beyond it, filling the rest of the width, creased
+//     so its upper facet catches the light and its lower facet falls into
+//     cool graphite shade.
+//
+// Nothing crosses the copy. Below 1280px the copy fills the width, so --xr
+// sits near the right edge, the copy is padded clear of it, and the slab
+// becomes a narrow fold at the side. Static; CSS and DOM only (no canvas, SVG,
+// image or dependency).
 
-const COUNT = 10;
-
-const mix = (a: number[], b: number[], t: number) =>
-  `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(", ")})`;
-
-const FRAMES = Array.from({ length: COUNT }, (_, i) => {
-  const d = i / (COUNT - 1);
-  return {
-    i,
-    lit: mix([255, 255, 255], [226, 231, 236], d),
-    face: mix([240, 243, 246], [196, 204, 213], d),
-    well: mix([226, 231, 236], [176, 185, 196], d),
-  };
-});
-
-const TUNNEL_CSS = `
-.oi-tunnel {
-  --k: 0.34;
-  --vx: 70%;
-  --vy: 50%;
-  --w: 30px;
-  --rad: 40px;
+const SPACE_CSS = `
+.oi-space {
+  --x0: calc(max(0px, (100% - 88rem) / 2) + 2rem);
+  --xr: calc(var(--x0) + 56rem + 48px);
+  --t: 44px;
+  --b: 64px;
+  --f: 72px;
+  --s: 56px;
+  --d: 26px;
+  --crease: 46%;
+  background:
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.09) var(--t), rgba(15, 23, 42, 0.035) calc(var(--t) + 2px), rgba(15, 23, 42, 0) calc(var(--t) + 56px)),
+    linear-gradient(to top, rgba(15, 23, 42, 0.07) var(--b), rgba(15, 23, 42, 0) calc(var(--b) + 26px)),
+    radial-gradient(60% 90% at 20% 30%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
+    #f4f6f8;
 }
-.oi-frame,
-.oi-rear {
-  --s: calc(1 / (1 + var(--k) * var(--i)));
-}
-.oi-frame {
-  position: absolute;
-  left: calc(var(--vx) * (1 - var(--s)));
-  right: calc((100% - var(--vx)) * (1 - var(--s)));
-  top: calc(var(--vy) * (1 - var(--s)));
-  bottom: calc((100% - var(--vy)) * (1 - var(--s)));
-  clip-path: inset(0 round calc(var(--rad) * var(--s)));
-  background: linear-gradient(135deg, var(--lit) 0%, var(--face) 70%);
-}
-.oi-frame::before {
-  content: "";
-  position: absolute;
-  inset: calc(var(--w) * var(--s));
-  clip-path: inset(0 round calc(var(--rad) * var(--s) * 0.7));
-  background: var(--well);
-  box-shadow:
-    inset calc(12px * var(--s)) calc(14px * var(--s)) calc(30px * var(--s)) rgba(15, 23, 42, 0.2),
-    inset calc(-4px * var(--s)) calc(-4px * var(--s)) calc(14px * var(--s)) rgba(255, 255, 255, 0.5),
-    inset 0 0 0 1px rgba(15, 23, 42, 0.06);
-}
-.oi-frame::after {
-  content: "";
+.oi-layer {
   position: absolute;
   inset: 0;
-  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.9), inset -1px -1px 0 rgba(15, 23, 42, 0.06);
-  pointer-events: none;
 }
-.oi-rear {
-  position: absolute;
-  left: calc(var(--vx) * (1 - var(--s)));
-  right: calc((100% - var(--vx)) * (1 - var(--s)));
-  top: calc(var(--vy) * (1 - var(--s)));
-  bottom: calc((100% - var(--vy)) * (1 - var(--s)));
-  clip-path: inset(0 round calc(var(--rad) * var(--s)));
-  background: radial-gradient(70% 90% at 50% 100%, rgba(243, 24, 32, 0.22) 0%, rgba(243, 24, 32, 0) 70%), #f7f9fb;
-  box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.12);
+.oi-top {
+  clip-path: polygon(0 0, calc(var(--xr) + var(--f)) 0, calc(var(--xr) + var(--s)) calc(var(--t) + var(--d)), var(--xr) var(--t), 0 var(--t));
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.6) 0, rgba(255, 255, 255, 0) 5px),
+    linear-gradient(to bottom, #e9edf1 0%, #dde3e9 100%);
 }
-.oi-rear::after {
-  content: "";
-  position: absolute;
-  left: 18%;
-  right: 18%;
-  bottom: 22%;
-  height: 2px;
-  background: linear-gradient(90deg, rgba(243, 24, 32, 0), rgba(243, 24, 32, 0.85) 30%, rgba(243, 24, 32, 0.85) 70%, rgba(243, 24, 32, 0));
-  box-shadow: 0 0 10px 1px rgba(243, 24, 32, 0.35);
+.oi-ledge {
+  clip-path: polygon(0 calc(100% - var(--b)), var(--xr) calc(100% - var(--b)), calc(var(--xr) + var(--s)) calc(100% - var(--b) - var(--d)), calc(var(--xr) + var(--f)) 100%, 0 100%);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0, rgba(255, 255, 255, 0.95) 1px, rgba(255, 255, 255, 0) 2px),
+    radial-gradient(34% 120% at calc(var(--xr) + 30px) 100%, rgba(243, 24, 32, 0.08) 0%, rgba(243, 24, 32, 0) 70%),
+    linear-gradient(to bottom, #fbfcfd 0%, #eef2f5 100%);
 }
-.oi-read {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(50% 72% at 27% 52%, rgba(248, 250, 251, 0.93) 0%, rgba(248, 250, 251, 0.82) 55%, rgba(248, 250, 251, 0) 100%);
+.oi-return {
+  clip-path: polygon(var(--xr) var(--t), calc(var(--xr) + var(--s)) calc(var(--t) + var(--d)), calc(var(--xr) + var(--s)) calc(100% - var(--b) - var(--d)), var(--xr) calc(100% - var(--b)));
+  background:
+    linear-gradient(to right, rgba(255, 255, 255, 0.7) 0, rgba(255, 255, 255, 0) 3px),
+    linear-gradient(to right, rgba(243, 24, 32, 0) 60%, rgba(243, 24, 32, 0.1) 100%),
+    linear-gradient(to right, #cfd6de 0%, #aab4bf 100%);
 }
-@media (min-width: 1800px) {
-  .oi-tunnel { --k: 0.26; }
+.oi-seam {
+  left: calc(var(--xr) + var(--s) - 1px);
+  top: calc(var(--t) + var(--d) + 12%);
+  bottom: calc(var(--b) + var(--d) + 12%);
+  width: 3px;
+  right: auto;
+  background: linear-gradient(to bottom, rgba(42, 48, 57, 0) 0%, #2a3039 18%, #6b1418 50%, #2a3039 82%, rgba(42, 48, 57, 0) 100%);
+  box-shadow: 0 0 12px 1px rgba(243, 24, 32, 0.18), 0 0 40px 8px rgba(243, 24, 32, 0.06);
 }
+.oi-slab-up {
+  clip-path: polygon(calc(var(--xr) + var(--s)) calc(var(--t) + var(--d)), calc(var(--xr) + var(--f)) 0, 100% 0, 100% calc(var(--crease) - 10%), calc(var(--xr) + var(--s)) var(--crease));
+  background:
+    linear-gradient(to bottom right, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.8) 100%),
+    linear-gradient(100deg, #e2e7ec 0%, #f4f6f8 35%, #fbfcfd 100%);
+}
+.oi-slab-down {
+  clip-path: polygon(calc(var(--xr) + var(--s)) var(--crease), 100% calc(var(--crease) - 10%), 100% 100%, calc(var(--xr) + var(--f)) 100%, calc(var(--xr) + var(--s)) calc(100% - var(--b) - var(--d)));
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0, rgba(255, 255, 255, 0) 3px),
+    radial-gradient(40% 60% at 0% 60%, rgba(243, 24, 32, 0.08) 0%, rgba(243, 24, 32, 0) 70%),
+    linear-gradient(100deg, #b9c2cc 0%, #cfd6de 40%, #dde3e9 100%);
+}
+.oi-copy { padding-top: calc(var(--t) + 52px); padding-bottom: calc(var(--b) + 44px); }
 @media (min-width: 768px) and (max-width: 1279px) {
-  .oi-tunnel { --vx: 62%; --vy: 84%; --w: 24px; --rad: 32px; }
-  .oi-read { background: linear-gradient(180deg, rgba(248, 250, 251, 0.88) 0%, rgba(248, 250, 251, 0.8) calc(100% - 200px), rgba(248, 250, 251, 0) calc(100% - 110px)); }
+  .oi-space { --xr: calc(100% - 22%); --t: 36px; --b: 52px; --f: 48px; --s: 40px; --d: 18px; }
+  .oi-copy { padding-right: calc(22% + 32px); }
 }
 @media (max-width: 767px) {
-  .oi-tunnel { --vx: 54%; --vy: 86%; --w: 16px; --rad: 22px; }
-  .oi-frame-deep { display: none; }
-  .oi-read { background: linear-gradient(180deg, rgba(248, 250, 251, 0.9) 0%, rgba(248, 250, 251, 0.82) calc(100% - 150px), rgba(248, 250, 251, 0) calc(100% - 80px)); }
+  .oi-space { --xr: calc(100% - 64px); --t: 26px; --b: 36px; --f: 30px; --s: 20px; --d: 12px; --crease: 42%; }
+  .oi-copy { padding-right: 84px; padding-top: calc(var(--t) + 36px); padding-bottom: calc(var(--b) + 32px); }
+}
+@media (max-width: 379px) {
+  .oi-space { --xr: calc(100% - 40px); --f: 20px; --s: 14px; --d: 8px; }
+  .oi-copy { padding-right: 56px; }
 }
 `;
 
@@ -129,32 +113,19 @@ export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="oi-tunnel relative overflow-hidden bg-[#e8ecf0] text-slate-900"
+      className="oi-space relative overflow-hidden text-slate-900"
     >
-      <style>{TUNNEL_CSS}</style>
+      <style>{SPACE_CSS}</style>
       <div className="pointer-events-none absolute inset-0">
-        {FRAMES.map((f) => (
-          <div
-            key={f.i}
-            className={f.i >= 7 ? "oi-frame oi-frame-deep" : "oi-frame"}
-            style={
-              {
-                "--i": f.i,
-                "--lit": f.lit,
-                "--face": f.face,
-                "--well": f.well,
-              } as React.CSSProperties
-            }
-          />
-        ))}
-        <div
-          className="oi-rear"
-          style={{ "--i": COUNT } as React.CSSProperties}
-        />
-        <div className="oi-read" />
+        <div className="oi-layer oi-top" />
+        <div className="oi-layer oi-ledge" />
+        <div className="oi-layer oi-return" />
+        <div className="oi-layer oi-slab-up" />
+        <div className="oi-layer oi-slab-down" />
+        <div className="oi-layer oi-seam" />
       </div>
 
-      <div className="container-wide relative pl-10 pr-10 pt-[76px] pb-[150px] sm:px-12 sm:pt-20 sm:pb-[200px] lg:px-14 xl:py-[104px]">
+      <div className="oi-copy container-wide relative">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
