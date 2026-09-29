@@ -517,33 +517,46 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   ok("(L1) the intro is the first thing in <main>, directly before the hero",
      /<main>\s*<OperzaIntro \/>\s*<Hero \/>\s*<ProductExperience \/>/.test(page));
   ok("(L2) the intro sits inside the judged surface", SURFACE.includes(introFile));
-  ok("(L3) the intro asks the orientation question",
-     /What is Operza\?/.test(intro));
-  ok("(L4) the intro gives the locked definition",
-     intro.includes("Operza is a manufacturing operations and accounting platform for manufacturers."),
-     intro);
-  ok("(L5) ...and the locked supporting paragraph",
-     intro.includes("Across Operza Factory and Operza Books, Operza helps manufacturers manage materials, production, inventory, dispatch, sales, purchases and business records. Operza Complete brings both sides together in one connected system, so the factory floor and the books stay in sync."),
-     intro);
-
-  // The intro defines Operza. The per-plan explainer that the first version
-  // carried ("Use Operza Factory for…", "Use Operza Books for…", "Operza
-  // Complete brings the factory floor…") was retired and stays retired; the
-  // plans are explained further down the page.
-  const planExplainer = ["Use Operza Factory", "Use Operza Books", "Operza Complete brings the factory floor"]
-    .filter((p) => intro.includes(p));
-  ok("(L6) the intro does not explain the plans one by one",
-     planExplainer.length === 0, planExplainer.join(", "));
-  // The capability boundary: the list is spread across Factory and Books, and
-  // only the sentence that names Complete claims the two are connected.
-  const introSentences = intro.split(/(?<=\.)\s+/);
-  const CONNECTED = /together|connected|in sync|one system/i;
-  const connectedClaims = introSentences.filter((s) => CONNECTED.test(s));
-  ok("(L6b) only Operza Complete is said to connect the floor and the books",
-     connectedClaims.length > 0 && connectedClaims.every((s) => /^Operza Complete\b/.test(s)),
-     connectedClaims.join(" | "));
-  // Judged on markup, not the comment that explains why.
+  // Each rendered paragraph as a visitor reads it: inline accent spans and
+  // JSX space expressions removed, wrapping collapsed. Exact equality, so a
+  // reflow can never fail these and a changed word always does.
   const introMarkup = strip(introSrc);
+  const paras = [...introMarkup.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/g)].map((m) =>
+    m[1].replace(/\{"\s*"\}/g, " ").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
+  const LOCKED = [
+    "What is Operza?",
+    "Operza is a web-based manufacturing operations and accounting platform built for manufacturers.",
+    "It helps digitize the day-to-day flow of a manufacturing business, from materials, products and BOMs through production, packing, inventory and dispatch, while also supporting sales, purchases, costing, payments and financial records.",
+    "Instead of information being scattered across spreadsheets, registers and disconnected tools, Operza gives manufacturers a structured system for recording and understanding the work happening across the business.",
+  ];
+  ok(`(L2b) the intro renders exactly four paragraphs (${paras.length})`, paras.length === 4,
+     JSON.stringify(paras));
+  ok("(L3) the label is exactly the orientation question", paras[0] === LOCKED[0], paras[0]);
+  ok("(L4) the intro gives the locked definition", paras[1] === LOCKED[1], paras[1]);
+  ok("(L5) ...then the first locked supporting paragraph", paras[2] === LOCKED[2], paras[2]);
+  ok("(L5b) ...then the second", paras[3] === LOCKED[3], paras[3]);
+
+  // The intro defines Operza the software. Factory, Books and Complete are
+  // explained further down the page, so no plan is named here at all. That is
+  // stricter than the per-plan boundary checks it replaces: with no plan named,
+  // no plan can be credited with the other's half.
+  const planNames = ["Operza Factory", "Operza Books", "Operza Complete"]
+    .filter((p) => paras.join(" ").includes(p) || intro.includes(p));
+  ok("(L6) the intro names no plan", planNames.length === 0, planNames.join(", "));
+
+  // Founder review: the short red rule before the label read as a giant em
+  // dash. Red is carried by text alone, with no ornament of any kind.
+  const labelTag = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>([\s\S]*?)<\/p>/) ?? [])[1] ?? "";
+  ok("(L6b) the label holds only its text: no line, dash, dot or icon before it",
+     labelTag.trim() === "What is Operza?" && !/aria-hidden/.test(introMarkup), labelTag.trim());
+  const labelOpen = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>/) ?? [""])[0];
+  ok("(L6c) ...and the label itself is set in the brand red",
+     /\btext-brand-600\b/.test(labelOpen), labelOpen);
+  const accents = [...introMarkup.matchAll(/<span\b[^>]*text-brand-\d+[^>]*>([\s\S]*?)<\/span>/g)]
+    .map((m) => m[1].replace(/\s+/g, " ").trim());
+  ok(`(L6d) red inside the prose is short and sparing (${accents.length} phrase)`,
+     accents.length <= 2 && accents.every((a) => a.split(" ").length <= 6 && !/\.$/.test(a)),
+     JSON.stringify(accents));
   ok("(L7) the intro stays a definition: no border setting it apart",
      !/\bborder(?:-[a-z]+)?\b/.test(introMarkup));
   ok("(L8) ...and no grid or column layout",

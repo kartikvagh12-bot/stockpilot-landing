@@ -248,6 +248,50 @@ section("H. THE HOMEPAGE AND THE FOUNDATION AGREE");
      !/"@type": "Question"/.test(page));
 }
 
+/* ========================================================================= */
+section("I. THE PRODUCT AND THE COMPANY ARE NAMED SEPARATELY");
+/* ========================================================================= */
+{
+  // Operza is the software. Operza Technologies Private Limited is the company
+  // that operates it. The legal name lives in one constant and is read from
+  // there; the product name does not change.
+  const LEGAL = "Operza Technologies Private Limited";
+  const site = copy("lib/site.ts");
+  const footer = copy("components/Footer.tsx");
+  const page = copy("app/page.tsx");
+
+  ok("(I1) SITE.name is still exactly the product name",
+     /\bname:\s*"Operza",/.test(site), (site.match(/\bname:\s*"[^"]*"/) ?? [])[0]);
+  ok("(I2) SITE.legalName is exactly the company name",
+     site.includes(`legalName: "${LEGAL}",`));
+
+  // The footer renders `{SITE.legalName}`; judge it as the visitor reads it.
+  const rendered = footer.replace(/\{SITE\.legalName\}/g, LEGAL).replace(/\s+/g, " ");
+  ok("(I3) the footer says who is behind the product",
+     rendered.includes(`Operza is a product of ${LEGAL}.`)
+     && /Operza is a product of \{SITE\.legalName\}\./.test(footer.replace(/\s+/g, " ")));
+  ok("(I4) the copyright names the company from SITE.legalName and reserves rights",
+     /©\s*\{new Date\(\)\.getFullYear\(\)\}\s*\{SITE\.legalName\}\.\s*All rights reserved\./.test(footer));
+
+  const ld = page.slice(page.indexOf("ld+json"));
+  const block = (type) => {
+    const at = ld.indexOf(`"@type": "${type}"`);
+    return at < 0 ? "" : ld.slice(at, ld.indexOf("}", at));
+  };
+  const app = block("SoftwareApplication");
+  const org = block("Organization");
+  ok("(I5) the SoftwareApplication is still the product, named from SITE.name",
+     /\bname:\s*SITE\.name,/.test(app) && !/legalName/.test(app), app.slice(0, 120));
+  ok("(I6) the Organization is the company: name and legalName from SITE.legalName",
+     /\bname:\s*SITE\.legalName,/.test(org) && /\blegalName:\s*SITE\.legalName,/.test(org), org.slice(0, 200));
+  ok("(I6b) ...with the product name as its alternateName",
+     /\balternateName:\s*SITE\.name,/.test(org), org.slice(0, 200));
+
+  // One source of truth: the literal legal name appears only in lib/site.ts.
+  const literal = COVERED.filter((f) => f !== "lib/site.ts" && copy(f).includes(LEGAL));
+  ok("(I7) no second hard-coded copy of the legal name", literal.length === 0, literal.join(", "));
+}
+
 console.log(
   `\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`,
 );
