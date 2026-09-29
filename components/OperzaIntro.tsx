@@ -11,89 +11,117 @@
 // purpose: a heading ahead of the page's h1 would make the outline read
 // backwards. The label names the section through aria-labelledby.
 //
-// The section itself is a white recessed room, seen straight on. Its edges are
-// the opening; a back wall sits inset inside them, and four planes join the
-// two: the ceiling and floor slope in from the top and bottom, a thin left
-// wall stays out of the copy's way, and a deep right wall recedes toward the
-// back. Each plane is a full-section layer cut to its trapezoid with a
-// clip-path, so the room is five layers and a light, not a drawing.
+// The section is a white tunnel of nested architectural frames. Its edges are
+// the outermost opening; each frame after it sits deeper, so it is smaller and
+// closer to one vanishing point (--vx, --vy), set well right of centre on wide
+// screens so the copy has calm space on the left. Below 1280px the copy
+// fills the width, so the section gains a band under it and the vanishing
+// point drops into that band, where the tunnel's deep end shows. A frame at depth i is drawn at scale s = 1 / (1 + k * i), with the step k
+// set per breakpoint (shallower on very wide screens, so no rib edge lines up
+// with the copy's margin): its box is
+// the section's box pulled toward the vanishing point by (1 - s), and its
+// thickness, corner radius and shadow scale with s too, so the ribs tighten
+// as they recede.
 //
-// The insets are four custom properties (--l, --t, --r, --b: how far the back
-// wall sits in from each edge), set per breakpoint, and every polygon and seam
-// is written in terms of them.
-//
-// Light comes from the upper front left: the right wall faces it and is the
-// brightest plane, the back wall is evenly lit and brightest where the copy
-// sits, the floor takes a softer light, and the ceiling and left wall are in
-// shade. Where planes meet, a crisp seam softens into ambient occlusion. One
-// narrow red light slot sits in the rear right corner, washing a little of
-// the right wall and the floor near it. The copy sits on the back wall.
-//
-// Static on purpose: the room reads as architecture without motion. CSS and
-// DOM only: no canvas, SVG, image or dependency.
+// Each frame is a thick rounded rib: a pearl face lit from the upper left,
+// and inside it a recessed well, shaded darker along its upper and left
+// edges where the rib in front of it occludes the light. Corners are rounded
+// with clip-path, so each rib is a solid shape, not an outline. Faces and wells
+// darken slightly with depth, so the far end reads deeper. At the far end a
+// small rear opening carries the one red light, a thin seam with a soft glow.
+// A soft pearl falloff behind the copy keeps the text clear. Static; CSS and
+// DOM only (no canvas, SVG, image or dependency).
 
-const ROOM_CSS = `
-.oi-room {
-  --l: 24px;
-  --t: 64px;
-  --r: 24%;
-  --b: 64px;
+const COUNT = 10;
+
+const mix = (a: number[], b: number[], t: number) =>
+  `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(", ")})`;
+
+const FRAMES = Array.from({ length: COUNT }, (_, i) => {
+  const d = i / (COUNT - 1);
+  return {
+    i,
+    lit: mix([255, 255, 255], [226, 231, 236], d),
+    face: mix([240, 243, 246], [196, 204, 213], d),
+    well: mix([226, 231, 236], [176, 185, 196], d),
+  };
+});
+
+const TUNNEL_CSS = `
+.oi-tunnel {
+  --k: 0.34;
+  --vx: 70%;
+  --vy: 50%;
+  --w: 30px;
+  --rad: 40px;
 }
-.oi-plane {
+.oi-frame,
+.oi-rear {
+  --s: calc(1 / (1 + var(--k) * var(--i)));
+}
+.oi-frame {
+  position: absolute;
+  left: calc(var(--vx) * (1 - var(--s)));
+  right: calc((100% - var(--vx)) * (1 - var(--s)));
+  top: calc(var(--vy) * (1 - var(--s)));
+  bottom: calc((100% - var(--vy)) * (1 - var(--s)));
+  clip-path: inset(0 round calc(var(--rad) * var(--s)));
+  background: linear-gradient(135deg, var(--lit) 0%, var(--face) 70%);
+}
+.oi-frame::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--w) * var(--s));
+  clip-path: inset(0 round calc(var(--rad) * var(--s) * 0.7));
+  background: var(--well);
+  box-shadow:
+    inset calc(12px * var(--s)) calc(14px * var(--s)) calc(30px * var(--s)) rgba(15, 23, 42, 0.2),
+    inset calc(-4px * var(--s)) calc(-4px * var(--s)) calc(14px * var(--s)) rgba(255, 255, 255, 0.5),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.oi-frame::after {
+  content: "";
   position: absolute;
   inset: 0;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.9), inset -1px -1px 0 rgba(15, 23, 42, 0.06);
+  pointer-events: none;
 }
-.oi-back {
-  clip-path: polygon(var(--l) var(--t), calc(100% - var(--r)) var(--t), calc(100% - var(--r)) calc(100% - var(--b)), var(--l) calc(100% - var(--b)));
-  background:
-    linear-gradient(to bottom, rgba(15, 23, 42, 0.14) var(--t), rgba(15, 23, 42, 0.07) calc(var(--t) + 1px), rgba(15, 23, 42, 0) calc(var(--t) + 80px)),
-    linear-gradient(to top, rgba(15, 23, 42, 0.16) var(--b), rgba(15, 23, 42, 0.07) calc(var(--b) + 1px), rgba(15, 23, 42, 0) calc(var(--b) + 64px)),
-    linear-gradient(to left, rgba(15, 23, 42, 0.1) var(--r), rgba(15, 23, 42, 0.04) calc(var(--r) + 1px), rgba(15, 23, 42, 0) calc(var(--r) + 90px)),
-    linear-gradient(to right, rgba(15, 23, 42, 0.08) var(--l), rgba(15, 23, 42, 0.03) calc(var(--l) + 1px), rgba(15, 23, 42, 0) calc(var(--l) + 50px)),
-    radial-gradient(65% 85% at 30% 42%, #ffffff 0%, rgba(255, 255, 255, 0) 75%),
-    #f1f4f7;
-}
-.oi-ceiling {
-  clip-path: polygon(0 0, 100% 0, calc(100% - var(--r)) var(--t), var(--l) var(--t));
-  background:
-    radial-gradient(40% 90% at 38% 100%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 70%),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 0, rgba(255, 255, 255, 0) 6px),
-    linear-gradient(to right, rgba(15, 23, 42, 0) 55%, rgba(15, 23, 42, 0.05) 100%),
-    linear-gradient(to bottom, #e1e6eb 0%, #d4dbe2 100%);
-}
-.oi-floor {
-  clip-path: polygon(var(--l) calc(100% - var(--b)), calc(100% - var(--r)) calc(100% - var(--b)), 100% 100%, 0 100%);
-  background:
-    radial-gradient(9% 40% at calc(100% - var(--r)) calc(100% - var(--b)), rgba(243, 24, 32, 0.06) 0%, rgba(243, 24, 32, 0) 70%),
-    linear-gradient(to top, rgba(15, 23, 42, 0.1) 0, rgba(15, 23, 42, 0) 10px),
-    linear-gradient(to top, #dbe1e7 0%, #e9edf1 100%);
-}
-.oi-left {
-  clip-path: polygon(0 0, var(--l) var(--t), var(--l) calc(100% - var(--b)), 0 100%);
-  background: linear-gradient(to right, #d0d7de 0%, #dce2e8 100%);
-}
-.oi-right {
-  clip-path: polygon(100% 0, 100% 100%, calc(100% - var(--r)) calc(100% - var(--b)), calc(100% - var(--r)) var(--t));
-  background:
-    linear-gradient(to right, rgba(243, 24, 32, 0.06) 0%, rgba(243, 24, 32, 0) 18%),
-    linear-gradient(to right, rgba(15, 23, 42, 0.12) 0, rgba(15, 23, 42, 0.04) 2px, rgba(15, 23, 42, 0) 70px),
-    radial-gradient(130% 62% at 100% 50%, #fbfcfd 0%, #f1f4f7 45%, #e2e7ec 100%),
-    #e2e7ec;
-}
-.oi-slot {
+.oi-rear {
   position: absolute;
-  left: calc(100% - var(--r) - 1px);
-  top: calc(var(--t) + (100% - var(--t) - var(--b)) * 0.42);
-  width: 2px;
-  height: calc((100% - var(--t) - var(--b)) * 0.4);
-  background: linear-gradient(to bottom, rgba(243, 24, 32, 0) 0%, rgba(243, 24, 32, 0.7) 25%, rgba(243, 24, 32, 0.7) 75%, rgba(243, 24, 32, 0) 100%);
-  box-shadow: 0 0 8px 1px rgba(243, 24, 32, 0.2), 0 0 36px 8px rgba(243, 24, 32, 0.06);
+  left: calc(var(--vx) * (1 - var(--s)));
+  right: calc((100% - var(--vx)) * (1 - var(--s)));
+  top: calc(var(--vy) * (1 - var(--s)));
+  bottom: calc((100% - var(--vy)) * (1 - var(--s)));
+  clip-path: inset(0 round calc(var(--rad) * var(--s)));
+  background: radial-gradient(70% 90% at 50% 100%, rgba(243, 24, 32, 0.22) 0%, rgba(243, 24, 32, 0) 70%), #f7f9fb;
+  box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.12);
+}
+.oi-rear::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 22%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(243, 24, 32, 0), rgba(243, 24, 32, 0.85) 30%, rgba(243, 24, 32, 0.85) 70%, rgba(243, 24, 32, 0));
+  box-shadow: 0 0 10px 1px rgba(243, 24, 32, 0.35);
+}
+.oi-read {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(50% 72% at 27% 52%, rgba(248, 250, 251, 0.93) 0%, rgba(248, 250, 251, 0.82) 55%, rgba(248, 250, 251, 0) 100%);
+}
+@media (min-width: 1800px) {
+  .oi-tunnel { --k: 0.26; }
 }
 @media (min-width: 768px) and (max-width: 1279px) {
-  .oi-room { --l: 16px; --t: 44px; --r: 14%; --b: 48px; }
+  .oi-tunnel { --vx: 62%; --vy: 84%; --w: 24px; --rad: 32px; }
+  .oi-read { background: linear-gradient(180deg, rgba(248, 250, 251, 0.88) 0%, rgba(248, 250, 251, 0.8) calc(100% - 200px), rgba(248, 250, 251, 0) calc(100% - 110px)); }
 }
 @media (max-width: 767px) {
-  .oi-room { --l: 8px; --t: 34px; --r: 34px; --b: 40px; }
+  .oi-tunnel { --vx: 54%; --vy: 86%; --w: 16px; --rad: 22px; }
+  .oi-frame-deep { display: none; }
+  .oi-read { background: linear-gradient(180deg, rgba(248, 250, 251, 0.9) 0%, rgba(248, 250, 251, 0.82) calc(100% - 150px), rgba(248, 250, 251, 0) calc(100% - 80px)); }
 }
 `;
 
@@ -101,19 +129,32 @@ export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="oi-room relative overflow-hidden bg-[#f1f4f7] text-slate-900"
+      className="oi-tunnel relative overflow-hidden bg-[#e8ecf0] text-slate-900"
     >
-      <style>{ROOM_CSS}</style>
+      <style>{TUNNEL_CSS}</style>
       <div className="pointer-events-none absolute inset-0">
-        <div className="oi-plane oi-back" />
-        <div className="oi-plane oi-ceiling" />
-        <div className="oi-plane oi-floor" />
-        <div className="oi-plane oi-left" />
-        <div className="oi-plane oi-right" />
-        <div className="oi-slot" />
+        {FRAMES.map((f) => (
+          <div
+            key={f.i}
+            className={f.i >= 7 ? "oi-frame oi-frame-deep" : "oi-frame"}
+            style={
+              {
+                "--i": f.i,
+                "--lit": f.lit,
+                "--face": f.face,
+                "--well": f.well,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+        <div
+          className="oi-rear"
+          style={{ "--i": COUNT } as React.CSSProperties}
+        />
+        <div className="oi-read" />
       </div>
 
-      <div className="container-wide relative pl-8 pr-14 pt-[70px] pb-[76px] sm:px-10 sm:pt-20 sm:pb-24 lg:px-12 xl:py-[104px]">
+      <div className="container-wide relative pl-10 pr-10 pt-[76px] pb-[150px] sm:px-12 sm:pt-20 sm:pb-[200px] lg:px-14 xl:py-[104px]">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
