@@ -2,92 +2,168 @@
 // what Operza lets them run before anything has said what Operza is, so this
 // defines the software first. It does not explain the plans: Factory, Books
 // and Complete are covered further down the page. It is an introduction, not
-// a feature section: no border, no grid, no CTA. The hero stays the main
+// a feature section: no CTA, no card behind the copy. The hero stays the main
 // marketing statement and keeps the page's only h1.
 //
-// A light band between the dark navbar and the dark hero, so the definition
-// reads as its own step before the hero starts. Red is carried by text alone:
-// the label, and one short phrase in the definition. No ornament before the
-// label. No heading element on purpose: a heading ahead of the page's h1 would
-// make the outline read backwards. The label names the section through
-// aria-labelledby.
+// A cool pearl-and-slate band between the dark navbar and the dark hero. Red
+// in the copy is carried by text alone: the label, and one short phrase in the
+// definition. No ornament before the label. No heading element on purpose: a
+// heading ahead of the page's h1 would make the outline read backwards. The
+// label names the section through aria-labelledby.
 //
-// Background, back to front, all empty decorative layers behind the text:
-//   1. a white-to-cool-slate wash, so the band is light but not flat white;
-//   2. a receding floor plane of faint lines on the right (md and up only),
-//      tilted in perspective for depth and faded out before it reaches the
-//      copy, a quiet nod to a shop floor rather than a picture of one;
-//   3. two large blurred glows, one warm brand red and one cool slate, that
-//      drift very slowly. The motion is CSS only, transform only (no layout
-//      shift), and stops under prefers-reduced-motion, here and in the
-//      site-wide rule in globals.css.
-// The glows are faint (red at 10%, slate at 22%, then blurred) and sit away
-// from the copy, so body text contrast is effectively unchanged.
+// The background is a full-width industrial space, built from CSS only (no
+// canvas, SVG, image or dependency). Back to front, all empty layers behind
+// the text:
+//   1. base: a mid-tone pearl-to-slate gradient, lighter at the top left;
+//   2. one hall in perspective: a floor and a ceiling of fine lines, with
+//      light strips running along the ceiling, all converging on a single
+//      vanishing point right of centre, so the depth runs across the whole
+//      band from the left edge inward;
+//   3. red light at that vanishing point: a thin line along the horizon with
+//      a bright core, like light at the far end of a factory hall, plus a
+//      faint warm reflection on the floor and a cool highlight at the top
+//      left. Red reads as light on slate, not as a pink background;
+//   4. a pearl lift behind the copy and a slate vignette at the edges, so the
+//      text keeps its contrast (the brand-red label needs a light surface).
+// Motion: the room, the far light and the reflection move a few pixels at
+// different slow speeds, transform only, so there is parallax without layout
+// shift. All of it stops under prefers-reduced-motion, here and in the
+// global rule.
 
-const DRIFT_CSS = `
-@keyframes operzaIntroDrift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(-5%, 6%, 0) scale(1.08); }
+const SCENE_CSS = `
+.oi-base {
+  background:
+    radial-gradient(90% 110% at 8% 0%, #eef1f5 0%, rgba(238, 241, 245, 0) 60%),
+    linear-gradient(180deg, #d5dce4 0%, #c7d0da 55%, #b3bdc9 100%);
 }
-.operza-intro-drift {
-  animation: operzaIntroDrift 28s ease-in-out infinite alternate;
-  will-change: transform;
+.oi-room {
+  perspective: 520px;
+  perspective-origin: 74% 46%;
 }
-.operza-intro-drift-slow {
-  animation: operzaIntroDrift 36s ease-in-out infinite alternate-reverse;
-  will-change: transform;
+.oi-plane {
+  position: absolute;
+  background-image:
+    linear-gradient(to right, rgba(30, 41, 59, 0.30) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 41, 59, 0.30) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+.oi-floor {
+  left: -80%;
+  right: -80%;
+  bottom: 0;
+  height: 260%;
+  transform-origin: 50% 100%;
+  transform: rotateX(80deg);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 30%);
+}
+.oi-ceiling {
+  left: -80%;
+  right: -80%;
+  top: 0;
+  height: 260%;
+  opacity: 0.75;
+  background-image:
+    linear-gradient(to right, transparent 47%, rgba(255, 255, 255, 0.72) 49%, rgba(255, 255, 255, 0.72) 51%, transparent 53%),
+    linear-gradient(to right, rgba(30, 41, 59, 0.30) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 41, 59, 0.30) 1px, transparent 1px);
+  background-size: 320px 100%, 64px 64px, 64px 64px;
+  transform-origin: 50% 0%;
+  transform: rotateX(-80deg);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, black 30%);
+  mask-image: linear-gradient(to top, transparent 0%, black 30%);
+}
+.oi-far-light {
+  left: 74%;
+  top: 46%;
+  width: 900px;
+  height: 120px;
+  margin-left: -450px;
+  margin-top: -60px;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.8) 0%, rgba(217, 13, 22, 0.2) 20%, rgba(217, 13, 22, 0) 55%);
+  filter: blur(10px);
+}
+.oi-horizon-line {
+  left: 58%;
+  right: -5%;
+  top: 46%;
+  height: 2px;
+  margin-top: -1px;
+  background: linear-gradient(90deg, rgba(217, 13, 22, 0) 0%, rgba(217, 13, 22, 0.5) 30%, rgba(243, 24, 32, 0.95) 48%, rgba(217, 13, 22, 0.5) 70%, rgba(217, 13, 22, 0) 100%);
+  filter: blur(0.6px);
+}
+.oi-reflection {
+  left: 40%;
+  right: -10%;
+  bottom: -35%;
+  height: 70%;
+  background: radial-gradient(50% 50% at 60% 50%, rgba(182, 12, 19, 0.12), rgba(182, 12, 19, 0) 70%);
+  filter: blur(28px);
+}
+.oi-cool {
+  left: -10%;
+  top: -50%;
+  width: 70%;
+  height: 120%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 70%);
+  filter: blur(24px);
+}
+.oi-lift {
+  background: radial-gradient(58% 80% at 26% 48%, rgba(241, 244, 248, 0.92) 0%, rgba(241, 244, 248, 0.72) 40%, rgba(241, 244, 248, 0) 76%);
+}
+.oi-vignette {
+  background: radial-gradient(130% 140% at 40% 40%, rgba(15, 23, 42, 0) 50%, rgba(15, 23, 42, 0.22) 100%);
+}
+@keyframes oiDriftA {
+  from { transform: translate3d(0, -5px, 0); }
+  to { transform: translate3d(0, 5px, 0); }
+}
+@keyframes oiDriftB {
+  from { transform: translate3d(-12px, 0, 0) scale(1); }
+  to { transform: translate3d(12px, 6px, 0) scale(1.06); }
+}
+.oi-move-room { animation: oiDriftA 36s ease-in-out infinite alternate; }
+.oi-move-light { animation: oiDriftB 24s ease-in-out infinite alternate; }
+.oi-move-light-slow { animation: oiDriftB 40s ease-in-out infinite alternate-reverse; }
+@media (max-width: 767px) {
+  /* On a phone the copy fills the band, so the vanishing point drops to the
+     bottom edge: the ceiling fans across the whole section and the red light
+     sits just above the hero, below the last line of text. */
+  .oi-room { perspective: 420px; perspective-origin: 72% 97%; }
+  .oi-plane { background-size: 52px 52px; }
+  .oi-ceiling { opacity: 0.95; background-size: 220px 100%, 52px 52px, 52px 52px; }
+  .oi-far-light { left: 72%; top: 97%; width: 360px; height: 80px; margin-left: -180px; margin-top: -40px; }
+  .oi-horizon-line { top: 97%; left: 0; right: 0; }
+  .oi-reflection { display: none; }
+  .oi-lift {
+    background: linear-gradient(180deg, rgba(241, 244, 248, 0.84) 0%, rgba(241, 244, 248, 0.66) 32%, rgba(241, 244, 248, 0.4) 75%, rgba(241, 244, 248, 0.1) 100%);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .operza-intro-drift,
-  .operza-intro-drift-slow {
-    animation: none;
-  }
+  .oi-move-room, .oi-move-light, .oi-move-light-slow { animation: none; }
 }
 `;
 
-const FLOOR_LINES =
-  "linear-gradient(to right, rgba(15, 23, 42, 0.13) 1px, transparent 1px), linear-gradient(to bottom, rgba(15, 23, 42, 0.13) 1px, transparent 1px)";
+const LAYER = "pointer-events-none absolute -z-10";
 
 export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="relative isolate overflow-hidden bg-white text-slate-900"
+      className="relative isolate overflow-hidden bg-[#c7d0da] text-slate-900"
     >
-      <style>{DRIFT_CSS}</style>
-      <div
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            "linear-gradient(180deg, #ffffff 0%, #f8fafc 55%, #f1f5f9 100%)",
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-y-0 right-0 -z-10 hidden w-[58%] md:block"
-        style={{
-          perspective: "900px",
-          maskImage:
-            "linear-gradient(to left, black 35%, transparent 100%)",
-          WebkitMaskImage:
-            "linear-gradient(to left, black 35%, transparent 100%)",
-        }}
-      >
-        <div
-          className="absolute"
-          style={{
-            inset: "-60% -20% -8% -20%",
-            transform: "rotateX(60deg)",
-            transformOrigin: "50% 100%",
-            backgroundImage: FLOOR_LINES,
-            backgroundSize: "64px 64px",
-            maskImage: "linear-gradient(to top, black 10%, transparent 85%)",
-            WebkitMaskImage:
-              "linear-gradient(to top, black 10%, transparent 85%)",
-          }}
-        />
+      <style>{SCENE_CSS}</style>
+      <div className={`${LAYER} oi-base inset-0`} />
+      <div className={`${LAYER} oi-room oi-move-room inset-0`}>
+        <div className="oi-plane oi-ceiling" />
+        <div className="oi-plane oi-floor" />
       </div>
-      <div className="operza-intro-drift pointer-events-none absolute -right-[40%] -top-[20%] -z-10 h-[280px] w-[360px] rounded-full bg-brand-500/10 sm:-right-[6%] sm:-top-[50%] sm:h-[560px] sm:w-[820px] blur-3xl" />
-      <div className="operza-intro-drift-slow pointer-events-none absolute -bottom-[55%] left-[8%] -z-10 h-[440px] w-[680px] rounded-full bg-slate-400/[0.22] blur-3xl" />
+      <div className={`${LAYER} oi-reflection oi-move-light-slow`} />
+      <div className={`${LAYER} oi-horizon-line`} />
+      <div className={`${LAYER} oi-far-light oi-move-light`} />
+      <div className={`${LAYER} oi-cool`} />
+      <div className={`${LAYER} oi-lift inset-0`} />
+      <div className={`${LAYER} oi-vignette inset-0`} />
 
       <div className="container-wide py-10 sm:py-16 lg:py-20">
         <div className="max-w-4xl">
