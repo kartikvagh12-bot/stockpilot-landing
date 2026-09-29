@@ -523,7 +523,7 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
      intro.includes("Operza is a manufacturing operations and accounting platform for manufacturers."),
      intro);
   ok("(L5) ...and the locked supporting sentence",
-     intro.includes("It connects materials, production, inventory, dispatch, sales, purchases and accounting in one system, so your factory operations and business records stay together."),
+     intro.includes("Operza covers materials, production, inventory, dispatch, sales, purchases and accounting, with Operza Complete bringing factory operations and business records together in one system."),
      intro);
 
   // The intro defines Operza. Factory, Books and Complete are explained further

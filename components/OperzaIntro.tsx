@@ -37,9 +37,9 @@ export default function OperzaIntro() {
             manufacturers.
           </p>
           <p className="mt-2 max-w-3xl text-[15px] leading-6 text-white/60 sm:text-base sm:leading-7">
-            It connects materials, production, inventory, dispatch, sales,
-            purchases and accounting in one system, so your factory operations
-            and business records stay together.
+            Operza covers materials, production, inventory, dispatch, sales,
+            purchases and accounting, with Operza Complete bringing factory
+            operations and business records together in one system.
           </p>
         </div>
       </div>
