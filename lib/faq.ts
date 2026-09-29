@@ -16,7 +16,7 @@ export const FAQ_ITEMS: readonly FaqItem[] = [
   {
     question: "Who is Operza for?",
     answer:
-      "Small and growing manufacturers in India who currently run on Excel, paper registers and WhatsApp. We have set up starting data for furniture, garments, packaging, food, chemicals and electrical plastics, but the model fits any factory that turns materials into products.",
+      "Manufacturers in India who currently run on Excel, paper registers and WhatsApp. We have set up starting data for furniture, garments, packaging, food, chemicals and electrical plastics, but the model fits any factory that turns materials into products.",
   },
   {
     question: "What is the difference between Factory, Books and Complete?",

@@ -1,4 +1,5 @@
 import Navbar from "@/components/Navbar";
+import OperzaIntro from "@/components/OperzaIntro";
 import Hero from "@/components/Hero";
 import ProductExperience from "@/components/ProductExperience";
 import Plans from "@/components/Plans";
@@ -18,6 +19,7 @@ export default function HomePage() {
     <>
       <Navbar />
       <main>
+        <OperzaIntro />
         <Hero />
         <ProductExperience />
         <Plans />

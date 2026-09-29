@@ -503,5 +503,66 @@ section("K. THE FOUNDER DIRECTION IS ON THE PAGE");
 }
 
 /* ========================================================================= */
+section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
+/* ========================================================================= */
+{
+  // Founder direction (2026-09-29): a cold visitor was reading what Operza lets
+  // them run before being told what Operza is. The intro answers that first,
+  // then the unchanged hero takes over.
+  const page = read("app/page.tsx");
+  const introFile = "components/OperzaIntro.tsx";
+  const introSrc = read(introFile);
+  const intro = visibleStrings(introFile).map((r) => r.text).join(" ");
+
+  ok("(L1) the intro is the first thing in <main>, directly before the hero",
+     /<main>\s*<OperzaIntro \/>\s*<Hero \/>\s*<ProductExperience \/>/.test(page));
+  ok("(L2) the intro sits inside the judged surface", SURFACE.includes(introFile));
+  ok("(L3) the intro asks the orientation question",
+     /What is Operza\?/.test(intro));
+  ok("(L4) the intro gives the locked definition",
+     intro.includes("Operza is software for manufacturers to manage factory operations and business accounting."),
+     intro);
+
+  // Each plan sentence names only what that plan does. Factory claims no
+  // accounting, Books claims no stock movement, and the connection is stated
+  // for Complete alone.
+  const sentence = (lead) => (intro.match(new RegExp(`${lead}[^.]*\\.`)) ?? [""])[0];
+  const factory = sentence("Use Operza Factory");
+  const books = sentence("Use Operza Books");
+  const complete = sentence("Operza Complete");
+  ok("(L5) Factory is materials, production and dispatch",
+     factory === "Use Operza Factory for materials, production and dispatch.", factory);
+  ok("(L6) Books is invoices, bills, payments and statements",
+     books === "Use Operza Books for invoices, bills, payments and statements.", books);
+  ok("(L7) only Complete brings the floor and the books together",
+     complete === "Operza Complete brings the factory floor and the books together in one system.", complete);
+  ok("(L8) ...and neither single plan borrows the other's half",
+     !/invoice|bill|payment|statement|account|books/i.test(factory)
+     && !/material|stock|production|dispatch|inventory/i.test(books));
+
+  // The hero keeps the page's only h1, and nothing ahead of it outranks it.
+  ok("(L9) the intro adds no heading element ahead of the hero's h1",
+     !/<h[1-6]\b/.test(introSrc) && /<h1\b/.test(read("components/Hero.tsx")));
+  ok("(L10) the section is named for assistive tech",
+     /aria-labelledby="operza-intro-label"/.test(introSrc) && /id="operza-intro-label"/.test(introSrc));
+  ok("(L11) orientation only: no CTA, link, image or fake UI",
+     !/<a\b|<button\b|href=|<img\b|next\/image|<svg\b/.test(introSrc));
+  ok("(L12) no em dash in the intro", !introSrc.includes(EM_DASH));
+
+  // The customer is a manufacturer, never a "small" one. Judged on rendered
+  // strings, so a comment about a small helper or a CSS size stays legal.
+  const SMALL_CUSTOMER =
+    /\bsmall(?:er)?(?:[\s-]+(?:and|&)[\s-]+(?:growing|medium(?:[\s-]sized)?|mid[\s-]sized))?[\s-]+(?:scale[\s-]+)?(?:manufactur|factor(?:y|ies)|business|firm|compan|workshop|unit|plant|enterprise)/i;
+  const small = strings.filter((r) => SMALL_CUSTOMER.test(r.text));
+  ok("(L13) no customer-visible copy calls the customer small",
+     small.length === 0, show(small));
+  ok("(L13-guard) ...and the pattern still catches every phrasing it names",
+     ["small manufacturers", "Small and growing manufacturers", "small factories",
+      "small business", "small businesses", "small factory", "small manufacturer",
+      "small-scale factories"].every((t) => SMALL_CUSTOMER.test(t))
+     && !SMALL_CUSTOMER.test("a small helper for the activity list"));
+}
+
+/* ========================================================================= */
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
 process.exit(failures === 0 ? 0 : 1);
