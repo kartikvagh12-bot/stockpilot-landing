@@ -11,136 +11,145 @@
 // heading ahead of the page's h1 would make the outline read backwards. The
 // label names the section through aria-labelledby.
 //
-// The background is a full-width industrial space, built from CSS only (no
-// canvas, SVG, image or dependency). Back to front, all empty layers behind
-// the text:
-//   1. base: a mid-tone pearl-to-slate gradient, lighter at the top left;
-//   2. one hall in perspective: a floor and a ceiling of fine lines, with
-//      light strips running along the ceiling, all converging on a single
-//      vanishing point right of centre, so the depth runs across the whole
-//      band from the left edge inward;
-//   3. red light at that vanishing point: a thin line along the horizon with
-//      a bright core, like light at the far end of a factory hall, plus a
-//      faint warm reflection on the floor and a cool highlight at the top
-//      left. Red reads as light on slate, not as a pink background;
-//   4. a pearl lift behind the copy and a slate vignette at the edges, so the
-//      text keeps its contrast (the brand-red label needs a light surface).
-// Motion: the room, the far light and the reflection move a few pixels at
-// different slow speeds, transform only, so there is parallax without layout
-// shift. All of it stops under prefers-reduced-motion, here and in the
-// global rule.
+// The background is an abstract industrial sculpture across the full band,
+// built from CSS only (no canvas, SVG, image or dependency). Back to front,
+// all empty layers behind the text:
+//   1. base: a pearl-to-slate gradient with a soft diffused light at the top
+//      left, so the copy side is lit rather than blank;
+//   2. a faint floor mesh, low and to the right, as secondary texture only;
+//   3. a broad curved canopy sweeping in from the top left, carrying the copy
+//      on its lit pearl face. It is sized from the content container, not the
+//      viewport, so its edge clears the text at every width; on phones it
+//      turns into a tall curve whose edge shows along the right side;
+//   4. a charcoal slab and a silver slab angled on the right, overlapping,
+//      with soft shadows between them;
+//   5. Operza red as light from inside the piece: a glow behind the silver
+//      slab that leaks out around its edge, and a soft seam of red where the
+//      front curve meets the slabs;
+//   6. a broad front curve rising across the bottom of the band;
+//   7. a slate vignette at the edges.
+// Motion: the slabs, the front curve and the red light drift a few pixels at
+// different slow speeds, transform only, so the layers separate a little
+// without layout shift. All of it stops under prefers-reduced-motion, here
+// and in the global rule.
 
 const SCENE_CSS = `
 .oi-base {
   background:
-    radial-gradient(90% 110% at 8% 0%, #eef1f5 0%, rgba(238, 241, 245, 0) 60%),
-    linear-gradient(180deg, #d5dce4 0%, #c7d0da 55%, #b3bdc9 100%);
+    radial-gradient(70% 95% at 14% 8%, rgba(245, 247, 250, 0.95) 0%, rgba(245, 247, 250, 0) 62%),
+    linear-gradient(165deg, #d6dce4 0%, #c3cbd5 52%, #a9b3c0 100%);
 }
-.oi-room {
-  perspective: 520px;
-  perspective-origin: 74% 46%;
+.oi-mesh-wrap {
+  perspective: 600px;
+  perspective-origin: 70% 30%;
+  -webkit-mask-image: radial-gradient(50% 55% at 80% 70%, black 0%, transparent 70%);
+  mask-image: radial-gradient(50% 55% at 80% 70%, black 0%, transparent 70%);
 }
-.oi-plane {
+.oi-mesh {
   position: absolute;
-  background-image:
-    linear-gradient(to right, rgba(30, 41, 59, 0.30) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 41, 59, 0.30) 1px, transparent 1px);
-  background-size: 64px 64px;
-}
-.oi-floor {
-  left: -80%;
-  right: -80%;
+  left: -40%;
+  right: -40%;
   bottom: 0;
-  height: 260%;
+  height: 220%;
   transform-origin: 50% 100%;
-  transform: rotateX(80deg);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 30%);
-  mask-image: linear-gradient(to bottom, transparent 0%, black 30%);
-}
-.oi-ceiling {
-  left: -80%;
-  right: -80%;
-  top: 0;
-  height: 260%;
-  opacity: 0.75;
+  transform: rotateX(78deg);
   background-image:
-    linear-gradient(to right, transparent 47%, rgba(255, 255, 255, 0.72) 49%, rgba(255, 255, 255, 0.72) 51%, transparent 53%),
-    linear-gradient(to right, rgba(30, 41, 59, 0.30) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(30, 41, 59, 0.30) 1px, transparent 1px);
-  background-size: 320px 100%, 64px 64px, 64px 64px;
-  transform-origin: 50% 0%;
-  transform: rotateX(-80deg);
-  -webkit-mask-image: linear-gradient(to top, transparent 0%, black 30%);
-  mask-image: linear-gradient(to top, transparent 0%, black 30%);
+    linear-gradient(to right, rgba(30, 41, 59, 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(30, 41, 59, 0.16) 1px, transparent 1px);
+  background-size: 96px 96px;
 }
-.oi-far-light {
-  left: 74%;
-  top: 46%;
-  width: 900px;
-  height: 120px;
-  margin-left: -450px;
-  margin-top: -60px;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.8) 0%, rgba(217, 13, 22, 0.2) 20%, rgba(217, 13, 22, 0) 55%);
-  filter: blur(10px);
+.oi-canopy {
+  left: calc(max(0px, (100% - 88rem) / 2) - 66rem);
+  top: -80%;
+  width: 132rem;
+  height: 230%;
+  transform: rotate(14deg);
+  background: radial-gradient(40% 40% at 68% 55%, #f7f9fb 0%, #eef1f5 50%, #dfe4ea 80%, #cdd4dd 100%);
+  box-shadow:
+    0 30px 60px -20px rgba(15, 23, 42, 0.22),
+    inset -2px -3px 0 rgba(255, 255, 255, 0.85);
 }
-.oi-horizon-line {
+.oi-slab-back {
+  left: 56%;
+  top: -12%;
+  width: 56%;
+  height: 92%;
+  clip-path: polygon(30% 0%, 100% 0%, 100% 70%, 0% 100%);
+  background: linear-gradient(205deg, #8f9aa8 0%, #6f7a88 55%, #58626f 100%);
+  opacity: 0.85;
+}
+.oi-glow {
   left: 58%;
-  right: -5%;
-  top: 46%;
-  height: 2px;
-  margin-top: -1px;
-  background: linear-gradient(90deg, rgba(217, 13, 22, 0) 0%, rgba(217, 13, 22, 0.5) 30%, rgba(243, 24, 32, 0.95) 48%, rgba(217, 13, 22, 0.5) 70%, rgba(217, 13, 22, 0) 100%);
-  filter: blur(0.6px);
+  top: 48%;
+  width: 34%;
+  height: 46%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.7) 0%, rgba(217, 13, 22, 0.28) 40%, rgba(217, 13, 22, 0) 72%);
+  filter: blur(22px);
 }
-.oi-reflection {
+.oi-slab-wrap {
+  filter: drop-shadow(0 28px 36px rgba(15, 23, 42, 0.28));
+}
+.oi-slab {
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(24% 0%, 100% 0%, 100% 58%, 0% 100%);
+  background: linear-gradient(158deg, #f4f6f9 0%, #d2d8df 42%, #a7b1bd 100%);
+}
+.oi-slab-pos {
+  left: 62%;
+  top: 6%;
+  width: 46%;
+  height: 76%;
+}
+.oi-seam {
   left: 40%;
-  right: -10%;
-  bottom: -35%;
-  height: 70%;
-  background: radial-gradient(50% 50% at 60% 50%, rgba(182, 12, 19, 0.12), rgba(182, 12, 19, 0) 70%);
-  filter: blur(28px);
+  top: 70%;
+  width: 60%;
+  height: 26%;
+  background: radial-gradient(50% 50% at 62% 60%, rgba(217, 13, 22, 0.46) 0%, rgba(217, 13, 22, 0) 70%);
+  filter: blur(16px);
 }
-.oi-cool {
-  left: -10%;
-  top: -50%;
-  width: 70%;
-  height: 120%;
-  background: radial-gradient(50% 50% at 50% 50%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 70%);
-  filter: blur(24px);
-}
-.oi-lift {
-  background: radial-gradient(58% 80% at 26% 48%, rgba(241, 244, 248, 0.92) 0%, rgba(241, 244, 248, 0.72) 40%, rgba(241, 244, 248, 0) 76%);
+.oi-dune {
+  left: -20%;
+  right: -20%;
+  top: 86%;
+  height: 140%;
+  background: linear-gradient(180deg, #eef1f5 0%, #d3d9e1 26%, #b8c1cc 100%);
+  box-shadow:
+    0 -26px 60px -24px rgba(15, 23, 42, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.9);
+  transform: rotate(-3deg);
 }
 .oi-vignette {
-  background: radial-gradient(130% 140% at 40% 40%, rgba(15, 23, 42, 0) 50%, rgba(15, 23, 42, 0.22) 100%);
+  background: radial-gradient(130% 140% at 35% 35%, rgba(15, 23, 42, 0) 55%, rgba(15, 23, 42, 0.2) 100%);
 }
 @keyframes oiDriftA {
-  from { transform: translate3d(0, -5px, 0); }
-  to { transform: translate3d(0, 5px, 0); }
+  from { transform: translate3d(0, -4px, 0); }
+  to { transform: translate3d(0, 4px, 0); }
 }
 @keyframes oiDriftB {
-  from { transform: translate3d(-12px, 0, 0) scale(1); }
-  to { transform: translate3d(12px, 6px, 0) scale(1.06); }
+  from { transform: translate3d(-6px, 0, 0) scale(1); }
+  to { transform: translate3d(6px, 3px, 0) scale(1.05); }
 }
-.oi-move-room { animation: oiDriftA 36s ease-in-out infinite alternate; }
-.oi-move-light { animation: oiDriftB 24s ease-in-out infinite alternate; }
-.oi-move-light-slow { animation: oiDriftB 40s ease-in-out infinite alternate-reverse; }
+@keyframes oiDriftDune {
+  from { transform: rotate(-3deg) translate3d(0, 3px, 0); }
+  to { transform: rotate(-3deg) translate3d(0, -3px, 0); }
+}
+.oi-move-slab { animation: oiDriftA 38s ease-in-out infinite alternate; }
+.oi-move-back { animation: oiDriftA 46s ease-in-out infinite alternate-reverse; }
+.oi-move-glow { animation: oiDriftB 30s ease-in-out infinite alternate; }
+.oi-move-dune { animation: oiDriftDune 42s ease-in-out infinite alternate; }
 @media (max-width: 767px) {
-  /* On a phone the copy fills the band, so the vanishing point drops to the
-     bottom edge: the ceiling fans across the whole section and the red light
-     sits just above the hero, below the last line of text. */
-  .oi-room { perspective: 420px; perspective-origin: 72% 97%; }
-  .oi-plane { background-size: 52px 52px; }
-  .oi-ceiling { opacity: 0.95; background-size: 220px 100%, 52px 52px, 52px 52px; }
-  .oi-far-light { left: 72%; top: 97%; width: 360px; height: 80px; margin-left: -180px; margin-top: -40px; }
-  .oi-horizon-line { top: 97%; left: 0; right: 0; }
-  .oi-reflection { display: none; }
-  .oi-lift {
-    background: linear-gradient(180deg, rgba(241, 244, 248, 0.84) 0%, rgba(241, 244, 248, 0.66) 32%, rgba(241, 244, 248, 0.4) 75%, rgba(241, 244, 248, 0.1) 100%);
-  }
+  .oi-mesh-wrap { display: none; }
+  .oi-canopy { left: -154%; top: -54%; width: 262%; height: 202%; transform: none; background: radial-gradient(70% 55% at 80% 50%, #f7f9fb 0%, #eef1f5 45%, #d9dfe6 80%, #c8d0da 100%); }
+  .oi-slab-back { left: 52%; top: -14%; width: 80%; height: 34%; }
+  .oi-slab-pos { left: 64%; top: -4%; width: 60%; height: 30%; }
+  .oi-glow { left: 30%; top: 88%; width: 90%; height: 20%; opacity: 0.7; }
+  .oi-seam { left: -10%; top: 86%; width: 120%; height: 16%; }
+  .oi-dune { top: 93%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .oi-move-room, .oi-move-light, .oi-move-light-slow { animation: none; }
+  .oi-move-slab, .oi-move-back, .oi-move-glow, .oi-move-dune { animation: none; }
 }
 `;
 
@@ -150,19 +159,21 @@ export default function OperzaIntro() {
   return (
     <section
       aria-labelledby="operza-intro-label"
-      className="relative isolate overflow-hidden bg-[#c7d0da] text-slate-900"
+      className="relative isolate overflow-hidden bg-[#c3cbd5] text-slate-900"
     >
       <style>{SCENE_CSS}</style>
       <div className={`${LAYER} oi-base inset-0`} />
-      <div className={`${LAYER} oi-room oi-move-room inset-0`}>
-        <div className="oi-plane oi-ceiling" />
-        <div className="oi-plane oi-floor" />
+      <div className={`${LAYER} oi-mesh-wrap inset-0`}>
+        <div className="oi-mesh" />
       </div>
-      <div className={`${LAYER} oi-reflection oi-move-light-slow`} />
-      <div className={`${LAYER} oi-horizon-line`} />
-      <div className={`${LAYER} oi-far-light oi-move-light`} />
-      <div className={`${LAYER} oi-cool`} />
-      <div className={`${LAYER} oi-lift inset-0`} />
+      <div className={`${LAYER} oi-slab-back oi-move-back`} />
+      <div className={`${LAYER} oi-glow oi-move-glow`} />
+      <div className={`${LAYER} oi-slab-wrap oi-slab-pos oi-move-slab`}>
+        <div className="oi-slab" />
+      </div>
+      <div className={`${LAYER} oi-canopy rounded-[50%]`} />
+      <div className={`${LAYER} oi-seam oi-move-glow`} />
+      <div className={`${LAYER} oi-dune oi-move-dune rounded-[50%]`} />
       <div className={`${LAYER} oi-vignette inset-0`} />
 
       <div className="container-wide py-10 sm:py-16 lg:py-20">
