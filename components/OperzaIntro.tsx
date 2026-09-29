@@ -19,20 +19,20 @@ export default function OperzaIntro() {
       aria-labelledby="operza-intro-label"
       className="bg-white text-slate-900"
     >
-      <div className="container-wide py-12 sm:py-14 lg:py-16">
+      <div className="container-wide py-9 sm:py-14 lg:py-16">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
-            className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.14em] text-brand-600"
+            className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-brand-600 sm:text-sm"
           >
             <span aria-hidden="true" className="h-0.5 w-8 bg-brand-600" />
             What is Operza?
           </p>
-          <p className="mt-4 text-2xl font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:text-3xl lg:text-[2rem]">
+          <p className="mt-3 text-[21px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:mt-4 sm:text-3xl lg:text-[2rem]">
             Operza is a manufacturing operations and accounting platform for
             manufacturers.
           </p>
-          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+          <p className="mt-3 max-w-3xl text-[15px] leading-6 text-slate-600 sm:mt-4 sm:text-lg sm:leading-8">
             Across Operza Factory and Operza Books, Operza helps manufacturers
             manage materials, production, inventory, dispatch, sales, purchases
             and business records. Operza Complete brings both sides together
