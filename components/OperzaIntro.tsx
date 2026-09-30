@@ -11,186 +11,129 @@
 // purpose: a heading ahead of the page's h1 would make the outline read
 // backwards. The label names the section through aria-labelledby.
 //
-// The background is an abstract relief of separate sculpted tiles: rounded
-// pearl forms, like satin ceramic pieces, set at three depths on a light
-// ground and spaced so no two overlap. They share one angle, so they read as
-// a rhythm rather than a pile, and they gather to the right and lower right,
-// clear of the copy.
+// The background is an abstract relief: a few very large curved forms at
+// different depths, like thick sculpted surfaces in soft light, flowing
+// across the whole section. Nothing in it is an object or a space.
 //
-// Depth comes from each tile's thickness and shadow, scaled by its layer:
-// a stack of unblurred offset shadows stepping from pearl into slate
-// extrudes a side face that follows its outline, a tight dark shadow at the
-// rim adds contact occlusion, and a soft wider shadow lands on the ground.
-// Deeper tiles are cooler, thinner and cast less; front tiles are brighter,
-// thicker and cast more. Faces are lit from the upper front left, with a
-// satin sheen and a crisp rim highlight. A soft red light sits in the gap
-// between the front tiles, and the nearest faces catch a little of it,
-// always weaker than the red in the copy. Static; CSS and DOM only (no
-// canvas, SVG, image or dependency).
+// Depth, back to front: the pearl ground, which falls to cool slate in the
+// deepest gaps at the lower right; a quiet upper curve that enters above the
+// copy and leads toward the heading (fading out to the left); a midground
+// form rising from the lower right; and two foreground forms, one sweeping
+// down from the upper right and one broad low swell that cradles the
+// paragraphs. The focal moment is the seam at the right where the upper
+// foreground form meets the midground: the deepest occlusion in the field. Each form is solid, with a real
+// thickness: a stack of unblurred offset shadows in stepped slate tones
+// extrudes a shaded side face that follows its curve, and a wide soft shadow
+// beneath it lands on whatever it covers, so the foreground visibly occludes
+// the midground; a tight dark shadow right at each rim adds contact
+// occlusion. Faces are lit from the upper front left, with a broad satin
+// sheen, a highlight on the near rim and shade along the far rim, so the
+// curves read as matte pearl volume.
+//
+// The one red light sits in that seam and leaks softly onto the surfaces
+// beside it, weaker than the red in the copy. Behind the copy the same field
+// continues, lit more evenly and with gentler edges, so the text reads first
+// and the relief grows toward the right. Static; CSS and DOM only (no canvas,
+// SVG, image or dependency).
 
-type Tile = {
-  x: number; // centre, px from the right edge (negative = inward)
-  y: number; // centre, px from the bottom edge (negative = upward)
-  w: number;
-  h: number;
-  z: 1 | 2 | 3; // 1 back, 3 front
-  red: boolean; // catches the red light on its lower face
-  far: boolean; // only on very wide screens, where there is more room
-  high: boolean; // top of the band; phones only, where the band is taller
-};
-
-// Tiles sit on a lattice turned to the shared angle, so every gap is even and
-// no two tiles overlap. Cells that would reach toward the copy are left out:
-// beside the copy on desktop (REACH from the right edge, more on very wide
-// screens), and above the band under the copy on smaller screens (TOP).
-const ANGLE = 16;
-const SIZE = 1.16; // tile scale
-const GAP = 28; // clear space between neighbouring tiles
-const PITCH_U = 196 * SIZE + GAP;
-const PITCH_V = 122 * SIZE + GAP;
-
-function lattice(reach: number, farReach: number, top: number, glow: [number, number], high = top) {
-  const a = (ANGLE * Math.PI) / 180;
-  const eu = [Math.cos(a), -Math.sin(a)];
-  const ev = [-Math.sin(a), -Math.cos(a)];
-  const out: Tile[] = [];
-  for (let j = 0; j < 6; j++) {
-    for (let i = -9; i <= 1; i++) {
-      const u = i * PITCH_U + (j % 2) * (PITCH_U / 2);
-      const v = j * PITCH_V;
-      const x = -20 + u * eu[0] + v * ev[0];
-      const y = 100 + u * eu[1] + v * ev[1];
-      const w = Math.round((196 - ((((i + 2 * j) % 3) + 3) % 3) * 22) * SIZE);
-      const h = Math.round(w * 0.62);
-      const left = x - w / 2;
-      if (left < -farReach || left > 40 || y + h / 2 < -560 || y - h / 2 < -top) continue;
-      const z = (1 + ((((i * 2 + j) % 3) + 3) % 3)) as 1 | 2 | 3;
-      out.push({ x: Math.round(x), y: Math.round(y), w, h, z, red: false, far: left < -reach, high: y - h / 2 < -high });
-    }
-  }
-  // The two tiles nearest the red light catch a little of it.
-  [...out]
-    .sort((p, q) => Math.hypot(p.x - glow[0], p.y - glow[1]) - Math.hypot(q.x - glow[0], q.y - glow[1]))
-    .slice(0, 2)
-    .forEach((t) => (t.red = true));
-  return out;
-}
-
-// Desktop: the lower right beside the copy. Band: a strip under the copy.
-const DESK_GLOW: [number, number] = [-250, -150];
-const BAND_GLOW: [number, number] = [-420, -40];
-const DESK = lattice(560, 820, 9999, DESK_GLOW);
-const BAND = lattice(1500, 1500, 262, BAND_GLOW, 222);
-
-const SIDE_FROM = [236, 240, 244];
-const SIDE_TO = [150, 162, 176];
-const DEPTH = { 1: 10, 2: 16, 3: 22 } as const;
-
-function tileShadow(t: Tile) {
-  const d = DEPTH[t.z];
-  const dx = d * 0.55;
-  const dy = d * 0.8;
-  const steps = 10;
-  const side = Array.from({ length: steps }, (_, i) => {
-    const k = (i + 1) / steps;
-    const c = SIDE_FROM.map((v, j) => Math.round(v + (SIDE_TO[j] - v) * k));
-    return `${(dx * k).toFixed(1)}px ${(dy * k).toFixed(1)}px 0 rgb(${c.join(", ")})`;
-  });
-  const lift = 0.1 + 0.05 * t.z;
-  return [
-    "inset 2px 2px 0 rgba(255, 255, 255, 0.95)",
-    "inset 10px 12px 20px -10px rgba(255, 255, 255, 0.9)",
-    `inset -14px -16px 34px -18px rgba(100, 116, 139, ${0.22 + 0.04 * t.z})`,
-    ...(t.red ? ["inset -6px -10px 24px -12px rgba(243, 24, 32, 0.24)"] : []),
-    ...side,
-    `${dx * 1.1}px ${dy * 1.15}px ${d * 0.4}px rgba(15, 23, 42, ${lift + 0.1})`,
-    `${dx * 2}px ${dy * 2.2}px ${d * 1.8}px rgba(15, 23, 42, ${lift})`,
+// Thickness: solid offset shadows stepping from the face colour into slate,
+// then the soft contact shadow the form casts on the layer beneath it.
+const SIDE_FROM = [234, 238, 242];
+const SIDE_TO = [160, 171, 184];
+const extrude = (dx: number, dy: number, cast: number) =>
+  [
+    ...Array.from({ length: 12 }, (_, i) => {
+      const t = (i + 1) / 12;
+      const c = SIDE_FROM.map((v, k) => Math.round(v + (SIDE_TO[k] - v) * t));
+      return `${(dx * t).toFixed(1)}px ${(dy * t).toFixed(1)}px 0 rgb(${c.join(", ")})`;
+    }),
+    `${dx * 1.15}px ${dy * 1.25}px ${cast * 0.28}px rgba(15, 23, 42, 0.26)`,
+    `${dx * 1.6}px ${dy * 1.9}px ${cast}px rgba(15, 23, 42, 0.2)`,
+    `${dx * 2.6}px ${dy * 3}px ${cast * 2.2}px rgba(15, 23, 42, 0.1)`,
   ].join(", ");
-}
 
-// Domed faces: lit at the upper left, rolling off toward the far rim, so each
-// tile reads as a sculpted form rather than a flat card.
-const FACE = {
-  1: "radial-gradient(120% 130% at 28% 22%, #f5f7f9 0%, #e9edf1 55%, #dce2e8 100%)",
-  2: "radial-gradient(120% 130% at 28% 22%, #fbfcfd 0%, #eef2f5 55%, #e1e6eb 100%)",
-  3: "radial-gradient(120% 130% at 28% 22%, #ffffff 0%, #f2f5f7 55%, #e5eaee 100%)",
-} as const;
+const FACE_LIGHT =
+  "inset 6px 8px 14px -4px rgba(255, 255, 255, 0.95), inset -26px -30px 60px -24px rgba(100, 116, 139, 0.28)";
+
+// Satin: a broad soft sheen across each face, so surfaces read as matte
+// pearl rather than a flat two-stop gradient.
 const SHEEN =
-  "radial-gradient(70% 60% at 30% 25%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%)";
+  "radial-gradient(60% 45% at 35% 30%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 70%)";
 
 const RELIEF_CSS = `
 .oi-relief {
-  --k: 1;
   background:
-    radial-gradient(55% 70% at 18% 35%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
-    radial-gradient(40% 60% at 90% 95%, #cbd2da 0%, rgba(203, 210, 218, 0) 75%),
-    linear-gradient(165deg, #f7f9fa 0%, #eef1f4 55%, #e3e8ec 100%);
+    radial-gradient(55% 70% at 20% 30%, #ffffff 0%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(45% 60% at 92% 92%, #a3adb9 0%, #c8d0d8 45%, rgba(200, 208, 216, 0) 80%),
+    linear-gradient(165deg, #f7f9fa 0%, #eef1f4 50%, #dfe4e9 100%);
 }
-.oi-field {
+.oi-form {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 0;
-  height: 0;
-  transform: scale(var(--k));
-  transform-origin: 0 0;
-}
-.oi-tile {
-  position: absolute;
-  transform: translate(-50%, -50%) rotate(-${ANGLE}deg);
 }
 .oi-glow {
   position: absolute;
-  width: 440px;
-  height: 320px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.48) 0%, rgba(217, 13, 22, 0.17) 45%, rgba(217, 13, 22, 0) 75%);
+  left: 60%;
+  top: -4%;
+  width: 40%;
+  height: 60%;
+  background: radial-gradient(34% 36% at 58% 58%, rgba(243, 24, 32, 0.22) 0%, rgba(217, 13, 22, 0.07) 50%, rgba(217, 13, 22, 0) 80%);
 }
-.oi-band, .oi-tile-far { display: none; }
-@media (min-width: 1280px) and (max-width: 1439px) {
-  .oi-relief { --k: 0.86; }
-  .oi-desk { right: -64px; }
+.oi-mid {
+  left: 51%;
+  top: 42%;
+  width: 1100px;
+  height: 760px;
+  transform: rotate(-16deg);
+  background: ${SHEEN}, linear-gradient(160deg, #f6f8fa 0%, #e9edf1 45%, #d6dce3 100%);
+  box-shadow: ${FACE_LIGHT}, ${extrude(-14, -18, 30)};
 }
-@media (min-width: 1800px) {
-  .oi-relief { --k: 1.05; }
+.oi-front-a {
+  left: 66%;
+  top: -118%;
+  width: 1000px;
+  height: 820px;
+  transform: rotate(24deg);
+  background: radial-gradient(55% 40% at 60% 92%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%), linear-gradient(200deg, #eef2f5 0%, #f7f9fa 55%, #ffffff 100%);
+  box-shadow: inset -8px 10px 16px -6px rgba(255, 255, 255, 0.95), inset 30px -34px 70px -30px rgba(100, 116, 139, 0.3), ${extrude(-16, 22, 34)};
 }
-@media (min-width: 2040px) {
-  .oi-tile-far { display: block; }
+.oi-front-b {
+  left: -30%;
+  top: 86%;
+  width: 1500px;
+  height: 700px;
+  transform: rotate(-5deg);
+  background: ${SHEEN}, linear-gradient(175deg, #ffffff 0%, #f4f6f8 40%, #e9edf1 100%);
+  box-shadow: ${FACE_LIGHT}, ${extrude(10, -14, 36)};
+}
+.oi-guide {
+  left: -24%;
+  top: -700px;
+  width: 1500px;
+  height: 760px;
+  transform: rotate(4deg);
+  background: linear-gradient(185deg, #f1f4f7 0%, #f8fafb 70%, #fdfefe 100%);
+  box-shadow: inset 0 -10px 18px -8px rgba(255, 255, 255, 0.9), ${extrude(-3, 7, 18)};
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.6) 30%, black 60%);
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.6) 30%, black 60%);
+}
+.oi-calm {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(46% 66% at 24% 50%, rgba(250, 251, 252, 0.8) 0%, rgba(250, 251, 252, 0.55) 55%, rgba(250, 251, 252, 0) 100%);
 }
 @media (max-width: 1279px) {
-  .oi-relief { --k: 0.72; }
-  .oi-band { display: block; }
-  .oi-tile-high { display: none; }
-  .oi-desk { display: none; }
+  .oi-mid { left: 44%; top: 58%; }
+  .oi-front-a { left: 72%; top: -126%; }
+  .oi-front-b { top: 90%; }
 }
 @media (max-width: 767px) {
-  .oi-relief { --k: 0.54; }
-  .oi-tile-high { display: block; }
+  .oi-front-a, .oi-guide { display: none; }
+  .oi-glow { left: 20%; top: calc(100% - 150px); width: 100%; height: 150px; }
+  .oi-mid { left: 38%; top: calc(100% - 118px); width: 620px; height: 460px; transform: rotate(-10deg); }
+  .oi-front-b { left: -70%; top: calc(100% - 58px); width: 760px; height: 420px; transform: rotate(-3deg); }
+  .oi-calm { background: radial-gradient(90% 55% at 40% 40%, rgba(250, 251, 252, 0.78) 0%, rgba(250, 251, 252, 0.45) 60%, rgba(250, 251, 252, 0) 100%); }
 }
 `;
-
-function Field({ className, tiles, glow }: { className: string; tiles: Tile[]; glow: [number, number] }) {
-  return (
-    <div className={`oi-field ${className}`}>
-      <div className="oi-glow" style={{ left: glow[0], top: glow[1] }} />
-      {tiles.map((t, i) => (
-        <div
-          key={i}
-          className={`oi-tile rounded-[24%/36%]${t.far ? " oi-tile-far" : ""}${t.high ? " oi-tile-high" : ""}`}
-          style={{
-            left: t.x,
-            top: t.y,
-            width: t.w,
-            height: t.h,
-            zIndex: t.z,
-            background: `${SHEEN}, ${FACE[t.z]}`,
-            boxShadow: tileShadow(t),
-          }}
-        />
-      ))}
-    </div>
-  );
-}
 
 export default function OperzaIntro() {
   return (
@@ -200,11 +143,15 @@ export default function OperzaIntro() {
     >
       <style>{RELIEF_CSS}</style>
       <div className="pointer-events-none absolute inset-0">
-        <Field className="oi-desk" tiles={DESK} glow={DESK_GLOW} />
-        <Field className="oi-band" tiles={BAND} glow={BAND_GLOW} />
+        <div className="oi-form oi-guide rounded-full" />
+        <div className="oi-glow" />
+        <div className="oi-form oi-mid rounded-full" />
+        <div className="oi-form oi-front-a rounded-full" />
+        <div className="oi-form oi-front-b rounded-full" />
+        <div className="oi-calm" />
       </div>
 
-      <div className="container-wide relative pt-14 pb-[150px] sm:pt-20 sm:pb-[170px] xl:py-24">
+      <div className="container-wide relative pt-14 pb-[136px] sm:py-20 xl:py-24">
         <div className="max-w-4xl">
           <p
             id="operza-intro-label"
