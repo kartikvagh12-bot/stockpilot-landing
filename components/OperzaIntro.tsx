@@ -43,21 +43,23 @@ type Tile = {
 // beside the copy on desktop (REACH from the right edge, more on very wide
 // screens), and above the band under the copy on smaller screens (TOP).
 const ANGLE = 16;
-const PITCH_U = 236;
-const PITCH_V = 158;
+const SIZE = 1.16; // tile scale
+const GAP = 28; // clear space between neighbouring tiles
+const PITCH_U = 196 * SIZE + GAP;
+const PITCH_V = 122 * SIZE + GAP;
 
 function lattice(reach: number, farReach: number, top: number, glow: [number, number]) {
   const a = (ANGLE * Math.PI) / 180;
   const eu = [Math.cos(a), -Math.sin(a)];
   const ev = [-Math.sin(a), -Math.cos(a)];
   const out: Tile[] = [];
-  for (let j = 0; j < 4; j++) {
+  for (let j = 0; j < 6; j++) {
     for (let i = -9; i <= 1; i++) {
       const u = i * PITCH_U + (j % 2) * (PITCH_U / 2);
       const v = j * PITCH_V;
-      const x = 30 + u * eu[0] + v * ev[0];
-      const y = 40 + u * eu[1] + v * ev[1];
-      const w = 196 - (((i + 2 * j) % 3) + 3) % 3 * 22;
+      const x = -20 + u * eu[0] + v * ev[0];
+      const y = 100 + u * eu[1] + v * ev[1];
+      const w = Math.round((196 - ((((i + 2 * j) % 3) + 3) % 3) * 22) * SIZE);
       const h = Math.round(w * 0.62);
       const left = x - w / 2;
       if (left < -farReach || left > 40 || y + h / 2 < -560 || y - h / 2 < -top) continue;
@@ -98,17 +100,19 @@ function tileShadow(t: Tile) {
     "inset 2px 2px 0 rgba(255, 255, 255, 0.95)",
     "inset 10px 12px 20px -10px rgba(255, 255, 255, 0.9)",
     `inset -14px -16px 34px -18px rgba(100, 116, 139, ${0.22 + 0.04 * t.z})`,
-    ...(t.red ? ["inset -6px -10px 22px -12px rgba(243, 24, 32, 0.2)"] : []),
+    ...(t.red ? ["inset -6px -10px 24px -12px rgba(243, 24, 32, 0.24)"] : []),
     ...side,
     `${dx * 1.1}px ${dy * 1.15}px ${d * 0.4}px rgba(15, 23, 42, ${lift + 0.1})`,
     `${dx * 2}px ${dy * 2.2}px ${d * 1.8}px rgba(15, 23, 42, ${lift})`,
   ].join(", ");
 }
 
+// Domed faces: lit at the upper left, rolling off toward the far rim, so each
+// tile reads as a sculpted form rather than a flat card.
 const FACE = {
-  1: "linear-gradient(150deg, #f3f6f8 0%, #e6ebf0 100%)",
-  2: "linear-gradient(150deg, #f8fafb 0%, #eaeef2 100%)",
-  3: "linear-gradient(150deg, #ffffff 0%, #eef2f5 100%)",
+  1: "radial-gradient(120% 130% at 28% 22%, #f5f7f9 0%, #e9edf1 55%, #dce2e8 100%)",
+  2: "radial-gradient(120% 130% at 28% 22%, #fbfcfd 0%, #eef2f5 55%, #e1e6eb 100%)",
+  3: "radial-gradient(120% 130% at 28% 22%, #ffffff 0%, #f2f5f7 55%, #e5eaee 100%)",
 } as const;
 const SHEEN =
   "radial-gradient(70% 60% at 30% 25%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 70%)";
@@ -136,10 +140,10 @@ const RELIEF_CSS = `
 }
 .oi-glow {
   position: absolute;
-  width: 360px;
-  height: 260px;
+  width: 440px;
+  height: 320px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.4) 0%, rgba(217, 13, 22, 0.14) 45%, rgba(217, 13, 22, 0) 75%);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.48) 0%, rgba(217, 13, 22, 0.17) 45%, rgba(217, 13, 22, 0) 75%);
 }
 .oi-band, .oi-tile-far { display: none; }
 @media (min-width: 1800px) {
@@ -163,7 +167,7 @@ function Field({ className, tiles, glow }: { className: string; tiles: Tile[]; g
       {tiles.map((t, i) => (
         <div
           key={i}
-          className={`oi-tile rounded-[38px]${t.far ? " oi-tile-far" : ""}`}
+          className={`oi-tile rounded-[24%/36%]${t.far ? " oi-tile-far" : ""}`}
           style={{
             left: t.x,
             top: t.y,
