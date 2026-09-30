@@ -8,10 +8,11 @@ date unless it is explicitly marked current.**
 Operza's product truth lives in **`kartikvagh12-bot/operza-app`**, not in this
 repository. This repo markets the product; it never defines it.
 
-Product `main` used as the basis for the current marketing refresh:
+Product `main` last used to verify customer-facing claims here (the
+homepage introduction, 2026-09-29):
 
 ```
-c3580741dd4b182680253c8204bb5a5b985ace34
+c22d89f86e41fdd9be51248e2a7430a8099a4859
 ```
 
 Before writing or changing any customer-facing claim here, verify it against
@@ -52,6 +53,31 @@ Homepage headline (founder-set, 2026-09-10):
 
 > Run what you make, what you move, what you sell, and the books behind it.
 
+The homepage opens with a short "What is Operza?" introduction
+(`components/OperzaIntro.tsx`) between the navbar and that hero. Its copy is
+locked (founder-approved 2026-09-29) and pinned by section L of
+`scripts/test-marketing-copy.mjs`:
+
+> What is Operza?
+>
+> Operza is a web-based manufacturing operations and accounting platform
+> built for manufacturers.
+>
+> It helps digitize the day-to-day flow of a manufacturing business, from
+> materials, products and BOMs through production, packing, inventory and
+> dispatch, while also supporting sales, purchases, costing, payments and
+> financial records.
+>
+> Instead of information being scattered across spreadsheets, registers and
+> disconnected tools, Operza gives manufacturers a structured system for
+> recording and understanding the work happening across the business.
+
+The intro defines the software; it names no plan (Factory, Books and Complete
+are explained further down). It is a light section with an abstract 3D relief
+background (CSS only, no image), dark slate copy, and red text in
+`text-brand-600` only. The hero stays the page's only `h1`, and `Hero.tsx` was
+not changed by any of this.
+
 The site is being refreshed **from** inventory-and-production-only positioning.
 Homepage section copy that still describes Operza as an inventory tracker is
 legacy and is being replaced, not extended.
@@ -62,6 +88,16 @@ legacy and is being replaced, not extended.
   goods not FG. Average cost not WAC. Cost changes not cost intelligence.
   Workspace code not slug. Plan not suite. No database, RPC, migration or
   transaction vocabulary in anything a visitor reads.
+* **Never call the customer "small".** Not small manufacturer, small factory,
+  small business or "small and growing". Say "manufacturers". Guarded site-wide
+  on customer-visible strings by L13 of `scripts/test-marketing-copy.mjs`.
+* **Operza is the product; Operza Technologies Private Limited is the
+  company.** The legal name lives only in `SITE.legalName` (`lib/site.ts`) and
+  is read from there: the footer ("Operza is a product of ...", and the
+  copyright line) and the Organization JSON-LD (`name` and `legalName`, with
+  `alternateName` "Operza"). The SoftwareApplication JSON-LD and `SITE.name`
+  stay "Operza". Never put the legal name in the product definition. Guarded by
+  section I of `scripts/test-marketing-foundation.mjs`.
 * **Marketing prose contains zero em dashes (U+2014).** No exceptions remain.
 * **The homepage shows no product screenshots.** The product story is the
   interactive examples in `components/demos/`: local state, invented values,
@@ -175,6 +211,19 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-09-30 — "What is Operza?" introduction and company identity
+
+PR #19 (merged, `ca8f98e`) added `components/OperzaIntro.tsx` before the hero
+and removed "Small and growing" from the "Who is Operza for?" FAQ answer. PR
+#20 (merged, `72fc252`) settled the final intro copy (above), added the
+Operza Technologies Private Limited identity to the footer and the
+Organization JSON-LD through `SITE.legalName`, and pinned the intro's red to
+`text-brand-600`. The intro background went through many art directions in
+PR #20 (dark globe, recessed room, frame tunnel, folded slabs, separate
+tiles); the founder chose the broad sculpted pearl relief, restored exactly
+from commit `9c62a8e`. Treat that relief as the approved design: refine it,
+do not replace it, without founder direction.
 
 ## 2026-09-10 — Homepage rebuilt as interactive, brand moved to black/white/red
 
