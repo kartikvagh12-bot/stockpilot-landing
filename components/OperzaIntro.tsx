@@ -36,6 +36,7 @@ type Tile = {
   z: 1 | 2 | 3; // 1 back, 3 front
   red: boolean; // catches the red light on its lower face
   far: boolean; // only on very wide screens, where there is more room
+  high: boolean; // top of the band; phones only, where the band is taller
 };
 
 // Tiles sit on a lattice turned to the shared angle, so every gap is even and
@@ -48,7 +49,7 @@ const GAP = 28; // clear space between neighbouring tiles
 const PITCH_U = 196 * SIZE + GAP;
 const PITCH_V = 122 * SIZE + GAP;
 
-function lattice(reach: number, farReach: number, top: number, glow: [number, number]) {
+function lattice(reach: number, farReach: number, top: number, glow: [number, number], high = top) {
   const a = (ANGLE * Math.PI) / 180;
   const eu = [Math.cos(a), -Math.sin(a)];
   const ev = [-Math.sin(a), -Math.cos(a)];
@@ -64,7 +65,7 @@ function lattice(reach: number, farReach: number, top: number, glow: [number, nu
       const left = x - w / 2;
       if (left < -farReach || left > 40 || y + h / 2 < -560 || y - h / 2 < -top) continue;
       const z = (1 + ((((i * 2 + j) % 3) + 3) % 3)) as 1 | 2 | 3;
-      out.push({ x: Math.round(x), y: Math.round(y), w, h, z, red: false, far: left < -reach });
+      out.push({ x: Math.round(x), y: Math.round(y), w, h, z, red: false, far: left < -reach, high: y - h / 2 < -high });
     }
   }
   // The two tiles nearest the red light catch a little of it.
@@ -78,8 +79,8 @@ function lattice(reach: number, farReach: number, top: number, glow: [number, nu
 // Desktop: the lower right beside the copy. Band: a strip under the copy.
 const DESK_GLOW: [number, number] = [-250, -150];
 const BAND_GLOW: [number, number] = [-420, -40];
-const DESK = lattice(560, 780, 9999, DESK_GLOW);
-const BAND = lattice(1500, 1500, 222, BAND_GLOW);
+const DESK = lattice(560, 820, 9999, DESK_GLOW);
+const BAND = lattice(1500, 1500, 262, BAND_GLOW, 222);
 
 const SIDE_FROM = [236, 240, 244];
 const SIDE_TO = [150, 162, 176];
@@ -146,17 +147,25 @@ const RELIEF_CSS = `
   background: radial-gradient(50% 50% at 50% 50%, rgba(243, 24, 32, 0.48) 0%, rgba(217, 13, 22, 0.17) 45%, rgba(217, 13, 22, 0) 75%);
 }
 .oi-band, .oi-tile-far { display: none; }
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .oi-relief { --k: 0.86; }
+  .oi-desk { right: -64px; }
+}
 @media (min-width: 1800px) {
-  .oi-relief { --k: 1.15; }
+  .oi-relief { --k: 1.05; }
+}
+@media (min-width: 2040px) {
   .oi-tile-far { display: block; }
 }
 @media (max-width: 1279px) {
   .oi-relief { --k: 0.72; }
   .oi-band { display: block; }
+  .oi-tile-high { display: none; }
   .oi-desk { display: none; }
 }
 @media (max-width: 767px) {
-  .oi-relief { --k: 0.6; }
+  .oi-relief { --k: 0.54; }
+  .oi-tile-high { display: block; }
 }
 `;
 
@@ -167,7 +176,7 @@ function Field({ className, tiles, glow }: { className: string; tiles: Tile[]; g
       {tiles.map((t, i) => (
         <div
           key={i}
-          className={`oi-tile rounded-[24%/36%]${t.far ? " oi-tile-far" : ""}`}
+          className={`oi-tile rounded-[24%/36%]${t.far ? " oi-tile-far" : ""}${t.high ? " oi-tile-high" : ""}`}
           style={{
             left: t.x,
             top: t.y,
