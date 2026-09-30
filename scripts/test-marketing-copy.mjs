@@ -517,23 +517,53 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   ok("(L1) the intro is the first thing in <main>, directly before the hero",
      /<main>\s*<OperzaIntro \/>\s*<Hero \/>\s*<ProductExperience \/>/.test(page));
   ok("(L2) the intro sits inside the judged surface", SURFACE.includes(introFile));
-  ok("(L3) the intro asks the orientation question",
-     /What is Operza\?/.test(intro));
-  ok("(L4) the intro gives the locked definition",
-     intro.includes("Operza is a manufacturing operations and accounting platform for manufacturers."),
-     intro);
-  ok("(L5) ...and the locked supporting sentence",
-     intro.includes("Operza covers materials, production, inventory, dispatch, sales, purchases and accounting, with Operza Complete bringing factory operations and business records together in one system."),
-     intro);
-
-  // The intro defines Operza. Factory, Books and Complete are explained further
-  // down the page, so the plan explainer must not creep back in here.
-  const planExplainer = ["Use Operza Factory", "Use Operza Books", "Operza Complete brings"]
-    .filter((p) => intro.includes(p));
-  ok("(L6) the intro does not explain the plans",
-     planExplainer.length === 0, planExplainer.join(", "));
-  // Judged on markup, not the comment that explains why.
+  // Each rendered paragraph as a visitor reads it: inline accent spans and
+  // JSX space expressions removed, wrapping collapsed. Exact equality, so a
+  // reflow can never fail these and a changed word always does.
   const introMarkup = strip(introSrc);
+  const paras = [...introMarkup.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/g)].map((m) =>
+    m[1].replace(/\{"\s*"\}/g, " ").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
+  const LOCKED = [
+    "What is Operza?",
+    "Operza is a web-based manufacturing operations and accounting platform built for manufacturers.",
+    "It helps digitize the day-to-day flow of a manufacturing business, from materials, products and BOMs through production, packing, inventory and dispatch, while also supporting sales, purchases, costing, payments and financial records.",
+    "Instead of information being scattered across spreadsheets, registers and disconnected tools, Operza gives manufacturers a structured system for recording and understanding the work happening across the business.",
+  ];
+  ok(`(L2b) the intro renders exactly four paragraphs (${paras.length})`, paras.length === 4,
+     JSON.stringify(paras));
+  ok("(L3) the label is exactly the orientation question", paras[0] === LOCKED[0], paras[0]);
+  ok("(L4) the intro gives the locked definition", paras[1] === LOCKED[1], paras[1]);
+  ok("(L5) ...then the first locked supporting paragraph", paras[2] === LOCKED[2], paras[2]);
+  ok("(L5b) ...then the second", paras[3] === LOCKED[3], paras[3]);
+
+  // The intro defines Operza the software. Factory, Books and Complete are
+  // explained further down the page, so no plan is named here at all. That is
+  // stricter than the per-plan boundary checks it replaces: with no plan named,
+  // no plan can be credited with the other's half.
+  const planNames = ["Operza Factory", "Operza Books", "Operza Complete"]
+    .filter((p) => paras.join(" ").includes(p) || intro.includes(p));
+  ok("(L6) the intro names no plan", planNames.length === 0, planNames.join(", "));
+
+  // Founder review: the short red rule before the label read as a giant em
+  // dash. Red is carried by text alone, with no ornament of any kind.
+  const labelTag = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>([\s\S]*?)<\/p>/) ?? [])[1] ?? "";
+  ok("(L6b) the label holds only its text: no line, dash, dot or icon before it",
+     labelTag.trim() === "What is Operza?" && !/aria-hidden/.test(introMarkup), labelTag.trim());
+  const labelOpen = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>/) ?? [""])[0];
+  // The intro is light, so its red is brand-600, which holds AA contrast on
+  // that ground where the logo red (brand-500) does not. Pinned exactly: the
+  // label and the one red phrase.
+  const reds = (tag) => [...tag.matchAll(/\btext-brand-\d+\b/g)].map((m) => m[0]);
+  const phraseOpen = (introMarkup.match(/<span\b[^>]*text-brand-\d+[^>]*>/) ?? [""])[0];
+  ok("(L6c) ...and the label itself is set in text-brand-600",
+     reds(labelOpen).join() === "text-brand-600", labelOpen);
+  ok("(L6c-phrase) ...as is the red phrase in the definition",
+     reds(phraseOpen).join() === "text-brand-600", phraseOpen);
+  const accents = [...introMarkup.matchAll(/<span\b[^>]*text-brand-\d+[^>]*>([\s\S]*?)<\/span>/g)]
+    .map((m) => m[1].replace(/\s+/g, " ").trim());
+  ok(`(L6d) red inside the prose is short and sparing (${accents.length} phrase)`,
+     accents.length <= 2 && accents.every((a) => a.split(" ").length <= 6 && !/\.$/.test(a)),
+     JSON.stringify(accents));
   ok("(L7) the intro stays a definition: no border setting it apart",
      !/\bborder(?:-[a-z]+)?\b/.test(introMarkup));
   ok("(L8) ...and no grid or column layout",

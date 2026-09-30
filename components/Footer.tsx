@@ -68,6 +68,9 @@ export default function Footer() {
               and dispatch on the floor, and the invoices, bills and books that
               go with them.
             </p>
+            <p className="mt-3 max-w-sm text-xs leading-5 text-slate-500">
+              Operza is a product of {SITE.legalName}.
+            </p>
           </div>
 
           {COLS.map((col) => (
@@ -110,8 +113,7 @@ export default function Footer() {
 
         <div className="mt-12 border-t border-slate-100 pt-6 text-xs text-slate-500">
           <p>
-            © {new Date().getFullYear()} Operza. Built for manufacturers in
-            India.
+            © {new Date().getFullYear()} {SITE.legalName}. All rights reserved.
           </p>
         </div>
       </div>

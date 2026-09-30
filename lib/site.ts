@@ -1,5 +1,8 @@
 export const SITE = {
   name: "Operza",
+  // The company behind the product. Operza is the software; this is who
+  // operates it. Used in the footer and the Organization structured data.
+  legalName: "Operza Technologies Private Limited",
   domain: "https://www.operza.in",
   // Primary app: Next.js on Vercel at app.operza.in.
   app: "https://app.operza.in",

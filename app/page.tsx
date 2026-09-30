@@ -52,7 +52,11 @@ export default function HomePage() {
             {
               "@context": "https://schema.org",
               "@type": "Organization",
-              name: SITE.name,
+              // The company, not the product: the SoftwareApplication above
+              // stays "Operza".
+              name: SITE.legalName,
+              legalName: SITE.legalName,
+              alternateName: SITE.name,
               url: SITE.domain,
               logo: `${SITE.domain}/operza-logo.png`,
               email: SITE.email,
