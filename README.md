@@ -1,11 +1,11 @@
-# Operza marketing site
+# Operza website
 
-The public marketing website for **Operza**, manufacturing software for Indian
-factories. Operza runs the shop floor and the business books, and in Operza
-Complete they are one system.
+The public website for **Operza**. Today it markets one live product, the
+manufacturing software at **https://app.operza.in**, which is built in a
+separate repository. A Founder-approved multi-product direction is planned
+(see [Planned direction](#planned-direction-not-live)); none of it is live yet.
 
-Live at **https://www.operza.in**. The product itself lives at
-**https://app.operza.in** and is built in a separate repository.
+Live at **https://www.operza.in**.
 
 > **Product truth lives in `operza-app`, not here.** Before writing or changing
 > any customer-facing claim on this site, check it against
@@ -13,7 +13,34 @@ Live at **https://www.operza.in**. The product itself lives at
 > This repository markets the product; it is not a source of truth about what
 > the product does.
 
-## Status
+## Planned direction (not live)
+
+Approved by the Founder on 2026-11-17. `CLAUDE.md` holds the full record,
+the open decisions and the rules each PR must follow.
+
+- **Operza** is the sole public brand. The legal name, Operza Technologies
+  Private Limited, appears only in legal and footer contexts and structured
+  data.
+- **Operza Shift** is the website-level name for the existing manufacturing
+  software and its Operza Factory, Operza Books and Operza Complete plans. The
+  application and its plans are not renamed.
+- **Operza Linspace** is a planned construction product (drawing
+  interpretation, quantity takeoff, BOQ and cost estimation). It is in
+  development and not launched.
+- A conversational assistant ("Ask anything about Operza...") is planned. It
+  will only be added once it works; no provider, model or policy is approved.
+
+| Route | Target | Status today |
+|---|---|---|
+| `/` | Operza company homepage | Planned. Today `/` is the manufacturing product homepage described below. |
+| `/shift` | Operza Shift product page | Planned. Does not exist. |
+| `/linspace` | Operza Linspace, labelled in development | Planned. Does not exist. |
+| `/health-check` | Manufacturing Health Check | Live, unchanged. |
+
+`/` and `/shift` will change together in one cutover PR, and each PR updates
+its own docs and marketing tests.
+
+## Live site status
 
 The three-PR marketing refresh is complete. The homepage is built around the
 current product (Factory, Books and Complete, costing and margin, the books and
@@ -52,7 +79,7 @@ Note that `operza-app` is on Next 16 / React 19 / Tailwind 4. The two share a
 brand palette and typeface but not a design-token system, so components are not
 portable between them.
 
-## Routes and page architecture
+## Live routes and page architecture
 
 | Route | Notes |
 |---|---|
@@ -66,18 +93,19 @@ portable between them.
 Homepage section order, as currently shipped:
 
 ```
-Navbar                              deep
-  Hero                              deep
-  Plans                   #plans    light
-  RunYourFactory          #factory  light
-  Costing                 #costing  DEEP
-  RunYourBooks            #books    light
-  BooksAndTally                     DEEP
-  CorrectionsAndHistory             light
-  ProductExperience                 light   wraps InteractiveProductionDemo
-  FAQ                     #faq      light
-  Contact                 #contact  DEEP
-Footer                              light
+Navbar                                  deep
+  OperzaIntro                           light   "What is Operza?", pearl relief
+  Hero                                  deep    the page's only h1
+  ProductExperience       #product      deep    Factory / Books / Complete examples
+  Plans                   #plans        light
+  RunYourFactory          #factory      light
+  Costing                 #costing      deep    wraps CostingDemo
+  RunYourBooks            #books        light
+  CompleteSection         #complete     deep    includes the TallyPrime export note
+  HealthCheckCallout                    light
+  FAQ                     #faq          light
+  Contact                 #contact      deep
+Footer                                  light
 ```
 
 Light and deep sections alternate deliberately. `.section-deep`, `.h-deep`,
