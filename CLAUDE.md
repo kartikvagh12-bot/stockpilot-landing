@@ -76,26 +76,37 @@ Operza.
    content and a claims test set first, then the working endpoint and the
    "Ask anything about Operza..." input together.
 
+### Founder decisions already made (2026-11-17, PR #22 review)
+
+These are approved. Each is implemented in the cutover PR, not before.
+
+1. **The manufacturing introduction and hero move to `/shift`.** The existing
+   "What is Operza?" intro (with its pearl-relief design) and the hero with
+   its founder-set headline become part of the Operza Shift page. The exact
+   rewritten Shift wording of the intro, and the company homepage `h1`, are
+   still open (below).
+2. **Organization structured data uses `name: "Operza"`** and keeps
+   `legalName: "Operza Technologies Private Limited"`, read from
+   `SITE.legalName`. Section I of `scripts/test-marketing-foundation.mjs` is
+   rewritten in the same PR.
+3. **"Open App" keeps its label and its existing destination (`SITE.app`,
+   `https://app.operza.in`) on the company homepage.** Not to be renamed after
+   Operza Shift.
+
 ### Open Founder decisions (not yet made)
 
-1. Whether the locked hero headline and the "What is Operza?" intro move to
-   `/shift` (for example as "What is Operza Shift?"), and what the company
-   homepage `h1` is. Both are founder-locked and test-pinned today.
-2. Organization structured data: today `name` is the legal name. Phase 0
-   recommended `name: "Operza"` with `legalName` carrying the registered name.
-   Not yet decided.
-3. Linspace: the approved wording, whether `/linspace` is indexed or
-   `noindex`, and whether it collects early interest.
-4. Linspace vocabulary: the copy guard bans the phrase "cost intelligence"
+1. The exact rewritten Operza Shift copy for the moved intro (for example a
+   "What is Operza Shift?" label), and the company homepage `h1`.
+2. Linspace: the approved wording, whether `/linspace` is indexed or
+   `noindex`, and how early interest is handled, if at all.
+3. Linspace vocabulary: the copy guard bans the phrase "cost intelligence"
    site-wide because it is retired Operza Shift vocabulary. If Linspace copy
    needs that phrase, the guard must be scoped deliberately, not loosened.
-5. Approved company-level copy (what the company does, location, approach).
+4. Approved company-level copy (what the company does, location, approach).
    Without it, company claims stay minimal rather than invented.
-6. Whether the company homepage keeps a Health Check callout or only `/shift`
+5. Whether the company homepage keeps a Health Check callout or only `/shift`
    does.
-7. Whether "Open App" keeps its label on the company homepage or names Operza
-   Shift.
-8. Assistant: provider, model, dependency, budget, conversation logging and
+6. Assistant: provider, model, dependency, budget, conversation logging and
    retention, and how it answers pricing questions.
 
 ## Live today (as served from `main`)
@@ -130,8 +141,9 @@ It is a light section with the approved **pearl-relief** background (CSS only,
 no image; restored exactly from commit `9c62a8e`), dark slate copy, and red
 text in `text-brand-600` only. The hero is the page's only `h1`. Treat the
 relief as the approved design: refine it, do not replace it, without Founder
-direction. Under the new direction it describes Operza Shift; where it lives
-after the cutover is open decision 1.
+direction. Under the new direction it describes Operza Shift and moves to
+`/shift` in the cutover (approved decision 1); its rewritten wording is open
+decision 1.
 
 Homepage headline (founder-set, 2026-09-10), pinned by K1:
 
@@ -221,7 +233,9 @@ Facts current at `b0077fc` that copy and any future assistant must respect:
   held in the `brand` scale. Restrained: emphasis, active tab, selected state,
   small rules. Not an error colour. Keep the existing logo.
 * **Open App is a website function** and belongs in the navbar, the hero and
-  the closing area. Do not relabel it "Sign in".
+  the closing area, including on the company homepage, always resolving
+  through `SITE.app`. Do not relabel it "Sign in" or rename it after a
+  product (approved decision 3).
 * **No invented pricing**, no free-trial or "no credit card" implication, no
   fabricated metrics, testimonials, customer logos, release dates or ROI
   claims.
@@ -236,10 +250,12 @@ Facts current at `b0077fc` that copy and any future assistant must respect:
   definition. It becomes Operza Shift's positioning.
 * The rule that the homepage must carry the manufacturing hero headline, the
   "What is Operza?" intro and the Health Check callout. These hold on the live
-  site until the cutover PR, which settles them under open decisions 1 and 6.
+  site until the cutover PR, which moves the intro and hero to `/shift`
+  (approved decision 1) and settles the callout under open decision 5.
+* The Organization JSON-LD `name` being the legal name. It becomes "Operza"
+  in the cutover (approved decision 2).
 * "Operza is a product of Operza Technologies Private Limited" as the footer
-  wording, and the Organization JSON-LD `name` being the legal name: both are
-  reviewed in the cutover.
+  wording. Reviewed in the cutover; the legal name stays in the footer.
 
 Everything else above (vocabulary, claim boundaries, no em dashes, no
 screenshots, black/white/red, Open App, no invented pricing or metrics, frozen
