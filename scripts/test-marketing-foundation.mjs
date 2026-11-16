@@ -15,7 +15,7 @@
 // happens to look like old debt. The broader copy guard ships with the
 // homepage rewrite instead.
 // ---------------------------------------------------------------------------
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -290,6 +290,72 @@ section("I. THE PRODUCT AND THE COMPANY ARE NAMED SEPARATELY");
   // One source of truth: the literal legal name appears only in lib/site.ts.
   const literal = COVERED.filter((f) => f !== "lib/site.ts" && copy(f).includes(LEGAL));
   ok("(I7) no second hard-coded copy of the legal name", literal.length === 0, literal.join(", "));
+}
+
+/* ========================================================================= */
+section("J. THE PRODUCT REGISTRY IS TRUTHFUL AND NOTHING LINKS TO A MISSING PAGE");
+/* ========================================================================= */
+{
+  // Founder direction (2026-11-17): Operza is the parent brand of Operza Shift
+  // (live software) and Operza Linspace (in development). lib/site.ts names
+  // them once. The registry may describe a planned page, but it must not claim
+  // a page that does not exist, and nothing may link to a page before it does.
+  const site = copy("lib/site.ts");
+  const block = (site.match(/export const PRODUCTS = \[([\s\S]*?)\] as const/) ?? [, ""])[1];
+  const products = [...block.matchAll(
+    /id:\s*"([a-z-]+)",\s*name:\s*"([^"]+)",\s*path:\s*"([^"]+)",\s*pageLive:\s*(true|false),\s*status:\s*"([^"]+)"/g,
+  )].map(([, id, name, path, pageLive, status]) => ({ id, name, path, pageLive: pageLive === "true", status }));
+  const byId = Object.fromEntries(products.map((p) => [p.id, p]));
+  const pageExists = (path) =>
+    path === "/" || existsSync(join(ROOT, "app", ...path.slice(1).split("/"), "page.tsx"));
+
+  ok(`(J1) the registry declares exactly the approved products (${products.length})`,
+     products.length === 2 && byId.shift && byId.linspace,
+     JSON.stringify(products));
+  ok("(J2) Operza Shift is named and pathed as approved",
+     byId.shift?.name === "Operza Shift" && byId.shift?.path === "/shift"
+     && byId.shift?.status === "available");
+  ok("(J3) Operza Linspace is named as approved and marked in development, not launched",
+     byId.linspace?.name === "Operza Linspace" && byId.linspace?.path === "/linspace"
+     && byId.linspace?.status === "in-development");
+  for (const p of products)
+    ok(`(J4-${p.id}) pageLive (${p.pageLive}) matches whether ${p.path} has a page`,
+       p.pageLive === pageExists(p.path));
+  ok("(J5) the registry carries no plans, features or capabilities (operza-app owns those)",
+     !/\b(plans|features|capabilities|includes)\s*:/.test(block)
+     && !/"[^"]*\b(Factory|Books|Complete)\b[^"]*"/.test(block),
+     block.slice(0, 200));
+
+  // Every internal link on the site, whether a JSX attribute or declared as
+  // data, must resolve to a page that exists. Fragments and query strings are
+  // judged by the page they sit on; anchors are the copy guard's job (F).
+  const walk = (dir) =>
+    readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory()
+        ? walk(`${dir}/${e.name}`)
+        : /\.(tsx?|mjs)$/.test(e.name) ? [`${dir}/${e.name}`] : []);
+  const sources = ["app", "components", "lib"].flatMap(walk);
+  const links = sources.flatMap((f) =>
+    [...copy(f).matchAll(/href(?:=|:\s*)\{?"(\/[^"]*)"/g)].map((m) => ({ f, href: m[1] })));
+  ok(`(J6) internal links were actually collected (${links.length})`, links.length >= 10);
+  // A path with a file extension is a static asset and must exist in public/.
+  const resolves = (href) => {
+    const path = href.split(/[#?]/)[0].replace(/\/$/, "") || "/";
+    return /\.[a-z0-9]+$/i.test(path)
+      ? existsSync(join(ROOT, "public", ...path.slice(1).split("/")))
+      : pageExists(path);
+  };
+  const broken = links.filter(({ href }) => !resolves(href));
+  ok("(J7) every internal link resolves to an existing page or public asset",
+     broken.length === 0, broken.map(({ f, href }) => `${f}: ${href}`).join("\n      "));
+  const planned = products.filter((p) => !p.pageLive).map((p) => p.path);
+  const early = links.filter(({ href }) =>
+    planned.some((p) => href === p || href.startsWith(`${p}/`) || href.startsWith(`${p}#`)));
+  ok("(J8) nothing links to a product page that is not live yet",
+     early.length === 0, early.map(({ f, href }) => `${f}: ${href}`).join("\n      "));
+  const sitemap = copy("app/sitemap.ts");
+  ok("(J9) the sitemap lists no product page that is not live yet",
+     !planned.some((p) => sitemap.includes(`\${base}${p}`)));
 }
 
 console.log(

@@ -114,7 +114,11 @@ Light and deep sections alternate deliberately. `.section-deep`, `.h-deep`,
 Shared pieces:
 
 - `lib/site.ts` is the single source for URLs, contact details and nav links.
-  Every "sign in" link resolves through `SITE.app`.
+  Every "sign in" link resolves through `SITE.app`. It also holds `PRODUCTS`,
+  the registry of Operza products the website names (Operza Shift and Operza
+  Linspace) with each one's planned path, whether that page is live, and its
+  status. Marketing identity only: plans and capabilities stay in `operza-app`.
+  Nothing renders it yet, and no page links to `/shift` or `/linspace`.
 - `lib/faq.ts` is the single source for the FAQ. The visible accordion and the
   `FAQPage` structured data both read it, so the two cannot drift.
 - `components/demos/` holds the interactive examples and their shared parts.
@@ -193,8 +197,10 @@ network calls:
 `test:marketing-foundation` covers the metadata, structured data, sitemap,
 social cards and footer. It fails if a free-price offer returns to the
 structured data, if `#fragment` URLs come back to the sitemap, if the retired
-Streamlit constant reappears, or if a route advertises a large-image card with
-no image behind it.
+Streamlit constant reappears, if a route advertises a large-image card with
+no image behind it, if the product registry claims a page that does not exist,
+or if any internal link (including a link or sitemap entry for a product page
+that is not live yet) points at a page or public asset that does not exist.
 
 `test:marketing-copy` covers the homepage **and the Health Check** copy. It extracts customer-visible
 strings first, with comments stripped, and judges only those, so an import path
