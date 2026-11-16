@@ -163,6 +163,16 @@ by section I of `scripts/test-marketing-foundation.mjs`. The footer line and
 the Organization `name` change in the cutover, with that section rewritten in
 the same PR.
 
+Product registry (PR 1 groundwork): `PRODUCTS` in `lib/site.ts` names Operza
+Shift (`/shift`, status `available`) and Operza Linspace (`/linspace`, status
+`in-development`), each with `pageLive: false`. It is marketing identity only:
+no plans, features or capabilities, which stay in `operza-app`. Nothing renders
+it yet. Section J of `scripts/test-marketing-foundation.mjs` holds it to the
+truth: `pageLive` must match whether `app/<path>/page.tsx` exists, every
+internal link on the site must resolve to an existing page or public asset,
+and nothing (links or sitemap) may point at a product page that is not live.
+The PR that creates a product page flips its `pageLive` to `true`.
+
 ## Product truth (Operza Shift)
 
 Product truth lives in **`kartikvagh12-bot/operza-app`**, not here. This repo
