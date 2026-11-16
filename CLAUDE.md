@@ -1,60 +1,202 @@
-# CURRENT STATE (September 2026) — AUTHORITATIVE
+# CURRENT STATE (November 2026): AUTHORITATIVE
 
-**Read this section first. Everything below it is a historical log and is out of
-date unless it is explicitly marked current.**
+**Read this section first. Everything below "Historical log" is out of date
+unless it is explicitly marked current.**
 
-## Product truth
+This section separates two things that must not be confused:
 
-Operza's product truth lives in **`kartikvagh12-bot/operza-app`**, not in this
-repository. This repo markets the product; it never defines it.
+* **Live today**: what `www.operza.in` actually serves from `main`.
+* **Approved target**: the Founder-approved multi-product direction
+  (2026-11-17). None of the target routes, pages or the assistant exist yet.
+  Do not describe them as implemented, in docs or on the site, until the PR
+  that ships them merges.
 
-Product `main` used as the basis for the current marketing refresh:
+## Approved direction (Founder, 2026-11-17)
 
-```
-c3580741dd4b182680253c8204bb5a5b985ace34
-```
+Approved by the Founder with ChatGPT review, after a read-only architecture
+review (Phase 0). The website becomes the official multi-product site for
+Operza.
 
-Before writing or changing any customer-facing claim here, verify it against
-that repository. `operza-app/docs/PROJECT_STATE.md` is its current-status truth.
+* **Operza is the sole public-facing parent brand.** Do not present "Operza
+  Technologies" as a public brand.
+* **The registered legal name, Operza Technologies Private Limited, belongs
+  only in legal and footer contexts and appropriate structured data.** It is
+  read from `SITE.legalName` (`lib/site.ts`).
+* **Operza Shift** is the website-level product family name for the existing
+  manufacturing and business operations SaaS (`app.operza.in`). It is a
+  website name for now: do not rename the live application, and do not rename
+  its plans. Operza Factory, Operza Books and Operza Complete keep their names
+  and their real functional boundaries.
+* **Operza Linspace** is a planned construction product: drawing
+  interpretation, quantity takeoff, BOQ generation and cost estimation. It is
+  **not launched**. It may be introduced only as in development, with no
+  invented functionality, release dates, pricing or availability.
+* **Existing work is preserved**: the interactive demos, the product
+  explanations, the brand identity, the approved pearl-relief intro design and
+  the working lead capture.
+* **A conversational assistant** is planned, with the placeholder "Ask anything
+  about Operza...". It must be functional, and grounded in verified
+  information, when it is introduced. Do not ship a placeholder box that does
+  not answer. Avoid prominently branding it "Ask Operza AI".
 
-## What Operza is now
+### Target routes (planned, not live)
 
-Operza is manufacturing software for Indian factories. It runs the shop floor
-and the business books.
+| Route | Target | Status |
+|---|---|---|
+| `/` | Operza company homepage | Planned. Today `/` is the manufacturing product homepage. |
+| `/shift` | Operza Shift product page: today's homepage story, demos and plans | Planned. Does not exist. |
+| `/linspace` | Operza Linspace, clearly labelled in development | Planned. Does not exist. |
+| `/health-check` | Existing Manufacturing Health Check | **Live.** Stays a working route; scoring frozen. |
 
-It ships as three customer-selectable plans, declared in
-`operza-app/lib/capabilities.ts` and named on its onboarding screen:
+### Delivery rules for this programme
 
-* **Operza Factory** — run the floor: inventory, production and dispatch. No
-  accounting or books.
-* **Operza Books** — run the books: invoices, bills, payments and statements.
-  No stock, production or dispatch.
-* **Operza Complete** — the whole business: the factory plus connected
-  accounting, including Tally export.
+* **`/` and `/shift` change together in one atomic cutover PR.** No production
+  period where the same product content is served on two URLs.
+* **Each implementation PR updates its own docs and marketing tests.** The
+  guards in `scripts/` are rewritten in the same PR that changes the surface
+  they pin, never deferred to a cleanup PR.
+* **Nothing about the assistant is approved beyond the direction above.** No
+  AI provider, model, dependency, budget or conversation-retention policy has
+  been approved.
+* Do not introduce GAD Nexus, Herdr or Codex orchestration into this
+  repository. GAD v1 is the collaboration workflow here: Founder decides,
+  ChatGPT reviews, Claude Code inspects, implements and tests. Every PR is
+  reviewed on its exact GitHub diff before merge.
 
-These boundaries are enforced by capability gating in the app. Do not blur them
-in marketing copy. In particular: Factory dispatch does not post an accounting
-invoice, and Books does not receive materials into stock. The connected
-behaviour belongs to Complete.
+### Proposed PR sequence (each needs its own authorisation)
 
-Beyond the original inventory and production scope, Operza now also has a cost
-and valuation engine, sales margin, double-entry accounting through to Profit &
-Loss and Balance Sheet, and a TallyPrime export path.
+1. Product registry and navigation groundwork, no visible change (`lib/site.ts`,
+   `Navbar`, `Footer`, nav guards).
+2. **Atomic cutover**: create `/shift` from the current homepage composition and
+   replace `/` with the company homepage in the same PR, with metadata,
+   structured data, sitemap, Open Graph cards, old-anchor handling, both
+   guards and this file updated together.
+3. `/linspace` pre-launch page, with its own claim guard.
+4. Assistant, only after its open decisions are made: verified knowledge
+   content and a claims test set first, then the working endpoint and the
+   "Ask anything about Operza..." input together.
 
-## Marketing story (locked)
+### Open Founder decisions (not yet made)
 
-Governing positioning:
+1. Whether the locked hero headline and the "What is Operza?" intro move to
+   `/shift` (for example as "What is Operza Shift?"), and what the company
+   homepage `h1` is. Both are founder-locked and test-pinned today.
+2. Organization structured data: today `name` is the legal name. Phase 0
+   recommended `name: "Operza"` with `legalName` carrying the registered name.
+   Not yet decided.
+3. Linspace: the approved wording, whether `/linspace` is indexed or
+   `noindex`, and whether it collects early interest.
+4. Linspace vocabulary: the copy guard bans the phrase "cost intelligence"
+   site-wide because it is retired Operza Shift vocabulary. If Linspace copy
+   needs that phrase, the guard must be scoped deliberately, not loosened.
+5. Approved company-level copy (what the company does, location, approach).
+   Without it, company claims stay minimal rather than invented.
+6. Whether the company homepage keeps a Health Check callout or only `/shift`
+   does.
+7. Whether "Open App" keeps its label on the company homepage or names Operza
+   Shift.
+8. Assistant: provider, model, dependency, budget, conversation logging and
+   retention, and how it answers pricing questions.
+
+## Live today (as served from `main`)
+
+Routes: `/` (manufacturing product homepage), `/health-check`, `/sitemap.xml`,
+`/robots.txt`, and Open Graph and Twitter images for both pages.
+
+Homepage composition (`app/page.tsx`): Navbar, then `OperzaIntro`, `Hero`,
+`ProductExperience`, `Plans`, `RunYourFactory`, `Costing`, `RunYourBooks`,
+`CompleteSection`, `HealthCheckCallout`, `FAQ`, `Contact`, then Footer.
+
+The homepage opens with a short "What is Operza?" introduction
+(`components/OperzaIntro.tsx`) before the hero. Its copy is locked
+(founder-approved 2026-09-29) and pinned by section L of
+`scripts/test-marketing-copy.mjs`:
+
+> What is Operza?
+>
+> Operza is a web-based manufacturing operations and accounting platform
+> built for manufacturers.
+>
+> It helps digitize the day-to-day flow of a manufacturing business, from
+> materials, products and BOMs through production, packing, inventory and
+> dispatch, while also supporting sales, purchases, costing, payments and
+> financial records.
+>
+> Instead of information being scattered across spreadsheets, registers and
+> disconnected tools, Operza gives manufacturers a structured system for
+> recording and understanding the work happening across the business.
+
+It is a light section with the approved **pearl-relief** background (CSS only,
+no image; restored exactly from commit `9c62a8e`), dark slate copy, and red
+text in `text-brand-600` only. The hero is the page's only `h1`. Treat the
+relief as the approved design: refine it, do not replace it, without Founder
+direction. Under the new direction it describes Operza Shift; where it lives
+after the cutover is open decision 1.
+
+Homepage headline (founder-set, 2026-09-10), pinned by K1:
+
+> Run what you make, what you move, what you sell, and the books behind it.
+
+Current positioning line, which after the cutover becomes **Operza Shift's**
+positioning rather than the company's:
 
 > Operza is manufacturing software for Indian factories. It runs the shop floor
 > and the business books, and in Operza Complete they are one system.
 
-Homepage headline (founder-set, 2026-09-10):
+Legal identity today: the footer reads "Operza is a product of
+{SITE.legalName}" and the copyright names `SITE.legalName`. The Organization
+JSON-LD uses `SITE.legalName` for `name` and `legalName` with `alternateName`
+"Operza"; the SoftwareApplication JSON-LD and `SITE.name` are "Operza". Pinned
+by section I of `scripts/test-marketing-foundation.mjs`. The footer line and
+the Organization `name` change in the cutover, with that section rewritten in
+the same PR.
 
-> Run what you make, what you move, what you sell, and the books behind it.
+## Product truth (Operza Shift)
 
-The site is being refreshed **from** inventory-and-production-only positioning.
-Homepage section copy that still describes Operza as an inventory tracker is
-legacy and is being replaced, not extended.
+Product truth lives in **`kartikvagh12-bot/operza-app`**, not here. This repo
+markets the product; it never defines it. `operza-app/docs/PROJECT_STATE.md`
+is its current-status truth. Before writing or changing any customer-facing
+claim, verify it against that repository's current source.
+
+Last checked (read-only, 2026-11-17) against `operza-app` `main`:
+
+```
+b0077fcaffed3622a82efd447cd0644d68653b81
+```
+
+(The live marketing copy was last verified against `c22d89f`, 2026-09-29. The
+check above found every live claim still true.)
+
+Three customer-selectable plans, declared in `operza-app/lib/capabilities.ts`
+and named on its onboarding screen:
+
+* **Operza Factory**: run the floor: inventory, production and dispatch. No
+  accounting or books.
+* **Operza Books**: run the books: invoices, bills, payments and statements.
+  No stock, production or dispatch.
+* **Operza Complete**: the whole business: the factory plus connected
+  accounting, including Tally export.
+
+Capability gating enforces these boundaries. Factory dispatch does not post an
+accounting invoice, and Books does not receive materials into stock. The
+connected behaviour belongs to Complete. Beyond inventory and production there
+is a cost and valuation engine, sales margin, double-entry accounting through
+to Profit & Loss and Balance Sheet, and a TallyPrime export path.
+
+Facts current at `b0077fc` that copy and any future assistant must respect:
+
+* **Tally is export only for customers.** A connector is built in the app but
+  no customer has installed it. Do not claim sync, a direct connection or
+  "complete Tally integration".
+* **No GST e-Invoice or e-Way Bill generation exists.** A GST add-on stores
+  statutory details (GSTIN, addresses) only.
+* **Plan changes are narrow.** A Factory admin can turn on accounting from
+  Settings, moving toward Complete; other changes need a workspace reset, and
+  moving to a smaller plan is refused once data exists. Do not market plan
+  switching or upgrades.
+* **Pricing** is a commercial decision for the Founder. The application's code
+  is not evidence of pricing policy either way. Publish no pricing, trial or
+  billing claim the Founder has not approved.
 
 ## Standing rules for this repository
 
@@ -62,39 +204,62 @@ legacy and is being replaced, not extended.
   goods not FG. Average cost not WAC. Cost changes not cost intelligence.
   Workspace code not slug. Plan not suite. No database, RPC, migration or
   transaction vocabulary in anything a visitor reads.
-* **Marketing prose contains zero em dashes (U+2014).** No exceptions remain.
-* **The homepage shows no product screenshots.** The product story is the
-  interactive examples in `components/demos/`: local state, invented values,
-  each labelled "Interactive example". Never put customer or sample-workspace
-  data on the site.
+* **Never call the customer "small".** Not small manufacturer, small factory,
+  small business or "small and growing". Say "manufacturers". Guarded
+  site-wide on customer-visible strings by L13 of
+  `scripts/test-marketing-copy.mjs`.
+* **Operza is the public brand; Operza Technologies Private Limited is the
+  legal entity.** The legal name lives only in `SITE.legalName` and is read
+  from there, in legal and footer contexts and structured data. Never use it
+  as a headline, product name or public brand.
+* **Marketing prose contains zero em dashes (U+2014).**
+* **No product screenshots.** The Operza Shift story is told by the interactive
+  examples in `components/demos/`: local state, invented values, each labelled
+  "Interactive example". Never put customer or sample-workspace data on the
+  site. No mock renders or fake screens for Linspace either.
 * **Brand is black, white and one red**, `#f31820`, sampled from the logo and
   held in the `brand` scale. Restrained: emphasis, active tab, selected state,
-  small rules. Not an error colour.
-* **Open App is a website function** and belongs in the navbar, the hero and the
-  closing area. Do not relabel it "Sign in".
+  small rules. Not an error colour. Keep the existing logo.
+* **Open App is a website function** and belongs in the navbar, the hero and
+  the closing area. Do not relabel it "Sign in".
 * **No invented pricing**, no free-trial or "no credit card" implication, no
-  fabricated metrics, testimonials, customer logos or ROI claims.
-* **Tally is export only.** Operza exports recorded invoices and bills as a file
-  an accountant imports into TallyPrime. Do not market automatic or direct
-  connector sync, and do not say "coming soon".
-* **Do not claim plan switching.** Changing a workspace plan is not a normal
-  upgrade path today.
+  fabricated metrics, testimonials, customer logos, release dates or ROI
+  claims.
+* **Lead capture stays on its working path**: `components/Contact.tsx` inserts
+  into Supabase `demo_requests`. Extend it by prefixing the existing `message`
+  field, not by changing the schema. The table's migration still lives only in
+  the retired `Inventory_tracker` repository; that ownership risk is open.
+
+## Superseded by the 2026-11-17 direction
+
+* "Operza is manufacturing software for Indian factories" as the **company**
+  definition. It becomes Operza Shift's positioning.
+* The rule that the homepage must carry the manufacturing hero headline, the
+  "What is Operza?" intro and the Health Check callout. These hold on the live
+  site until the cutover PR, which settles them under open decisions 1 and 6.
+* "Operza is a product of Operza Technologies Private Limited" as the footer
+  wording, and the Organization JSON-LD `name` being the legal name: both are
+  reviewed in the cutover.
+
+Everything else above (vocabulary, claim boundaries, no em dashes, no
+screenshots, black/white/red, Open App, no invented pricing or metrics, frozen
+Health Check scoring) remains in force.
 
 ## What is stale below
 
-The historical log that follows predates all of the above. Specifically:
-
 * The "Do NOT prioritize right now" list names accounting and ERP expansion as
-  deprioritised. **That is no longer true.** Accounting shipped, and it is now
-  half of the product story.
+  deprioritised. **That is no longer true.** Accounting shipped.
 * The Streamlit app (`operza.streamlit.app`) and its soft-sunset window are
-  finished. The `SITE.appLegacy` constant that pointed at it has been removed.
+  finished. `SITE.appLegacy` has been removed.
 * Homepage architecture notes in the 2026-05 and 2026-06 entries describe the
   site as it was built then.
 
 Keep the log for context. Do not treat it as instructions.
 
 ---
+
+# Historical log
+
 
 # Brand
 
@@ -175,6 +340,31 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-17 — Multi-product direction recorded (documentation only)
+
+Phase 0 was a read-only architecture review of this repository and of
+`operza-app` at `b0077fc`. The Founder approved it with amendments: Operza
+becomes the parent brand, `/` a company homepage, `/shift` the Operza Shift
+product page and `/linspace` an in-development page, with `/` and `/shift`
+changing in one atomic cutover. This PR recorded that direction in the
+current-state section above and in the README. No application code, test,
+route or environment changed. PR #21 (the 2026-09-30 entry below and the
+intro and legal-identity rules) was not merged: its historical content is
+carried here, and its "Operza is the product" framing is superseded.
+
+## 2026-09-30 — "What is Operza?" introduction and company identity
+
+PR #19 (merged, `ca8f98e`) added `components/OperzaIntro.tsx` before the hero
+and removed "Small and growing" from the "Who is Operza for?" FAQ answer. PR
+#20 (merged, `72fc252`) settled the final intro copy, added the Operza
+Technologies Private Limited identity to the footer and the Organization
+JSON-LD through `SITE.legalName`, and pinned the intro's red to
+`text-brand-600`. The intro background went through many art directions in
+PR #20 (dark globe, recessed room, frame tunnel, folded slabs, separate
+tiles); the founder chose the broad sculpted pearl relief, restored exactly
+from commit `9c62a8e`. Treat that relief as the approved design: refine it,
+do not replace it, without founder direction.
 
 ## 2026-09-10 — Homepage rebuilt as interactive, brand moved to black/white/red
 
