@@ -1,36 +1,35 @@
 import Link from "next/link";
-import { SITE } from "@/lib/site";
+import { DEMO_HREF, PRODUCTS, SITE, STATUS_LABEL } from "@/lib/site";
 
-// Link groups follow the homepage that actually exists. The previous footer
-// filed Health Check, FAQ and Contact under "Company", which none of them are,
-// and closed with "Hosted on Vercel, backed by Supabase", which is vendor
-// trivia rather than a reason for a factory owner to trust the product.
+// The company footer, used on every page that uses the Navbar. Operza is the
+// visible brand. Products come from the registry; the registered company name
+// appears once, in the legal line at the bottom, read from SITE.legalName.
+// No legal pages are linked because none exist yet.
 
-const COLS: Array<{
-  heading: string;
-  links: Array<{ href: string; label: string; external?: boolean }>;
-}> = [
+type FooterLink = { href: string; label: string; external?: boolean; note?: string };
+
+const COLS: Array<{ heading: string; links: FooterLink[] }> = [
   {
-    heading: "Product",
-    links: [
-      { href: "/#product", label: "See it work" },
-      { href: "/#factory", label: "Factory" },
-      { href: "/#books", label: "Books" },
-      { href: "/#complete", label: "Complete" },
-    ],
+    heading: "Products",
+    links: PRODUCTS.map((p) => ({
+      href: p.path,
+      label: p.name,
+      note: p.status === "in-development" ? STATUS_LABEL[p.status] : undefined,
+    })),
   },
   {
-    heading: "Explore",
+    heading: "Company",
     links: [
+      { href: "/#company", label: "Our approach" },
+      { href: "/#contact", label: "Contact" },
       { href: "/health-check", label: "Factory Health Check" },
-      { href: "/#faq", label: "FAQ" },
-      { href: "/#contact", label: "Book a demo" },
-      { href: SITE.app, label: "Open App", external: true },
     ],
   },
   {
-    heading: "Contact",
+    heading: "Get in touch",
     links: [
+      { href: DEMO_HREF, label: "Book a demo" },
+      { href: SITE.app, label: "Open App", external: true },
       { href: `mailto:${SITE.email}`, label: SITE.email, external: true },
       {
         href: SITE.whatsappLink,
@@ -41,15 +40,18 @@ const COLS: Array<{
   },
 ];
 
+const linkClass =
+  "rounded-sm text-slate-600 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900";
+
 export default function Footer() {
   return (
     <footer className="border-t border-slate-200 bg-white">
-      <div className="container-page py-14">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-12">
-          <div className="lg:col-span-4">
+      <div className="container-wide py-16">
+        <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-12">
+          <div className="lg:col-span-6">
             <Link
               href="/"
-              className="flex items-center gap-2.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              className="inline-flex items-center gap-2.5 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
             >
               {/* Same mark file as the Navbar. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -61,60 +63,56 @@ export default function Footer() {
                 className="h-7 w-7"
                 aria-hidden="true"
               />
-              <span className="text-sm font-semibold text-slate-900">Operza</span>
+              <span className="text-base font-semibold tracking-tight text-slate-900">
+                Operza
+              </span>
             </Link>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-slate-600">
-              Manufacturing software for Indian factories: materials, production
-              and dispatch on the floor, and the invoices, bills and books that
-              go with them.
-            </p>
-            <p className="mt-3 max-w-sm text-xs leading-5 text-slate-500">
-              Operza is a product of {SITE.legalName}.
+            <p className="mt-5 max-w-sm text-sm leading-6 text-slate-600">
+              Operza builds software for complex business workflows: Operza
+              Shift for manufacturing, and Operza Linspace, in development for
+              construction.
             </p>
           </div>
 
           {COLS.map((col) => (
-            <div key={col.heading} className="lg:col-span-2 lg:col-start-auto">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <div key={col.heading} className="lg:col-span-2">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {col.heading}
               </h2>
-              <ul className="mt-4 space-y-2.5 text-sm">
-                {col.links.map((l) =>
-                  l.external ? (
-                    <li key={l.href}>
+              <ul className="mt-4 space-y-3 text-sm">
+                {col.links.map((l) => (
+                  <li key={l.href}>
+                    {l.external ? (
                       <a
                         href={l.href}
                         target={l.href.startsWith("http") ? "_blank" : undefined}
-                        rel={
-                          l.href.startsWith("http")
-                            ? "noopener noreferrer"
-                            : undefined
-                        }
-                        className="text-slate-600 transition hover:text-slate-900"
+                        rel={l.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                        className={linkClass}
                       >
                         {l.label}
                       </a>
-                    </li>
-                  ) : (
-                    <li key={l.href}>
-                      <Link
-                        href={l.href}
-                        className="text-slate-600 transition hover:text-slate-900"
-                      >
+                    ) : (
+                      <Link href={l.href} className={linkClass}>
                         {l.label}
                       </Link>
-                    </li>
-                  ),
-                )}
+                    )}
+                    {l.note && (
+                      <span className="mt-0.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-600">
+                        {l.note}
+                      </span>
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
           ))}
         </div>
 
-        <div className="mt-12 border-t border-slate-100 pt-6 text-xs text-slate-500">
+        <div className="mt-14 flex flex-col gap-2 border-t border-slate-100 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p>
             © {new Date().getFullYear()} {SITE.legalName}. All rights reserved.
           </p>
+          <p>Operza is based in India.</p>
         </div>
       </div>
     </footer>

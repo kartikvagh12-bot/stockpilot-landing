@@ -3,13 +3,12 @@
 **Read this section first. Everything below "Historical log" is out of date
 unless it is explicitly marked current.**
 
-This section separates two things that must not be confused:
-
-* **Live today**: what `www.operza.in` actually serves from `main`.
-* **Approved target**: the Founder-approved multi-product direction
-  (2026-11-17). None of the target routes, pages or the assistant exist yet.
-  Do not describe them as implemented, in docs or on the site, until the PR
-  that ships them merges.
+The site is now multi-product: `/` is the Operza company homepage, `/shift` is
+Operza Shift, `/linspace` is Operza Linspace (in development) and
+`/health-check` is unchanged. This was built as one release candidate (GAD v1
+PR 2, combining the cutover and the Linspace page at the Founder's request).
+It reaches production only when the Founder approves it visually and it is
+merged. Until then, `main` serves the earlier single-product site.
 
 ## Approved direction (Founder, 2026-11-17)
 
@@ -39,19 +38,26 @@ Operza.
   information, when it is introduced. Do not ship a placeholder box that does
   not answer. Avoid prominently branding it "Ask Operza AI".
 
-### Target routes (planned, not live)
 
-| Route | Target | Status |
-|---|---|---|
-| `/` | Operza company homepage | Planned. Today `/` is the manufacturing product homepage. |
-| `/shift` | Operza Shift product page: today's homepage story, demos and plans | Planned. Does not exist. |
-| `/linspace` | Operza Linspace, clearly labelled in development | Planned. Does not exist. |
-| `/health-check` | Existing Manufacturing Health Check | **Live.** Stays a working route; scoring frozen. |
+### Routes
+
+| Route | What it is |
+|---|---|
+| `/` | Operza company homepage: hero, What we build, Operza Shift, Operza Linspace, Our approach, Contact. |
+| `/shift` | Operza Shift: the previous homepage's manufacturing story, moved whole (pearl-relief intro, founder hero, interactive examples, plans, product sections, Health Check callout, FAQ, demo-request form). |
+| `/linspace` | Operza Linspace, labelled in development. `noindex`, no form, no structured data. |
+| `/health-check` | The Manufacturing Health Check. Scoring frozen; its "Book a demo" links go to `/shift#contact`. |
+
+Old homepage fragment links (`/#factory`, `/#books`, `/#costing`,
+`/#complete`, `/#product`, `/#plans`, `/#faq`) are forwarded client-side to the
+same section on `/shift` by `components/LegacyAnchorForward.tsx`. `/#contact`
+stays on the homepage, whose contact section leads with the demo booking.
 
 ### Delivery rules for this programme
 
-* **`/` and `/shift` change together in one atomic cutover PR.** No production
-  period where the same product content is served on two URLs.
+* **`/` and `/shift` change together.** Done atomically in the release
+  candidate: there is no state of `main` where the same product content is
+  served on two URLs.
 * **Each implementation PR updates its own docs and marketing tests.** The
   guards in `scripts/` are rewritten in the same PR that changes the surface
   they pin, never deferred to a cleanup PR.
@@ -63,115 +69,91 @@ Operza.
   ChatGPT reviews, Claude Code inspects, implements and tests. Every PR is
   reviewed on its exact GitHub diff before merge.
 
-### Proposed PR sequence (each needs its own authorisation)
+### Founder decisions made
 
-1. Product registry and navigation groundwork, no visible change (`lib/site.ts`,
-   `Navbar`, `Footer`, nav guards).
-2. **Atomic cutover**: create `/shift` from the current homepage composition and
-   replace `/` with the company homepage in the same PR, with metadata,
-   structured data, sitemap, Open Graph cards, old-anchor handling, both
-   guards and this file updated together.
-3. `/linspace` pre-launch page, with its own claim guard.
-4. Assistant, only after its open decisions are made: verified knowledge
-   content and a claims test set first, then the working endpoint and the
-   "Ask anything about Operza..." input together.
+From the PR #22 review (2026-11-17):
 
-### Founder decisions already made (2026-11-17, PR #22 review)
+1. **The manufacturing introduction and hero move to `/shift`.** Done. The
+   intro keeps its pearl-relief design and its approved wording, with
+   "Operza" made "Operza Shift" where it names the product ("What is Operza
+   Shift?"). The hero keeps its founder-set headline.
+2. **Organization structured data uses `name: "Operza"`** and
+   `legalName: SITE.legalName`. Done, on the homepage.
+3. **"Open App" keeps its label and its destination (`SITE.app`).** Done.
 
-These are approved. Each is implemented in the cutover PR, not before.
+From the PR 2 brief (2026-11-17, provisional copy, minor edits allowed):
 
-1. **The manufacturing introduction and hero move to `/shift`.** The existing
-   "What is Operza?" intro (with its pearl-relief design) and the hero with
-   its founder-set headline become part of the Operza Shift page. The exact
-   rewritten Shift wording of the intro, and the company homepage `h1`, are
-   still open (below).
-2. **Organization structured data uses `name: "Operza"`** and keeps
-   `legalName: "Operza Technologies Private Limited"`, read from
-   `SITE.legalName`. Section I of `scripts/test-marketing-foundation.mjs` is
-   rewritten in the same PR.
-3. **"Open App" keeps its label and its existing destination (`SITE.app`,
-   `https://app.operza.in`) on the company homepage.** Not to be renamed after
-   Operza Shift.
+4. **Company homepage**: eyebrow "Software for complex work", headline
+   "Complex work. Clearer possibilities.", supporting line "Operza builds
+   software for complex business workflows. Our first product serves
+   manufacturing, and we're developing our next for construction." Sections:
+   hero, What we build ("Different industries. One approach."), Operza Shift,
+   Operza Linspace, Our approach ("Software shaped around real work."),
+   contact, footer. Pinned by section M of the copy guard.
+5. **Operza Linspace for the release candidate**: heading "A clearer way to
+   work with construction information.", `noindex`, no early-access sign-up
+   or waiting list, generic company contact only. Revisitable after review.
+6. **Visual direction**: Architectural and Editorial. Deep charcoal hero,
+   large editorial type, pearl-white sections, restrained red, linework drawn
+   in CSS and inline SVG, no animation dependency, reduced motion honoured.
+7. **Health Check callout** stays on `/shift` only; the homepage links the
+   Health Check from the navbar and footer.
 
-### Open Founder decisions (not yet made)
+### Open Founder decisions
 
-1. The exact rewritten Operza Shift copy for the moved intro (for example a
-   "What is Operza Shift?" label), and the company homepage `h1`.
-2. Linspace: the approved wording, whether `/linspace` is indexed or
-   `noindex`, and how early interest is handled, if at all.
-3. Linspace vocabulary: the copy guard bans the phrase "cost intelligence"
-   site-wide because it is retired Operza Shift vocabulary. If Linspace copy
-   needs that phrase, the guard must be scoped deliberately, not loosened.
-4. Approved company-level copy (what the company does, location, approach).
-   Without it, company claims stay minimal rather than invented.
-5. Whether the company homepage keeps a Health Check callout or only `/shift`
-   does.
-6. Assistant: provider, model, dependency, budget, conversation logging and
-   retention, and how it answers pricing questions.
+1. **Visual approval** of the release candidate as a whole.
+2. Final company-level copy. The homepage copy is the Founder's provisional
+   direction; nothing beyond it (history, team, customers, achievements) is
+   on the site.
+3. Linspace later: indexing, early-interest handling, and any vocabulary that
+   would need the site-wide "cost intelligence" ban scoped deliberately.
+4. Assistant: provider, model, dependency, budget, conversation logging and
+   retention, and how it answers pricing questions. The homepage leaves room
+   under the hero copy; nothing stands in for it.
 
-## Live today (as served from `main`)
+## Site architecture
 
-Routes: `/` (manufacturing product homepage), `/health-check`, `/sitemap.xml`,
-`/robots.txt`, and Open Graph and Twitter images for both pages.
+* **Product registry**: `PRODUCTS` in `lib/site.ts` names Operza Shift
+  (`/shift`, `available`, Manufacturing) and Operza Linspace (`/linspace`,
+  `in-development`, Construction), both `pageLive: true`. Marketing identity
+  only: no plans, features or capabilities, which stay in `operza-app`. The
+  navbar's Products menu, the footer, the homepage index and every status
+  label read from it (`STATUS_LABEL`).
+* **Navigation**: Products menu (a click disclosure: keyboard, touch, Escape
+  and outside-click all close it), Company (`/#company`), Health Check, Open
+  App, Book a demo (`DEMO_HREF`). Mobile sheet lists the same.
+* **Footer**: Operza as the brand, product, company and contact columns. The
+  registered name appears once, in the copyright line, from
+  `SITE.legalName`. No legal pages are linked because none exist.
+* **Metadata**: the root layout carries company defaults (title template
+  `%s | Operza`). `/shift` and `/linspace` set their own title, description,
+  canonical URL and social card. Social cards come from `CARDS` in
+  `lib/og-card.tsx` (company, Shift, Linspace; the Health Check shares the
+  Shift card), in Operza red.
+* **Structured data**: Organization and WebSite on `/`; SoftwareApplication
+  ("Operza Shift", from the registry) and FAQPage on `/shift`; none on
+  `/linspace`.
+* **Sitemap**: `/`, `/shift`, `/health-check`. Not `/linspace` (noindex).
+* **Artwork** (`components/art/`): `TangleToOrder` (company hero: tangled
+  workflows through a frame into ordered lanes, one in red), `ShiftFlow`
+  (the plan boundaries as a diagram: only Operza Complete joins floor and
+  books, in red), `PlanDrawing` (an architectural plan with one room taken
+  off in red). Drawn once on load with `.draw`/`.appear`; reduced motion
+  shows them finished.
 
-Homepage composition (`app/page.tsx`): Navbar, then `OperzaIntro`, `Hero`,
-`ProductExperience`, `Plans`, `RunYourFactory`, `Costing`, `RunYourBooks`,
-`CompleteSection`, `HealthCheckCallout`, `FAQ`, `Contact`, then Footer.
+The approved pearl-relief intro (`components/OperzaIntro.tsx`, restored
+exactly from `9c62a8e`) now opens `/shift`. Treat the relief as the approved
+design: refine it, do not replace it, without Founder direction. Its copy is
+pinned by section L of `scripts/test-marketing-copy.mjs`.
 
-The homepage opens with a short "What is Operza?" introduction
-(`components/OperzaIntro.tsx`) before the hero. Its copy is locked
-(founder-approved 2026-09-29) and pinned by section L of
-`scripts/test-marketing-copy.mjs`:
-
-> What is Operza?
->
-> Operza is a web-based manufacturing operations and accounting platform
-> built for manufacturers.
->
-> It helps digitize the day-to-day flow of a manufacturing business, from
-> materials, products and BOMs through production, packing, inventory and
-> dispatch, while also supporting sales, purchases, costing, payments and
-> financial records.
->
-> Instead of information being scattered across spreadsheets, registers and
-> disconnected tools, Operza gives manufacturers a structured system for
-> recording and understanding the work happening across the business.
-
-It is a light section with the approved **pearl-relief** background (CSS only,
-no image; restored exactly from commit `9c62a8e`), dark slate copy, and red
-text in `text-brand-600` only. The hero is the page's only `h1`. Treat the
-relief as the approved design: refine it, do not replace it, without Founder
-direction. Under the new direction it describes Operza Shift and moves to
-`/shift` in the cutover (approved decision 1); its rewritten wording is open
-decision 1.
-
-Homepage headline (founder-set, 2026-09-10), pinned by K1:
+Operza Shift's hero headline (founder-set, 2026-09-10), pinned by K1:
 
 > Run what you make, what you move, what you sell, and the books behind it.
 
-Current positioning line, which after the cutover becomes **Operza Shift's**
-positioning rather than the company's:
+Operza Shift's positioning (no longer the company definition):
 
-> Operza is manufacturing software for Indian factories. It runs the shop floor
-> and the business books, and in Operza Complete they are one system.
-
-Legal identity today: the footer reads "Operza is a product of
-{SITE.legalName}" and the copyright names `SITE.legalName`. The Organization
-JSON-LD uses `SITE.legalName` for `name` and `legalName` with `alternateName`
-"Operza"; the SoftwareApplication JSON-LD and `SITE.name` are "Operza". Pinned
-by section I of `scripts/test-marketing-foundation.mjs`. The footer line and
-the Organization `name` change in the cutover, with that section rewritten in
-the same PR.
-
-Product registry (PR 1 groundwork): `PRODUCTS` in `lib/site.ts` names Operza
-Shift (`/shift`, status `available`) and Operza Linspace (`/linspace`, status
-`in-development`), each with `pageLive: false`. It is marketing identity only:
-no plans, features or capabilities, which stay in `operza-app`. Nothing renders
-it yet. Section J of `scripts/test-marketing-foundation.mjs` holds it to the
-truth: `pageLive` must match whether `app/<path>/page.tsx` exists, every
-internal link on the site must resolve to an existing page or public asset,
-and nothing (links or sitemap) may point at a product page that is not live.
-The PR that creates a product page flips its `pageLive` to `true`.
+> Operza Shift is manufacturing software for Indian factories. It runs the shop
+> floor and the business books, and in Operza Complete they are one system.
 
 ## Product truth (Operza Shift)
 
@@ -180,14 +162,16 @@ markets the product; it never defines it. `operza-app/docs/PROJECT_STATE.md`
 is its current-status truth. Before writing or changing any customer-facing
 claim, verify it against that repository's current source.
 
-Last checked (read-only, 2026-11-17) against `operza-app` `main`:
+Last checked (read-only, 2026-11-17, for the multi-product release
+candidate) against `operza-app` `main`:
 
 ```
-b0077fcaffed3622a82efd447cd0644d68653b81
+b676a075b5dcfa6ad46d19e19df5440277220920
 ```
 
-(The live marketing copy was last verified against `c22d89f`, 2026-09-29. The
-check above found every live claim still true.)
+The three commits since the previous check (`b0077fc`) are internal cost-engine
+documentation and test harnesses; no customer-facing claim changed. Every
+Operza Shift claim on the site was found still true.
 
 Three customer-selectable plans, declared in `operza-app/lib/capabilities.ts`
 and named on its onboarding screen:
@@ -235,6 +219,11 @@ Facts current at `b0077fc` that copy and any future assistant must respect:
   from there, in legal and footer contexts and structured data. Never use it
   as a headline, product name or public brand.
 * **Marketing prose contains zero em dashes (U+2014).**
+* **Never ship a fake assistant.** No input, text area or "Ask anything"
+  prompt appears until the assistant works (guarded by M7).
+* **Operza Linspace promises nothing.** In development, stated in words; no
+  dates, pricing, launch, beta, waiting list or sign-up; `noindex`; no
+  structured data (guarded by section N).
 * **No product screenshots.** The Operza Shift story is told by the interactive
   examples in `components/demos/`: local state, invented values, each labelled
   "Interactive example". Never put customer or sample-workspace data on the
@@ -242,34 +231,35 @@ Facts current at `b0077fc` that copy and any future assistant must respect:
 * **Brand is black, white and one red**, `#f31820`, sampled from the logo and
   held in the `brand` scale. Restrained: emphasis, active tab, selected state,
   small rules. Not an error colour. Keep the existing logo.
-* **Open App is a website function** and belongs in the navbar, the hero and
-  the closing area, including on the company homepage, always resolving
-  through `SITE.app`. Do not relabel it "Sign in" or rename it after a
-  product (approved decision 3).
+* **Open App is a website function**, always resolving through `SITE.app`.
+  It is in the navbar on every page, in the Operza Shift hero, and in the
+  closing area of both the homepage and `/shift`. The company hero carries
+  the two Founder-approved actions instead ("Explore our products", "Book a
+  demo"). Do not relabel it "Sign in" or rename it after a product (approved
+  decision 3).
 * **No invented pricing**, no free-trial or "no credit card" implication, no
   fabricated metrics, testimonials, customer logos, release dates or ROI
   claims.
-* **Lead capture stays on its working path**: `components/Contact.tsx` inserts
-  into Supabase `demo_requests`. Extend it by prefixing the existing `message`
+* **Lead capture stays on its working path**: `components/Contact.tsx`, on
+  `/shift`, inserts into Supabase `demo_requests`. It is the site's only form:
+  every "Book a demo" resolves to it through `DEMO_HREF` (`/shift#contact`),
+  and the homepage and `/linspace` offer contact details, not a second form. Extend it by prefixing the existing `message`
   field, not by changing the schema. The table's migration still lives only in
   the retired `Inventory_tracker` repository; that ownership risk is open.
+
 
 ## Superseded by the 2026-11-17 direction
 
 * "Operza is manufacturing software for Indian factories" as the **company**
-  definition. It becomes Operza Shift's positioning.
-* The rule that the homepage must carry the manufacturing hero headline, the
-  "What is Operza?" intro and the Health Check callout. These hold on the live
-  site until the cutover PR, which moves the intro and hero to `/shift`
-  (approved decision 1) and settles the callout under open decision 5.
-* The Organization JSON-LD `name` being the legal name. It becomes "Operza"
-  in the cutover (approved decision 2).
-* "Operza is a product of Operza Technologies Private Limited" as the footer
-  wording. Reviewed in the cutover; the legal name stays in the footer.
+  definition. It is Operza Shift's positioning.
+* The homepage carrying the manufacturing hero, the "What is Operza?" intro
+  and the Health Check callout. They live on `/shift`.
+* The Organization JSON-LD `name` being the legal name, and the footer line
+  "Operza is a product of Operza Technologies Private Limited". Both removed.
 
-Everything else above (vocabulary, claim boundaries, no em dashes, no
-screenshots, black/white/red, Open App, no invented pricing or metrics, frozen
-Health Check scoring) remains in force.
+Everything else (vocabulary, claim boundaries, no em dashes, no screenshots,
+black/white/red, Open App, no invented pricing or metrics, frozen Health Check
+scoring) remains in force.
 
 ## What is stale below
 
@@ -366,6 +356,22 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-17 — Multi-product release candidate (GAD v1 PR 2)
+
+At the Founder's request, the `/`-and-`/shift` cutover and the Linspace page
+were built together as one visual release candidate, to be approved on its
+Vercel Preview before release. The old homepage moved to `app/shift/page.tsx`
+(a `git mv`, so its history follows it) with its intro and hero reworded only
+where they named the product. A new company homepage, a `/linspace`
+pre-launch page, a registry-driven navbar and footer, per-route metadata and
+social cards, and client-side forwarding of old homepage anchors were added.
+`PRODUCTS` entries flipped to `pageLive: true`. Both guards were rewritten in
+the same PR (copy guard: per-page anchor resolution, sections M and N;
+foundation guard: sections A, B, D, E, G, H, I) and each new rule was
+mutation-tested. The local `npm run build` still dies with SIGSEGV while
+rendering the `next/og` images, exactly as on unmodified `main`; the Vercel
+Preview build is the authoritative build.
 
 ## 2026-11-17 — Multi-product direction recorded (documentation only)
 

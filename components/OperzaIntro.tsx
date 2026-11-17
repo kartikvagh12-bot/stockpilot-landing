@@ -1,6 +1,8 @@
-// Orientation before the hero. A cold visitor meets the hero's headline about
-// what Operza lets them run before anything has said what Operza is, so this
-// defines the software first. It does not explain the plans: Factory, Books
+// Orientation before the hero on the Operza Shift page. A cold visitor meets
+// the hero's headline about what Operza Shift lets them run before anything has
+// said what it is, so this defines the product first. Since the multi-product
+// cutover (2026-11-17) it defines Operza Shift, not all of Operza: the company
+// is introduced on the homepage. It does not explain the plans: Factory, Books
 // and Complete are covered further down the page. It is an introduction, not
 // a feature section: no CTA, no card behind the copy. The hero stays the main
 // marketing statement and keeps the page's only h1.
@@ -157,10 +159,10 @@ export default function OperzaIntro() {
             id="operza-intro-label"
             className="text-sm font-semibold uppercase tracking-[0.14em] text-brand-600"
           >
-            What is Operza?
+            What is Operza Shift?
           </p>
           <p className="mt-3 text-[21px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 sm:mt-4 sm:text-3xl lg:text-[2rem]">
-            Operza is a web-based{" "}
+            Operza Shift is a web-based{" "}
             <span className="text-brand-600">
               manufacturing operations and accounting platform
             </span>{" "}
@@ -175,7 +177,7 @@ export default function OperzaIntro() {
             </p>
             <p>
               Instead of information being scattered across spreadsheets,
-              registers and disconnected tools, Operza gives manufacturers a
+              registers and disconnected tools, Operza Shift gives manufacturers a
               structured system for recording and understanding the work
               happening across the business.
             </p>

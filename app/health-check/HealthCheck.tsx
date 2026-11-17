@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SITE } from "@/lib/site";
+import { DEMO_HREF, SITE } from "@/lib/site";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Assessment data
@@ -371,7 +371,7 @@ function Header() {
             Open App
           </a>
           <Link
-            href="/#contact"
+            href={DEMO_HREF}
             className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#05070f] transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#05070f]"
           >
             Book a demo
@@ -906,7 +906,7 @@ function CTA() {
               Operza that matter to you.
             </p>
             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/#contact" className="btn-invert w-full sm:w-auto">
+              <Link href={DEMO_HREF} className="btn-invert w-full sm:w-auto">
                 Book a demo
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -934,7 +934,7 @@ function FooterLite() {
           <Link href="/" className="transition hover:text-white">
             Home
           </Link>
-          <Link href="/#contact" className="transition hover:text-white">
+          <Link href={DEMO_HREF} className="transition hover:text-white">
             Book a demo
           </Link>
           <a

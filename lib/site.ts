@@ -11,15 +11,19 @@ export const SITE = {
   whatsappLink: "https://wa.me/918733865541",
 } as const;
 
-// Every entry points at something that exists: three homepage sections and the
-// Health Check route. Contact is not a text link because "Book a demo" is the
-// filled button, and Open App sits beside it.
+// The text links beside the Products menu. Products themselves come from
+// PRODUCTS below, so the menu and the registry cannot disagree. Contact is not
+// a text link because "Book a demo" is the filled button, and Open App sits
+// beside it.
 export const NAV_LINKS = [
-  { href: "/#product", label: "Product" },
-  { href: "/#factory", label: "Factory" },
-  { href: "/#books", label: "Books" },
+  { href: "/#company", label: "Company" },
   { href: "/health-check", label: "Health Check" },
 ] as const;
+
+// Where "Book a demo" goes from anywhere on the site. The demo-request form
+// lives on the Operza Shift page, because Operza Shift is the product a demo
+// can show today.
+export const DEMO_HREF = "/shift#contact";
 
 // The Operza products, as this website names them. Operza is the parent brand;
 // each product is listed once here so names, paths and status cannot drift
@@ -42,6 +46,8 @@ export type Product = {
   readonly path: `/${string}`;
   readonly pageLive: boolean;
   readonly status: ProductStatus;
+  /** The industry the product is for. Identity, not a feature claim. */
+  readonly industry: string;
 };
 
 export const PRODUCTS = [
@@ -52,8 +58,9 @@ export const PRODUCTS = [
     id: "shift",
     name: "Operza Shift",
     path: "/shift",
-    pageLive: false,
+    pageLive: true,
     status: "available",
+    industry: "Manufacturing",
   },
   {
     // Planned construction product. Not launched: no dates, pricing or
@@ -61,9 +68,19 @@ export const PRODUCTS = [
     id: "linspace",
     name: "Operza Linspace",
     path: "/linspace",
-    pageLive: false,
+    pageLive: true,
     status: "in-development",
+    industry: "Construction",
   },
 ] as const satisfies readonly Product[];
 
 export type ProductId = (typeof PRODUCTS)[number]["id"];
+
+export const SHIFT = PRODUCTS[0];
+export const LINSPACE = PRODUCTS[1];
+
+/** How a product's status reads to a visitor. One wording, everywhere. */
+export const STATUS_LABEL: Record<ProductStatus, string> = {
+  available: "Available",
+  "in-development": "In development",
+};

@@ -18,7 +18,7 @@ type Plan = {
   emphasis?: boolean;
 };
 
-const PLANS: Plan[] = [
+export const PLANS: Plan[] = [
   {
     name: "Operza Factory",
     tagline: "Run the floor: inventory, production and dispatch.",
@@ -64,10 +64,11 @@ export default function Plans() {
       <div className="container-wide">
         <div className="max-w-2xl">
           <span className="eyebrow">How Operza is set up</span>
-          <h2 className="h-section">Three ways to run Operza.</h2>
+          <h2 className="h-section">Three ways to run Operza Shift.</h2>
           <p className="p-section">
             You choose what your workspace does when you set it up. Screens you
-            do not need never appear in the menu.
+            do not need never appear in the menu. Inside the app, the three
+            plans carry exactly these names.
           </p>
         </div>
 

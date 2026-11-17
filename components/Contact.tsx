@@ -100,11 +100,11 @@ export default function Contact() {
         <div className="grid items-start gap-14 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
             <span className="eyebrow-invert">Talk to us</span>
-            <h2 className="mt-6 h-deep">Book a demo.</h2>
+            <h2 className="mt-6 h-deep">Book an Operza Shift demo.</h2>
             <p className="p-deep">
               Tell us what you make and where the process currently breaks, and
-              we will tailor the demo around the parts of Operza that matter to
-              you.
+              we will tailor the demo around the parts of Operza Shift that
+              matter to you.
             </p>
 
             {/* Existing customers land here too, so the way back into the

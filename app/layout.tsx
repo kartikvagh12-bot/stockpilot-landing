@@ -10,21 +10,20 @@ const inter = Inter({
 
 const SITE_URL = "https://www.operza.in";
 
-// Positioning lock (2026-09): Operza is manufacturing software for Indian
-// factories that runs the shop floor and the business books. The connected
-// floor-plus-books behaviour belongs to Operza Complete specifically, so the
-// shared metadata below states the scope without claiming the connection for
-// every workspace. Product truth: operza-app @ c3580741.
-const TITLE =
-  "Operza: manufacturing software that runs your factory and your books";
+// Company-level defaults. Operza is the parent brand (Founder direction,
+// 2026-11-17): Operza Shift serves manufacturing today and Operza Linspace,
+// for construction, is in development. Product pages set their own title,
+// description, canonical URL and social card; these defaults describe the
+// company and are what the homepage uses.
+const TITLE = "Operza: software for complex work";
 
 const DESCRIPTION =
-  "Manufacturing software for Indian factories. Track materials, production, packing and dispatch, and keep the invoices, bills, payments and books that go with them.";
+  "Operza builds software for complex business workflows. Operza Shift runs manufacturing operations and accounting today, and Operza Linspace, for construction, is in development.";
 
-const SOCIAL_TITLE = "Operza: run your factory and your books in one system";
+const SOCIAL_TITLE = "Operza: Complex work. Clearer possibilities.";
 
 const SOCIAL_DESCRIPTION =
-  "Manufacturing software for Indian factories. Materials, production, packing and dispatch on the floor. Invoices, bills, payments and statements in the books. Exports for TallyPrime.";
+  "Operza builds software for complex business workflows. Our first product serves manufacturing, and we are developing our next for construction.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -34,17 +33,12 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   keywords: [
-    "manufacturing software India",
-    "factory management software",
-    "production and inventory software",
-    "BOM software",
-    "manufacturing accounting software",
-    "inventory and accounting software India",
-    "TallyPrime export",
-    "MSME manufacturing software",
-    "product costing software",
-    "manufacturing ERP India",
     "Operza",
+    "Operza Shift",
+    "Operza Linspace",
+    "business workflow software",
+    "manufacturing software India",
+    "manufacturing accounting software",
   ],
   authors: [{ name: "Operza" }],
   creator: "Operza",

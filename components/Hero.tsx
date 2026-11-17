@@ -25,7 +25,7 @@ export default function Hero() {
       <div className="container-wide pt-20 pb-20 sm:pt-28 lg:pt-32 lg:pb-28">
         <div className="max-w-5xl animate-fade-up">
           <span className="eyebrow-invert">
-            Manufacturing software for Indian factories
+            Operza Shift: manufacturing software for Indian factories
           </span>
           {/* text-balance only: the sizing and the measure are unchanged.
               Left to itself the line broke as 27 / 28 / 16 characters on a
@@ -38,7 +38,7 @@ export default function Hero() {
             behind it.
           </h1>
           <p className="mt-7 max-w-2xl text-base leading-7 text-white/70 sm:text-lg sm:leading-8">
-            Operza records what comes into the factory, what gets made, packed
+            Operza Shift records what comes into the factory, what gets made, packed
             and dispatched, and the invoices, bills and payments around it. With
             Operza Complete, the shop floor and the books stay connected.
           </p>
@@ -60,7 +60,7 @@ export default function Hero() {
               href="#product"
               className="inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-3.5 text-sm font-semibold text-white/60 underline-offset-4 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
-              Explore Operza
+              See it work
             </a>
           </div>
 
