@@ -1,10 +1,10 @@
 # Operza website assistant: knowledge and evaluation foundation
 
-The future assistant on operza.in ("Ask anything about Operza...") answers
-visitors' questions about Operza, Operza Shift and Operza Linspace. **This
-folder and `lib/assistant/` are its foundation only.** There is no endpoint,
-no model call, no chat input on the site, and no AI dependency. The runtime
-and the homepage input come in a separate PR, after this one is reviewed.
+The assistant on operza.in ("Ask anything about Operza...") answers visitors'
+questions about Operza, Operza Shift and Operza Linspace. This file covers
+its knowledge and evaluation (PR #25). The runtime, the homepage input, the
+security controls, costs and setup are in `RUNTIME.md` (PR #26); the
+assistant ships switched off until the Founder configures it.
 
 ## Layout
 
@@ -20,6 +20,15 @@ and the homepage input come in a separate PR, after this one is reviewed.
 | `scripts/test-assistant-knowledge.mjs` | Offline guard: `npm run test:assistant`. |
 | `scripts/verify-assistant-sources.mjs` | Citation check against `operza-app`: `npm run verify:assistant-sources`. |
 | `docs/assistant/MODEL_PLAN.md` | Candidate models and the runtime plan. Not a decision. |
+| `docs/assistant/RUNTIME.md` | How the live assistant works, every control, Founder setup, costs, privacy. |
+| `lib/assistant/runtime/` | Configuration, request handler, model call, limits, validation and served prompt. |
+| `app/api/assistant/route.ts` | The public endpoint, wiring the real BotID, WAF rate limit and AI Gateway. |
+| `components/AskOperza.tsx` | The homepage input, rendered only when the assistant is configured. |
+| `scripts/test-assistant-endpoint.mjs` | Offline security tests: `npm run test:assistant-endpoint`. |
+| `lib/assistant/client/` | Browser conversation state machine and streaming client. |
+| `scripts/test-assistant-conversation.mjs` | Conversation recovery tests: `npm run test:assistant-conversation`. |
+| `lib/assistant/evals/judge.ts`, `report.ts` | Semantic grading (human or model judge) and the report that keeps it apart from pattern checks. |
+| `scripts/assistant-eval-live.mjs` | Live evaluation with a hard budget: `npm run eval:assistant`. |
 
 ## How the knowledge base avoids becoming a second authority
 

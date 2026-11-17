@@ -117,10 +117,14 @@ From the PR #25 brief (2026-11-17):
    on the site.
 2. Linspace later: indexing, early-interest handling, and any vocabulary that
    would need the site-wide "cost intelligence" ban scoped deliberately.
-3. Assistant runtime: the model (after live evaluation), budget and spend
-   cap, conversation logging and retention, rate limiting, and where the
-   input sits on the homepage. The knowledge base answers pricing questions
-   with "discussed during a demo"; changing that is a Founder decision.
+3. Assistant (PR #26 built it switched off): the Founder actions in
+   `docs/assistant/RUNTIME.md` (AI Gateway access, the project budget, the
+   `assistant-visitor` WAF rule, Preview protection bypass, Preview-only
+   environment variables), an approved budget for the paid evaluation, the
+   model choice after it, whether to enable zero data retention (needs
+   purchased AI Gateway credits on Hobby), and production release. The
+   knowledge base answers pricing with "discussed during a demo"; changing
+   that is a Founder decision.
 
 ## Site architecture
 
@@ -166,11 +170,47 @@ Operza Shift's positioning (no longer the company definition):
 > Operza Shift is manufacturing software for Indian factories. It runs the shop
 > floor and the business books, and in Operza Complete they are one system.
 
-## Assistant foundation (`lib/assistant/`, not rendered)
+## Assistant (`lib/assistant/`, `/api/assistant`, `components/AskOperza.tsx`)
 
-The knowledge base, behaviour rules and evaluation set for the future
-"Ask anything about Operza..." assistant. Nothing imports it into a page,
-there is no endpoint and no model call. See `docs/assistant/README.md`.
+The "Ask anything about Operza..." assistant. **Implemented in PR #26 and
+switched off**: it fails closed unless an environment is fully configured,
+and production needs `ASSISTANT_ALLOW_PRODUCTION=true` on top. While off, the
+endpoint answers 503 without a model call and the homepage renders exactly
+as before (no input, no BotID script). Setup, controls, costs and privacy:
+`docs/assistant/RUNTIME.md`; knowledge and evaluation: `docs/assistant/README.md`.
+
+* `runtime/config.ts` (fail-closed configuration, the only place that reads
+  the environment), `runtime/handler.ts` (origin, size, BotID, WAF rate
+  limit, validation, model call; dependencies injected for testing),
+  `runtime/generate.ts` (the one AI SDK call: AI Gateway, no tools, no
+  retries), `runtime/models.ts` (the two approved model ids and prices),
+  `runtime/limits.ts`, `runtime/validate.ts`, `runtime/prompt.ts`.
+* The spending cap is the AI Gateway **project budget**, set by the Founder;
+  never a prompt or browser counter. Logs carry no visitor text, IP or user
+  agent. Nothing is stored.
+* `lib/assistant/client/` (browser): `conversation.ts`, the conversation
+  state machine (only finished answers are ever sent back as history; every
+  request has an id and events from a request that is no longer current are
+  ignored), `requests.ts`, which starts one request per id with no shared
+  in-flight flag, and `stream.ts`, the streaming client. Tested by
+  `test:assistant-conversation`, including overlapping requests.
+* `ASSISTANT_BUDGET_CONFIRMED` is a manual assertion, not proof. Before any
+  activation, the Gateway budget and the published `assistant-visitor` WAF
+  rule are verified independently (activation checklist in RUNTIME.md).
+  Production also needs `ASSISTANT_ALLOWED_ORIGINS=https://www.operza.in`.
+* Evaluation never reports pattern checks as accuracy: deterministic checks,
+  semantic accuracy (human review or a paid model judge, `evals/judge.ts`),
+  unevaluated cases and measured cost are reported apart (`evals/report.ts`),
+  with a release gate on the critical categories measured against the full
+  case inventory: every critical case exactly once per model, and the run
+  itself complete (not `--cases`-filtered, not budget-stopped, recorded in
+  `run.json`), so partial or interrupted runs never pass. No model has been evaluated yet.
+* BotID is wired (client, server, `withBotId` in `next.config.mjs` only when
+  enabled) and tested offline; real bot detection is unvalidated until a
+  configured Preview is checked.
+* `npm run test:assistant-endpoint`, `npm run test:assistant-conversation`
+  (offline) and `npm run eval:assistant` (dry-run cost estimate; a paid run
+  needs `--run`, `--budget-usd` and a Gateway key).
 
 * `knowledge.ts`: every statement is labelled product-fact, limitation,
   marketing-copy, policy or unknown. Product facts and limitations cite
@@ -265,8 +305,13 @@ Facts current at `b676a07` that copy and any future assistant must respect:
   from there, in legal and footer contexts and structured data. Never use it
   as a headline, product name or public brand.
 * **Marketing prose contains zero em dashes (U+2014).**
-* **Never ship a fake assistant.** No input, text area or "Ask anything"
-  prompt appears until the assistant works (guarded by M7).
+* **Never ship a fake assistant.** The only assistant input is
+  `components/AskOperza.tsx`, rendered only when `isAssistantAvailable()` is
+  true (guarded by M7, M7b, I5 and the endpoint tests). Never a disabled or
+  pretend box, never branded "Ask Operza AI".
+* **The assistant fails closed and never activates in production by
+  accident.** Do not weaken `runtime/config.ts`, add model tools, add
+  retries, log visitor content, or add a second AI package without a review.
 * **Operza Linspace promises nothing.** In development, stated in words; no
   dates, pricing, launch, beta, waiting list or sign-up; `noindex`; no
   structured data (guarded by section N).
@@ -402,6 +447,64 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-18 — PR #26 R3 correction
+
+The release gate now also requires a complete, uninterrupted run: the
+`partial` and `stoppedForBudget` flags (from `run.json`, or the paid run
+itself) block eligibility even when all 23 critical cases are present and
+pass, and a review without a run record is not eligible. Applied to both the
+paid-run report and `--grade-review`; 6 planted defects, all caught.
+
+## 2026-11-18 — PR #26 R2 corrections
+
+Two issues from the R2 review. (1) A request race: "New conversation" during
+an answer followed at once by a question could let the abandoned request's
+late events (its "stopped", its words) land on the new conversation, or
+leave the new question waiting behind the old request's in-flight flag.
+Every request now has an id that is never reused, every network event is
+tagged with it and the reducer ignores stale ones; `client/requests.ts`
+starts one request per id with no shared flag. Deterministic async tests
+drive overlapping requests through the real runner (including requests that
+ignore the abort), and the fix was confirmed in the real component in a
+browser with a stubbed fetch. (2) The release gate counted only the results
+supplied; it now measures against the full inventory (every critical case
+exactly once per requested model), so filtered and budget-stopped runs
+cannot pass, and the CLI records the requested models in `run.json`.
+10 planted defects, all caught.
+
+## 2026-11-17 — PR #26 R1 corrections
+
+Conversation recovery moved into a pure state machine
+(`lib/assistant/client/`): failed, stopped and interrupted exchanges stay
+visible but are never sent as history; a real bug (the held-back tail of a
+partial answer was dropped on Stop or failure) was found by the new tests
+and fixed. Evaluation gained a semantic stage (human review by default, a
+paid model judge optional) and a report that separates deterministic checks,
+semantic accuracy, unevaluated cases and measured cost, with a critical-
+category release gate. `withBotId` is applied in `next.config.mjs` when the
+assistant is enabled (installed botid README; Vercel docs say it is now
+automatic), with integration checks; live detection remains unvalidated.
+`ASSISTANT_BUDGET_CONFIRMED` is documented as a manual assertion with an
+independent activation checklist, and production now requires
+`ASSISTANT_ALLOWED_ORIGINS=https://www.operza.in`.
+
+## 2026-11-17 — Working assistant, switched off (GAD v1 PR #26)
+
+Built the "Ask anything about Operza..." assistant end to end on the PR #25
+knowledge: `/api/assistant` (AI SDK 7 through AI Gateway, OIDC on Vercel, no
+tools, no retries, 500-token answers, 25 s cap), a hero input with streaming
+answers, follow-ups, safe whitelisted links and loading, error, rate-limited
+and unavailable states, Vercel BotID and WAF rate limiting through
+`@vercel/firewall`, strict validation, and content-free logs. Compatibility
+was verified before installing (`ai` 7.0.173 needs Node >= 22; the project is
+on Node 24.x; AI SDK 7 renamed `system` to `instructions` and `textStream`
+hides errors, so the code uses `stream`). Everything fails closed and is off:
+no Gateway credentials, budget or WAF rule existed, so no paid call or live
+evaluation was made and the Preview shows the unchanged homepage. With the
+assistant off, the homepage was compared with `main`: identical text, classes
+and element count. The PR #24/#25 "no assistant yet" guards were rewritten
+as allow-lists (M6, M7, M7b-d, I1-I5); 8 planted defects were all caught.
 
 ## 2026-11-17 — Assistant knowledge and evaluation foundation (GAD v1 PR #25)
 
