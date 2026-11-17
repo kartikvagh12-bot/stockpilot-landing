@@ -12,7 +12,10 @@
 //                                      budget; not the candidate itself
 //                                      unless --allow-self-judge
 //   4. report        deterministic, semantic, unevaluated and measured cost,
-//                    plus the critical-category release gate (report.ts)
+//                    plus the critical-category release gate (report.ts),
+//                    always measured against the FULL case inventory: a run
+//                    filtered with --cases or stopped by its budget reports
+//                    the missing critical cases and is never eligible
 //
 //   npm run eval:assistant                                    # dry run, no calls
 //   AI_GATEWAY_API_KEY=... npm run eval:assistant -- --run --budget-usd 1.00
@@ -33,7 +36,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { CASES } = await import("../lib/assistant/evals/cases.ts");
 const { grade } = await import("../lib/assistant/evals/grade.ts");
 const { buildJudgePrompt, parseVerdict, blankVerdict } = await import("../lib/assistant/evals/judge.ts");
-const { summarise, describe } = await import("../lib/assistant/evals/report.ts");
+const { summarise, describe, requiredCriticalCases } = await import("../lib/assistant/evals/report.ts");
 const { buildSystemPrompt } = await import("../lib/assistant/runtime/prompt.ts");
 const { MODEL_CATALOG, estimateCostUsd } = await import("../lib/assistant/runtime/models.ts");
 const { LIMITS } = await import("../lib/assistant/runtime/limits.ts");
@@ -54,10 +57,14 @@ const caseById = new Map(CASES.map((c) => [c.id, c]));
 if (value("grade-review")) {
   const dir = resolve(value("grade-review"));
   const answers = JSON.parse(readFileSync(join(dir, "answers.json"), "utf8"));
+  // The models the run was asked to evaluate, so one that produced no
+  // answers still appears, and is not eligible.
+  const run = existsSync(join(dir, "run.json")) ? JSON.parse(readFileSync(join(dir, "run.json"), "utf8")) : {};
   const verdicts = existsSync(join(dir, "verdicts.json")) ? JSON.parse(readFileSync(join(dir, "verdicts.json"), "utf8")) : {};
   const results = answers.map((r) => {
     const c = caseById.get(r.caseId);
     const v = verdicts?.[r.model]?.[r.caseId];
+    if (!c) return { ...r, semantic: { status: "unevaluated", reason: "case is not in the evaluation inventory" } };
     // A verdict with any item still null has not been reviewed.
     const reviewed = v && [...(v.facts ?? []), ...(v.distinctions ?? [])].every((x) => typeof x?.met === "boolean");
     const semantic = r.answer === null
@@ -65,8 +72,9 @@ if (value("grade-review")) {
       : reviewed ? parseVerdict(c, v) : { status: "unevaluated", reason: "not reviewed" };
     return { ...r, semantic };
   });
-  writeFileSync(join(dir, "report.json"), JSON.stringify({ when: new Date().toISOString(), summary: summarise(results), results }, null, 2));
-  for (const s of summarise(results)) console.log(describe(s).join("\n"));
+  const summary = summarise(results, { inventory: CASES, models: Array.isArray(run.models) ? run.models : undefined });
+  writeFileSync(join(dir, "report.json"), JSON.stringify({ when: new Date().toISOString(), summary, results }, null, 2));
+  for (const s of summary) console.log(describe(s).join("\n"));
   console.log(`Report: ${join(dir, "report.json")}`);
   process.exit(0);
 }
@@ -82,6 +90,12 @@ if (judge !== "human") {
 }
 const only = value("cases")?.split(",").map((s) => s.trim());
 const cases = only ? CASES.filter((c) => only.includes(c.id)) : CASES;
+if (only) {
+  const unknown = only.filter((id) => !caseById.has(id));
+  if (unknown.length) fail(`unknown case id(s): ${unknown.join(", ")}`);
+  const skipped = requiredCriticalCases(CASES).filter((c) => !only.includes(c.id)).length;
+  if (skipped) console.log(`Partial run (--cases): ${skipped} required critical case(s) are not included, so no model can be found eligible for release.`);
+}
 const instructions = buildSystemPrompt();
 
 // Pessimistic token estimate: about 3.5 characters per token for English;
@@ -189,6 +203,7 @@ outer: for (const id of models) {
 const dir = join(ROOT, "eval-results", `run-${new Date().toISOString().replace(/[:.]/g, "-")}`);
 mkdirSync(dir, { recursive: true });
 writeFileSync(join(dir, "answers.json"), JSON.stringify(results, null, 2));
+writeFileSync(join(dir, "run.json"), JSON.stringify({ models, cases: cases.map((c) => c.id), partial: !!only, judge, budgetUsd: budget, spentUsd: spent, stoppedForBudget }, null, 2));
 if (judge === "human") {
   const blank = {};
   const md = ["# Semantic review", "", "For each answer, mark every fact and distinction met (true) or not met (false) in verdicts.json, and list any unsupported claims. Then run:", "", `    npm run eval:assistant -- --grade-review ${dir}`, ""];
@@ -200,8 +215,9 @@ if (judge === "human") {
   writeFileSync(join(dir, "verdicts.json"), JSON.stringify(blank, null, 2));
   writeFileSync(join(dir, "review.md"), md.join("\n"));
 }
-const summary = summarise(results);
+const summary = summarise(results, { inventory: CASES, models });
 writeFileSync(join(dir, "report.json"), JSON.stringify({ when: new Date().toISOString(), budgetUsd: budget, spentUsd: spent, stoppedForBudget, judge, summary }, null, 2));
 for (const s of summary) console.log(describe(s).join("\n"));
 console.log(`\nMeasured spend: $${spent.toFixed(4)} of $${budget}. Results: ${dir}`);
+if (stoppedForBudget) console.log("The run stopped at its budget: cases it did not reach count as missing, so the release gate cannot pass.");
 if (judge === "human") console.log("Semantic accuracy is NOT evaluated until review.md is reviewed and verdicts.json filled in.");

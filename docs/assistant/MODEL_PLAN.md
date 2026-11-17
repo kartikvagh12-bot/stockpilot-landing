@@ -63,3 +63,6 @@ must decide. Neither should be chosen on price alone.
    unevaluated cases and measured cost (`evals/report.ts`), and require every
    critical-category case (pricing, prompt injection, data access, GST,
    Tally, Linspace) to pass both stages before a candidate can go live.
+   Every required critical case from the full inventory must be present
+   exactly once per candidate: a partial (`--cases`) or budget-stopped run
+   can never approve a model.

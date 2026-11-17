@@ -297,7 +297,7 @@ section("I. THE ASSISTANT REACHES THE SITE ONLY THROUGH ITS APPROVED SEAMS");
      importers.sort().join() === "app/api/assistant/route.ts,app/layout.tsx,app/page.tsx,components/AskOperza.tsx", importers.join(", "));
   ok("(I4c) ...and the input imports only the browser-side client modules",
      importsOf("components/AskOperza.tsx").filter((s) => /lib\/assistant/.test(s)).sort().join()
-       === "@/lib/assistant/client/conversation,@/lib/assistant/client/stream");
+       === "@/lib/assistant/client/conversation,@/lib/assistant/client/requests");
   ok("(I4b) ...and the layout and homepage import only its fail-closed config",
      ["app/layout.tsx", "app/page.tsx"].every((f) => importsOf(f).filter((s) => /lib\/assistant/.test(s)).join() === "@/lib/assistant/runtime/config"));
   // Rendered code only: a comment that says the assistant will come later is
@@ -355,22 +355,57 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
     semantic: sem === "unevaluated" ? { status: "unevaluated", reason: "x" } : { status: sem, verdict: { facts: [], distinctions: [], unsupportedClaims: [] } },
     latencyMs: 100, answerCostUsd: cost, judgeCostUsd: cost / 2,
   });
-  const full = CRITICAL_CATEGORIES.map((cat) => row(`${cat}-1`, cat, true, "pass"));
-  const good = summarise(full)[0];
-  ok("(J11) all critical cases passing both stages: eligible", good.critical.eligible && good.semantic.pass === full.length);
-  const unevaluated = summarise([...full.slice(1), row("pricing-1", "pricing", true, "unevaluated")])[0];
+  // The gate is measured against the full inventory of critical cases.
+  const { requiredCriticalCases } = await import("../lib/assistant/evals/report.ts");
+  const critical = requiredCriticalCases(CASES);
+  const inv = { inventory: CASES };
+  const full = critical.map((c) => row(c.id, c.category, true, "pass"));
+  const swap = (id, r) => full.map((x) => (x.caseId === id ? r : x));
+  const first = critical[0];
+  const good = summarise(full, inv)[0];
+  ok(`(J11) every required critical case (${critical.length}) passing both stages, once each: eligible`,
+     good.critical.eligible && good.semantic.pass === full.length && good.criticalCoverage.runOnce === critical.length
+     && critical.length === CASES.filter((c) => CRITICAL_CATEGORIES.includes(c.category)).length && critical.length >= 20);
+  const unevaluated = summarise(swap(first.id, row(first.id, first.category, true, "unevaluated")), inv)[0];
   ok("(J12) a critical case not yet semantically evaluated blocks release",
      !unevaluated.critical.eligible && unevaluated.semantic.unevaluated === 1);
-  const keywordOnly = summarise([...full.slice(1), row("pricing-1", "pricing", true, "fail")])[0];
+  const keywordOnly = summarise(swap(first.id, row(first.id, first.category, true, "fail")), inv)[0];
   ok("(J13) passing the pattern checks but failing semantics blocks release",
      !keywordOnly.critical.eligible && keywordOnly.deterministic.pass === full.length);
-  const missing = summarise(full.filter((r) => r.category !== "linspace"))[0];
+  const missing = summarise(full.filter((r) => r.category !== "linspace"), inv)[0];
   ok("(J14) a critical category with no cases run blocks release", !missing.critical.eligible);
+  const oneMissing = summarise(full.slice(1), inv)[0];
+  ok("(J14b) one required critical case missing, its category still represented: blocks release",
+     !oneMissing.critical.eligible && oneMissing.criticalCoverage.missing.join() === first.id
+     && full.slice(1).some((r) => r.category === first.category));
+  const dup = summarise([...full, row(first.id, first.category, true, "pass")], inv)[0];
+  ok("(J14c) a critical case reported twice for the same model blocks release",
+     !dup.critical.eligible && dup.criticalCoverage.duplicated.join() === first.id);
+  const relabelled = summarise([...full.slice(1), row(first.id, "company", true, "fail"), row("made-up-case", "pricing", true, "pass")], inv)[0];
+  ok("(J14d) the gate trusts the inventory's categories, not the result rows, and flags unknown cases",
+     !relabelled.critical.eligible && relabelled.critical.blockers.some((b) => b.includes("inventory says"))
+     && relabelled.critical.blockers.includes(`${first.id}: semantic check failed`)
+     && relabelled.critical.blockers.some((b) => b.startsWith("made-up-case")));
+  const filtered = summarise(full.filter((r) => r.category === "pricing"), inv)[0];
+  ok("(J14e) a run filtered to some cases (--cases) is never eligible, even if all it ran passed",
+     !filtered.critical.eligible && filtered.criticalCoverage.missing.length === critical.length - full.filter((r) => r.category === "pricing").length);
+  const twoModels = summarise(full, { inventory: CASES, models: ["m", "openai/never-reached"] });
+  ok("(J14f) a candidate that produced no results (budget stop) is listed and not eligible",
+     twoModels.length === 2 && twoModels[0].critical.eligible && !twoModels[1].critical.eligible
+     && twoModels[1].criticalCoverage.missing.length === critical.length);
+  const perModel = summarise([...full, ...full.slice(1).map((r) => ({ ...r, model: "n" }))], inv);
+  ok("(J14g) coverage is counted per model: one model's results never cover another's",
+     perModel.find((x) => x.model === "m").critical.eligible && !perModel.find((x) => x.model === "n").critical.eligible);
+  let threw = false;
+  try { summarise(full, { inventory: CASES.filter((c) => c.category === "company") }); } catch { threw = true; }
+  ok("(J14h) a filtered inventory with no critical cases is refused, not treated as vacuously eligible", threw);
   ok("(J15) answer and judging costs are measured separately",
      Math.abs(good.measuredCostUsd.answers - full.length * 0.001) < 1e-12 && Math.abs(good.measuredCostUsd.judging - full.length * 0.0005) < 1e-12);
   const text = describe(unevaluated).join("\n");
   ok("(J16) the report never presents pattern checks as accuracy",
      /Deterministic checks \(patterns only, not accuracy\)/.test(text) && /Semantic accuracy/.test(text) && /not yet evaluated/.test(text));
+  ok("(J16b) the report states critical coverage and missing cases",
+     /Critical cases run exactly once: \d+\/\d+ \(\d+ missing\)/.test(describe(oneMissing).join("\n")));
 
   // The evaluator's offline review merge, end to end, from fixture files.
   const { mkdtempSync, writeFileSync: wf, readFileSync: rf } = await import("node:fs");
@@ -391,6 +426,47 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   const merged = JSON.parse(rf(join(dir, "report.json"), "utf8")).summary[0];
   ok("(J17) a human review merges offline: reviewed cases graded, unreviewed ones left unevaluated",
      merged.semantic.pass === 1 && merged.semantic.unevaluated === 1 && !merged.critical.eligible);
+
+  // The CLI's release gate, end to end from fixture files: one full, clean
+  // run is eligible; every way of being incomplete is not.
+  const review = (answers, { run, verdictFor = () => true } = {}) => {
+    const d = mkdtempSync(join(tmpdir(), "assistant-gate-"));
+    wf(join(d, "answers.json"), JSON.stringify(answers));
+    const v = {};
+    for (const r of answers) {
+      const c = CASES.find((x) => x.id === r.caseId);
+      if (!c) continue;
+      (v[r.model] ??= {})[r.caseId] = { facts: c.expect.facts.map(() => ({ met: verdictFor(r) })),
+        distinctions: (c.expect.distinctions ?? []).map(() => ({ met: true })), unsupportedClaims: [] };
+    }
+    wf(join(d, "verdicts.json"), JSON.stringify(v));
+    if (run) wf(join(d, "run.json"), JSON.stringify(run));
+    execFileSync(process.execPath, ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--grade-review", d], { cwd: ROOT, stdio: "ignore" });
+    return JSON.parse(rf(join(d, "report.json"), "utf8")).summary;
+  };
+  const ans = (c, model = "m") => ({ model, caseId: c.id, category: c.category, answer: c.reference, deterministic: grade(c, c.reference), latencyMs: 1, answerCostUsd: 0.001, judgeCostUsd: 0 });
+  const allCritical = critical.map((c) => ans(c));
+  ok("(J17b) CLI: every critical case answered once and reviewed as met: eligible",
+     review(allCritical)[0].critical.eligible === true);
+  ok("(J17c) CLI: one critical case missing (a --cases run): not eligible",
+     review(allCritical.slice(1))[0].critical.eligible === false);
+  ok("(J17d) CLI: a critical case appearing twice: not eligible",
+     review([...allCritical, ans(critical[0])])[0].critical.eligible === false);
+  ok("(J17e) CLI: one critical fact reviewed as not met: not eligible",
+     review(allCritical, { verdictFor: (r) => r.caseId !== critical[0].id })[0].critical.eligible === false);
+  const budgetStop = review(allCritical, { run: { models: ["m", "openai/gpt-6.1-terra"], stoppedForBudget: true } });
+  ok("(J17f) CLI: a model the budget stopped before it answered is reported and not eligible",
+     budgetStop.length === 2 && budgetStop.find((x) => x.model === "openai/gpt-6.1-terra")?.critical.eligible === false);
+  const dry = execFileSync(process.execPath, ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--cases", critical[0].id], { cwd: ROOT, encoding: "utf8" });
+  ok("(J17g) CLI: a --cases run is announced as partial and unable to make any model eligible",
+     /Partial run \(--cases\): \d+ required critical case\(s\) are not included/.test(dry) && /Nothing was sent/.test(dry));
+  let refused = false;
+  try { execFileSync(process.execPath, ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--cases", "no-such-case"], { cwd: ROOT, stdio: "pipe" }); } catch (e) { refused = e.status === 2; }
+  ok("(J17h) CLI: an unknown --cases id is refused", refused);
+  const cli = read("scripts/assistant-eval-live.mjs");
+  ok("(J17i) CLI: both reports measure against the full inventory and every requested model",
+     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 2 && /run\.json/.test(cli));
+
   const src = read("scripts/assistant-eval-live.mjs");
   ok("(J18) the evaluator defaults to free human review and refuses a self-judging model",
      /value\("judge"\) \?\? "human"/.test(src) && /would judge its own answers/.test(src)

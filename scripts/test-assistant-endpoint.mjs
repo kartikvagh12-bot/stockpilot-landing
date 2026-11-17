@@ -291,7 +291,7 @@ section("H. THE BROWSER SIDE STAYS SMALL AND HONEST");
 {
   const ui = read("components/AskOperza.tsx");
   // Browser code is the component plus the client modules it imports.
-  const clientLib = ["lib/assistant/client/conversation.ts", "lib/assistant/client/stream.ts"];
+  const clientLib = ["lib/assistant/client/conversation.ts", "lib/assistant/client/requests.ts", "lib/assistant/client/stream.ts"];
   const uiCode = [ui, ...clientLib.map(read)].join("\n").replace(/^\s*\/\/.*$/gm, "");
   ok("(H1) the prominent prompt is exactly 'Ask anything about Operza...'", ui.includes('"Ask anything about Operza..."'));
   ok("(H2) ...and is never branded 'Ask Operza AI'", !/Ask Operza AI/i.test(ui));
@@ -325,6 +325,9 @@ section("H. THE BROWSER SIDE STAYS SMALL AND HONEST");
      /Thinking/.test(ui) && /Try again/.test(ui) && /rate_limited:/.test(ui) && /unavailable:/.test(ui));
   ok("(H14) the visitor is told answers are AI-written and not to share personal details",
      /written by AI/.test(ui) && /don&apos;t share personal or financial details/.test(ui));
+  ok("(H14b) requests are started by the shared runner, keyed by request identity, with no shared in-flight flag",
+     /runner\.sync\(state\)/.test(ui) && !/inFlight/.test(uiCode) && /pending\.requestId <= lastStarted/.test(read("lib/assistant/client/requests.ts"))
+     && /emit: \(event\) => dispatch\(\{ \.\.\.event, requestId \}\)/.test(read("lib/assistant/client/requests.ts")));
   // No client component may import the server runtime (which would bundle it).
   const clientFiles = [];
   const walk = (d) => readdirSync(join(ROOT, d), { withFileTypes: true }).forEach((e) =>

@@ -51,6 +51,7 @@ any action.
 | Forged history | A client can send invented "assistant" turns | Accepted risk: it can only influence its own conversation; caps keep it small, and the instructions outrank history. |
 | Misconfiguration | Fails closed on any missing setting, an unknown model, a missing WAF rule, or a BotID or rate-limit failure | `config.ts` and the handler |
 | Broken conversations | Only finished answers are sent back as history; failed, stopped or interrupted exchanges stay visible but are never reused, so history is always valid alternating turns | `lib/assistant/client/conversation.ts`, tested by `test:assistant-conversation` (including a 20,000-event random walk against the server's validator) |
+| Overlapping requests | Every request has its own id (a counter that "New conversation" never resets) and every network event carries it; the reducer ignores events from any request that is no longer current, so an abandoned request can never change a newer conversation. Requests are started once per id by `client/requests.ts`, with no shared "in flight" flag, so New conversation followed at once by a question, or a retry, is never blocked by an older request winding down | `lib/assistant/client/conversation.ts`, `lib/assistant/client/requests.ts`, tested by section H of `test:assistant-conversation` (hand-driven overlapping requests through the real runner, including requests that ignore the abort and keep sending) |
 | Wrong production origin | Production requires `ASSISTANT_ALLOWED_ORIGINS` to name `https://www.operza.in` explicitly | `config.ts` |
 | Accidental production launch | `ASSISTANT_ALLOW_PRODUCTION=true` required in production, on top of `ASSISTANT_ENABLED` | `config.ts` |
 
@@ -200,7 +201,17 @@ The evaluator keeps four results apart and never reports one as another:
 **Release gate** (`lib/assistant/evals/report.ts`): a model is eligible only
 if every case in the critical categories (pricing, prompt injection, data
 access, GST, Tally, Linspace) passes **both** the deterministic and the
-semantic stage, with none unevaluated.
+semantic stage, with none unevaluated. Coverage is measured against the
+**full case inventory** (`CASES`, 23 critical cases today), not against the
+results in hand: every required critical case must appear exactly once for
+each candidate model. A missing, duplicated, failed or unevaluated critical
+case blocks the model; so does a result whose case id is not in the
+inventory or whose category disagrees with it (the inventory's category is
+the one used). A run filtered with `--cases` is announced as partial and
+cannot make any model eligible; a run stopped by its budget records every
+requested model in `run.json`, so a model it never reached is reported, with
+all its critical cases missing, rather than silently dropped. The offline
+`--grade-review` merge applies the same rules.
 
 Commands: `npm run eval:assistant` (dry run, worst-case cost per stage, no
 calls); a paid run needs `--run`, `--budget-usd <amount>` and

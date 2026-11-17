@@ -12,8 +12,15 @@
 // own validator, and a seeded random walk of thousands of events checks the
 // invariant: history never has two visitor turns in a row and never contains
 // an unfinished answer.
+//
+// Section H runs the component's real request runner
+// (lib/assistant/client/requests.ts) against a hand-driven fake network, so
+// overlapping requests (New conversation during an answer, then an immediate
+// question; retry while the old request is still winding down; events that
+// arrive late from an abandoned request) are replayed deterministically.
 // ---------------------------------------------------------------------------
-const { reduce, initialConversation, requestMessages, isBusy, canRetry } = await import("../lib/assistant/client/conversation.ts");
+const { reduce, initialConversation, requestMessages, pendingRequest, isBusy, canRetry } = await import("../lib/assistant/client/conversation.ts");
+const { createRequestRunner } = await import("../lib/assistant/client/requests.ts");
 const { streamAnswer, STREAM_ERROR_MARKER } = await import("../lib/assistant/client/stream.ts");
 const { validateConversation } = await import("../lib/assistant/runtime/validate.ts");
 
@@ -64,12 +71,12 @@ function fakeFetch({ status = 200, script = [], rejectWith } = {}) {
 
 /** Run one request for the waiting exchange; returns the final state. */
 async function send(state, fetchSpec, { abortAfterMs } = {}) {
-  const messages = requestMessages(state);
+  const { messages, requestId } = pendingRequest(state);
   const controller = new AbortController();
   let s = state;
   const { impl, calls } = fakeFetch(fetchSpec);
   if (abortAfterMs !== undefined) setTimeout(() => controller.abort(), abortAfterMs);
-  await streamAnswer(messages, { fetchImpl: impl, signal: controller.signal, emit: (e) => (s = reduce(s, e)) });
+  await streamAnswer(messages, { fetchImpl: impl, signal: controller.signal, emit: (e) => (s = reduce(s, { ...e, requestId })) });
   return { state: s, sent: calls[0]?.body?.messages ?? messages };
 }
 
@@ -205,20 +212,31 @@ section("G. RANDOM WALK: HISTORY IS ALWAYS VALID");
   // Seeded, so a failure is reproducible.
   let seed = 20261117;
   const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+  let s = initialConversation;
+  // Network events mostly carry the current request's id, sometimes a stale
+  // one (an abandoned request reporting late), which must change nothing.
+  const id = () => (rand() < 0.8 ? s.exchanges.at(-1)?.requestId ?? 0 : Math.floor(rand() * (s.lastRequestId + 1)));
   const EVENTS = [
     () => ({ type: "ask", question: `q${Math.floor(rand() * 1000)}` }),
-    () => ({ type: "chunk", text: rand() < 0.2 ? "" : `w${Math.floor(rand() * 100)} ` }),
-    () => ({ type: "finished" }),
-    () => ({ type: "failed", problem: ["rate_limited", "unavailable", "too_long", "failed"][Math.floor(rand() * 4)] }),
-    () => ({ type: "stopped" }),
+    () => ({ type: "chunk", text: rand() < 0.2 ? "" : `w${Math.floor(rand() * 100)} `, requestId: id() }),
+    () => ({ type: "finished", requestId: id() }),
+    () => ({ type: "failed", problem: ["rate_limited", "unavailable", "too_long", "failed"][Math.floor(rand() * 4)], requestId: id() }),
+    () => ({ type: "stopped", requestId: id() }),
     () => ({ type: "retry" }),
     () => ({ type: "reset" }),
   ];
-  let s = initialConversation;
   let requests = 0;
+  let staleIgnored = 0;
   let bad = null;
   for (let i = 0; i < 20000 && !bad; i++) {
-    s = reduce(s, EVENTS[Math.floor(rand() * EVENTS.length)]());
+    const e = EVENTS[Math.floor(rand() * EVENTS.length)]();
+    const current = s.exchanges.at(-1)?.requestId;
+    const next = reduce(s, e);
+    if ("requestId" in e && e.requestId !== current) {
+      staleIgnored++;
+      if (next !== s) bad = { i, msgs: ["stale event changed state", e] };
+    }
+    s = next;
     const msgs = requestMessages(s);
     if (!msgs) continue;
     requests++;
@@ -228,6 +246,220 @@ section("G. RANDOM WALK: HISTORY IS ALWAYS VALID");
   }
   ok(`(G1) every one of ${requests} requests in a 20,000-event random walk is valid and uses finished answers only`,
      !bad && requests > 1000, bad ? JSON.stringify(bad.msgs).slice(0, 300) : "");
+  ok(`(G2) none of the ${staleIgnored} events from stale requests changed anything`, !bad && staleIgnored > 500);
+  ok("(G3) request ids are never reused, not even after New conversation",
+     (() => { let t = reduce(initialConversation, { type: "ask", question: "a" }); const a = t.exchanges[0].requestId;
+              t = reduce(reduce(t, { type: "reset" }), { type: "ask", question: "b" }); return t.exchanges[0].requestId > a; })());
+}
+
+/* ========================================================================= */
+section("H. OVERLAPPING REQUESTS, DRIVEN BY HAND THROUGH THE REAL RUNNER");
+/* ========================================================================= */
+{
+  const abortError = () => Object.assign(new Error("aborted"), { name: "AbortError" });
+  const flush = async () => { for (let i = 0; i < 5; i++) await tick(); };
+
+  /** A network whose every request is driven step by step by the test.
+   *  `honorAbort: false` models a request that keeps delivering after it was
+   *  abandoned, so only the request identity can keep it out. */
+  function network() {
+    const calls = [];
+    const fetchImpl = (url, init) => {
+      const call = { body: JSON.parse(init.body), signal: init.signal, honorAbort: true, controller: null };
+      call.promise = new Promise((resolve, reject) => { call.resolveFetch = resolve; call.rejectFetch = reject; });
+      init.signal.addEventListener("abort", () => {
+        if (!call.honorAbort) return;
+        if (!call.controller) call.rejectFetch(abortError());
+        else { try { call.controller.error(abortError()); } catch {} }
+      }, { once: true });
+      call.respond = (status = 200) => {
+        if (status !== 200) return call.resolveFetch(new Response("{}", { status }));
+        const body = new ReadableStream({ start: (c) => { call.controller = c; } });
+        call.resolveFetch(new Response(body, { status: 200 }));
+      };
+      // After an abort the body is errored; further sends are simply lost.
+      call.push = (t) => { try { call.controller.enqueue(enc.encode(t)); } catch {} };
+      call.end = () => { try { call.controller.close(); } catch {} };
+      calls.push(call);
+      return call.promise;
+    };
+    return { calls, fetchImpl };
+  }
+
+  /** The component's wiring: reducer + runner, the runner synced after every
+   *  state change (as the component's effect does). `afterEvent` lets a test
+   *  act at the exact moment an event lands, before any cleanup has run. */
+  function app({ afterEvent } = {}) {
+    const net = network();
+    const h = { state: initialConversation, ...net };
+    const dispatch = (e) => {
+      h.state = reduce(h.state, e);
+      h.runner.sync(h.state);
+      afterEvent?.(e, h);
+    };
+    h.runner = createRequestRunner({ fetchImpl: net.fetchImpl, dispatch });
+    h.dispatch = dispatch;
+    h.ask = (q) => dispatch({ type: "ask", question: q });
+    h.reset = () => { h.runner.abort(); dispatch({ type: "reset" }); };
+    h.stop = () => h.runner.abort();
+    return h;
+  }
+
+  // H1: New conversation during an answer, then a question at once.
+  {
+    const a = app();
+    a.ask("Old question");
+    a.calls[0].respond();
+    a.calls[0].push("Old answer, part ");
+    await flush();
+    a.reset();
+    a.ask("New question");
+    ok("(H1) after New conversation, the next question starts its own request at once",
+       a.calls.length === 2 && a.calls[0].signal.aborted && !a.calls[1].signal.aborted);
+    ok("(H1b) ...sending only the new question",
+       a.calls[1].body.messages.length === 1 && a.calls[1].body.messages[0].content === "New question");
+    await flush(); // the abandoned request reports its partial text and "stopped" now
+    ok("(H1c) the abandoned request's late 'stopped' and text do not touch the new conversation",
+       a.state.exchanges.length === 1 && last(a.state).question === "New question" && last(a.state).status === "waiting" && last(a.state).answer === "");
+    a.calls[1].respond();
+    a.calls[1].push("New answer.");
+    a.calls[1].end();
+    await flush();
+    ok("(H1d) ...and the new answer completes normally", last(a.state).status === "done" && last(a.state).answer === "New answer.");
+  }
+
+  // H2: the abandoned request keeps streaming and even finishes afterwards.
+  {
+    const a = app();
+    a.ask("Old question");
+    a.calls[0].honorAbort = false;
+    a.calls[0].respond();
+    a.calls[0].push("Old ");
+    await flush();
+    a.reset();
+    a.ask("New question");
+    a.calls[1].respond();
+    a.calls[0].push("LATE WORDS FROM THE OLD ANSWER");
+    a.calls[0].end();
+    await flush();
+    ok("(H2) words and a finish from an abandoned request never reach the new conversation",
+       a.state.exchanges.length === 1 && last(a.state).status === "waiting" && !last(a.state).answer.includes("LATE"));
+    a.calls[1].push("Fresh.");
+    a.calls[1].end();
+    await flush();
+    ok("(H2b) ...and the new request still completes", last(a.state).status === "done" && last(a.state).answer === "Fresh.");
+  }
+
+  // H3: New conversation before the old request even got a response, which
+  // then arrives late (a fetch that ignores the abort).
+  {
+    const a = app();
+    a.ask("Old question");
+    a.calls[0].honorAbort = false;
+    a.reset();
+    a.ask("New question");
+    a.calls[0].respond(503);
+    await flush();
+    ok("(H3) a late refusal for an abandoned request does not fail the new question",
+       a.calls.length === 2 && last(a.state).status === "waiting" && last(a.state).question === "New question");
+  }
+
+  // H4: Retry clicked the instant a failure lands, before the failed
+  // request's own cleanup has run.
+  {
+    let retried = false;
+    const a = app({ afterEvent: (e, h) => { if (e.type === "failed" && !retried) { retried = true; h.dispatch({ type: "retry" }); } } });
+    a.ask("Which plan has accounting?");
+    a.calls[0].respond(503);
+    await flush();
+    ok("(H4) a retry during the failed request's cleanup starts a new request at once (never stranded)",
+       a.calls.length === 2 && last(a.state).status === "waiting" && JSON.stringify(a.calls[1].body) === JSON.stringify(a.calls[0].body));
+    a.calls[1].respond();
+    a.calls[1].push("Operza Books and Operza Complete.");
+    a.calls[1].end();
+    await flush();
+    ok("(H4b) ...and the retried answer completes", last(a.state).status === "done");
+  }
+
+  // H5: Stop, then Ask again at once; the stopped request reports late.
+  {
+    const b = app();
+    b.ask("Explain Operza Complete");
+    b.calls[0].respond();
+    b.calls[0].push("Operza Complete connects the ");
+    await flush();
+    b.stop();
+    await flush();
+    ok("(H5b) Stop keeps the partial answer, marked stopped (unchanged)",
+       last(b.state).status === "stopped" && last(b.state).answer === "Operza Complete connects the ");
+    b.dispatch({ type: "retry" });
+    ok("(H5c) Ask again starts a fresh request with the same question",
+       b.calls.length === 2 && b.calls[1].body.messages.at(-1).content === "Explain Operza Complete" && last(b.state).answer === "");
+    await flush();
+    b.calls[1].respond();
+    b.calls[1].push("Operza Complete joins the floor and the books.");
+    b.calls[1].end();
+    await flush();
+    ok("(H5d) ...which completes without any of the stopped answer mixed in",
+       last(b.state).status === "done" && last(b.state).answer === "Operza Complete joins the floor and the books.");
+    b.ask("And Factory?");
+    const msgs = b.calls[2].body.messages;
+    ok("(H5e) follow-ups send only finished exchanges (unchanged)",
+       msgs.length === 3 && msgs[1].content === "Operza Complete joins the floor and the books." && historyIsValid(msgs));
+  }
+
+  // H6: an interrupted answer (server break marker) is unchanged.
+  {
+    const a = app();
+    a.ask("What is Linspace?");
+    a.calls[0].respond();
+    a.calls[0].push(`Operza Linspace is in devel${STREAM_ERROR_MARKER}`);
+    await flush();
+    ok("(H6) an interrupted answer stays visible as a failure (unchanged)",
+       last(a.state).status === "failed" && last(a.state).answer === "Operza Linspace is in devel");
+    a.ask("When is it launching?");
+    ok("(H6b) ...and is not sent as history", a.calls[1].body.messages.length === 1);
+  }
+
+  // H7: rapid churn. Reset and ask many times while every older request keeps
+  // sending; only the newest conversation is ever affected.
+  {
+    const a = app();
+    for (let i = 0; i < 25; i++) {
+      a.ask(`Question ${i}`);
+      a.calls[i].honorAbort = false;
+      a.calls[i].respond();
+      if (i < 24) a.reset();
+    }
+    for (let i = 0; i < 24; i++) { a.calls[i].push(`stale ${i}`); a.calls[i].end(); }
+    await flush();
+    a.calls[24].push("Only this.");
+    a.calls[24].end();
+    await flush();
+    ok("(H7) 25 overlapping requests: exactly one per question, and only the newest reaches the screen",
+       a.calls.length === 25 && a.state.exchanges.length === 1 && last(a.state).answer === "Only this." && last(a.state).status === "done");
+  }
+
+  // H8: syncing again with the same state never starts a duplicate request
+  // (React may run the effect twice in development).
+  {
+    const a = app();
+    a.ask("q");
+    a.runner.sync(a.state);
+    a.runner.sync(a.state);
+    ok("(H8) a waiting exchange is requested exactly once", a.calls.length === 1);
+  }
+
+  // H9: if a newer request ever becomes current while an older one is still
+  // running (even without an explicit abort), the runner cancels the older.
+  {
+    const a = app();
+    a.ask("Old");
+    a.dispatch({ type: "reset" }); // state change alone, no runner.abort()
+    a.ask("New");
+    ok("(H9) starting a newer request cancels any older one still running",
+       a.calls.length === 2 && a.calls[0].signal.aborted && !a.calls[1].signal.aborted);
+  }
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);

@@ -8,11 +8,10 @@ import {
   initialConversation,
   isBusy,
   reduce,
-  requestMessages,
   type Exchange,
   type Problem,
 } from "@/lib/assistant/client/conversation";
-import { streamAnswer } from "@/lib/assistant/client/stream";
+import { createRequestRunner, type RequestRunner } from "@/lib/assistant/client/requests";
 
 // "Ask anything about Operza...": the homepage's conversational input.
 //
@@ -21,8 +20,10 @@ import { streamAnswer } from "@/lib/assistant/client/stream";
 // nothing here, never a disabled or pretend box.
 //
 // Conversation state is the pure state machine in
-// lib/assistant/client/conversation.ts, and the network call is
-// lib/assistant/client/stream.ts; both are exercised by the offline tests.
+// lib/assistant/client/conversation.ts; requests are started and cancelled by
+// lib/assistant/client/requests.ts, one per requestId, so a request abandoned
+// by "New conversation" or replaced by a retry can never touch the newer one.
+// All three client modules are exercised by the offline tests.
 // Only finished answers are ever sent back as history: a failed, stopped or
 // interrupted exchange stays visible with its status but is never reused.
 //
@@ -163,8 +164,9 @@ function Status({ x, isLast, onRetry }: { x: Exchange; isLast: boolean; onRetry:
 export default function AskOperza() {
   const [state, dispatch] = useReducer(reduce, initialConversation);
   const [draft, setDraft] = useState("");
-  const abortRef = useRef<AbortController | null>(null);
-  const inFlight = useRef(false);
+  const runnerRef = useRef<RequestRunner | null>(null);
+  runnerRef.current ??= createRequestRunner({ fetchImpl: fetch, dispatch });
+  const runner = runnerRef.current;
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
@@ -173,21 +175,14 @@ export default function AskOperza() {
   const busy = isBusy(state);
   const started = state.exchanges.length > 0;
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => runner.abort(), [runner]);
 
-  // Start a request whenever the newest exchange is waiting (a new question
-  // or a retry). requestMessages sends finished exchanges only.
+  // Start the request whenever the newest exchange is waiting (a new question
+  // or a retry); each requestId is started once and sends finished exchanges
+  // only.
   useEffect(() => {
-    const messages = requestMessages(state);
-    if (!messages || inFlight.current) return;
-    inFlight.current = true;
-    const controller = new AbortController();
-    abortRef.current = controller;
-    void streamAnswer(messages, { fetchImpl: fetch, signal: controller.signal, emit: dispatch }).finally(() => {
-      inFlight.current = false;
-      if (abortRef.current === controller) abortRef.current = null;
-    });
-  }, [state]);
+    runner.sync(state);
+  }, [runner, state]);
 
   // Keep the newest words in view inside the conversation panel only.
   useEffect(() => {
@@ -203,11 +198,11 @@ export default function AskOperza() {
   }
 
   function stop() {
-    abortRef.current?.abort();
+    runner.abort();
   }
 
   function reset() {
-    abortRef.current?.abort();
+    runner.abort();
     dispatch({ type: "reset" });
     setDraft("");
     inputRef.current?.focus();

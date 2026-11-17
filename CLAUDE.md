@@ -189,8 +189,11 @@ as before (no input, no BotID script). Setup, controls, costs and privacy:
   never a prompt or browser counter. Logs carry no visitor text, IP or user
   agent. Nothing is stored.
 * `lib/assistant/client/` (browser): `conversation.ts`, the conversation
-  state machine (only finished answers are ever sent back as history), and
-  `stream.ts`, the streaming client. Tested by `test:assistant-conversation`.
+  state machine (only finished answers are ever sent back as history; every
+  request has an id and events from a request that is no longer current are
+  ignored), `requests.ts`, which starts one request per id with no shared
+  in-flight flag, and `stream.ts`, the streaming client. Tested by
+  `test:assistant-conversation`, including overlapping requests.
 * `ASSISTANT_BUDGET_CONFIRMED` is a manual assertion, not proof. Before any
   activation, the Gateway budget and the published `assistant-visitor` WAF
   rule are verified independently (activation checklist in RUNTIME.md).
@@ -198,8 +201,9 @@ as before (no input, no BotID script). Setup, controls, costs and privacy:
 * Evaluation never reports pattern checks as accuracy: deterministic checks,
   semantic accuracy (human review or a paid model judge, `evals/judge.ts`),
   unevaluated cases and measured cost are reported apart (`evals/report.ts`),
-  with a release gate on the critical categories. No model has been
-  evaluated yet.
+  with a release gate on the critical categories measured against the full
+  case inventory: every critical case exactly once per model, so partial or
+  budget-stopped runs never pass. No model has been evaluated yet.
 * BotID is wired (client, server, `withBotId` in `next.config.mjs` only when
   enabled) and tested offline; real bot detection is unvalidated until a
   configured Preview is checked.
@@ -442,6 +446,23 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-18 — PR #26 R2 corrections
+
+Two issues from the R2 review. (1) A request race: "New conversation" during
+an answer followed at once by a question could let the abandoned request's
+late events (its "stopped", its words) land on the new conversation, or
+leave the new question waiting behind the old request's in-flight flag.
+Every request now has an id that is never reused, every network event is
+tagged with it and the reducer ignores stale ones; `client/requests.ts`
+starts one request per id with no shared flag. Deterministic async tests
+drive overlapping requests through the real runner (including requests that
+ignore the abort), and the fix was confirmed in the real component in a
+browser with a stubbed fetch. (2) The release gate counted only the results
+supplied; it now measures against the full inventory (every critical case
+exactly once per requested model), so filtered and budget-stopped runs
+cannot pass, and the CLI records the requested models in `run.json`.
+10 planted defects, all caught.
 
 ## 2026-11-17 — PR #26 R1 corrections
 

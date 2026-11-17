@@ -1,4 +1,4 @@
-import type { ConversationEvent, Problem } from "@/lib/assistant/client/conversation";
+import type { Message, Problem, RequestEvent } from "@/lib/assistant/client/conversation";
 
 // Sends one question to /api/assistant and turns everything that can happen
 // into conversation events: a refusal before streaming, words arriving, a
@@ -17,11 +17,11 @@ export function problemForStatus(status: number): Problem {
 }
 
 export async function streamAnswer(
-  messages: { role: "user" | "assistant"; content: string }[],
+  messages: Message[],
   options: {
     fetchImpl: typeof fetch;
     signal: AbortSignal;
-    emit: (event: ConversationEvent) => void;
+    emit: (event: RequestEvent) => void;
   },
 ): Promise<void> {
   const { fetchImpl, signal, emit } = options;
