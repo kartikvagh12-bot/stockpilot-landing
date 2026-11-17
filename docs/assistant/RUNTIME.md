@@ -171,6 +171,11 @@ to another model.
   BotID's own fixed path) and keeps the existing redirect. It is applied only
   when `ASSISTANT_ENABLED=true` at build time, so with the assistant off the
   configuration is exactly as before.
+- Observed on the PR #26 Preview (`ad1b991`, assistant off, so no wrapper):
+  BotID's challenge script path already returned Vercel's 24 KB
+  `text/javascript` (an unknown path returned 404), confirming Vercel routes
+  BotID at the platform level as its docs say. The wrapper is therefore
+  redundant today; it is kept, gated, as a guard against that changing.
 - `test:assistant-endpoint` section J proves the wiring (both
   configurations, the protected path, the server check). **It does not prove
   that BotID detects bots.** That can only be observed on a deployed,
