@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AskOperza from "@/components/AskOperza";
 import TangleToOrder from "@/components/art/TangleToOrder";
 import { DEMO_HREF, PRODUCTS, STATUS_LABEL } from "@/lib/site";
 
@@ -11,10 +12,12 @@ import { DEMO_HREF, PRODUCTS, STATUS_LABEL } from "@/lib/site";
 // passing through a frame and leaving as ordered lanes. Below the copy, an
 // index of the products, so discovery starts in the first screen.
 //
-// Room is left under the copy for the future "Ask anything about Operza..."
-// assistant. Nothing stands in for it: no input appears until it works.
+// The "Ask anything about Operza..." input sits under the actions, but only
+// when the server has confirmed the assistant is fully configured (the
+// `assistant` prop, from lib/assistant/runtime/config.ts). Otherwise nothing
+// is rendered there: never a disabled or pretend box.
 
-export default function CompanyHero() {
+export default function CompanyHero({ assistant = false }: { assistant?: boolean }) {
   return (
     <section className="section-deep">
       {/* Drafting columns: hairline verticals at the page's column rhythm. */}
@@ -30,7 +33,14 @@ export default function CompanyHero() {
       </div>
 
       <div className="container-wide pt-16 pb-14 sm:pt-24 lg:pt-28 lg:pb-16">
-        <div className="grid items-center gap-y-10 lg:grid-cols-12 lg:gap-x-10">
+        {/* With the assistant present the copy column can grow as a
+            conversation runs, so the drawing holds its place at the top
+            instead of drifting down with the column's centre. */}
+        <div
+          className={`grid gap-y-10 lg:grid-cols-12 lg:gap-x-10 ${
+            assistant ? "items-center lg:items-start" : "items-center"
+          }`}
+        >
           <div className="lg:col-span-7">
             <p className="label-invert">Software for complex work</p>
             <h1 className="mt-7 h-editorial text-balance">
@@ -51,9 +61,10 @@ export default function CompanyHero() {
                 Book a demo
               </Link>
             </div>
+            {assistant && <AskOperza />}
           </div>
 
-          <div className="lg:col-span-5">
+          <div className={`lg:col-span-5 ${assistant ? "lg:mt-16" : ""}`}>
             <TangleToOrder className="mx-auto h-auto w-full max-w-[34rem] lg:max-w-none" />
           </div>
         </div>

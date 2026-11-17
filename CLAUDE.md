@@ -117,10 +117,14 @@ From the PR #25 brief (2026-11-17):
    on the site.
 2. Linspace later: indexing, early-interest handling, and any vocabulary that
    would need the site-wide "cost intelligence" ban scoped deliberately.
-3. Assistant runtime: the model (after live evaluation), budget and spend
-   cap, conversation logging and retention, rate limiting, and where the
-   input sits on the homepage. The knowledge base answers pricing questions
-   with "discussed during a demo"; changing that is a Founder decision.
+3. Assistant (PR #26 built it switched off): the Founder actions in
+   `docs/assistant/RUNTIME.md` (AI Gateway access, the project budget, the
+   `assistant-visitor` WAF rule, Preview protection bypass, Preview-only
+   environment variables), an approved budget for the paid evaluation, the
+   model choice after it, whether to enable zero data retention (needs
+   purchased AI Gateway credits on Hobby), and production release. The
+   knowledge base answers pricing with "discussed during a demo"; changing
+   that is a Founder decision.
 
 ## Site architecture
 
@@ -166,11 +170,27 @@ Operza Shift's positioning (no longer the company definition):
 > Operza Shift is manufacturing software for Indian factories. It runs the shop
 > floor and the business books, and in Operza Complete they are one system.
 
-## Assistant foundation (`lib/assistant/`, not rendered)
+## Assistant (`lib/assistant/`, `/api/assistant`, `components/AskOperza.tsx`)
 
-The knowledge base, behaviour rules and evaluation set for the future
-"Ask anything about Operza..." assistant. Nothing imports it into a page,
-there is no endpoint and no model call. See `docs/assistant/README.md`.
+The "Ask anything about Operza..." assistant. **Implemented in PR #26 and
+switched off**: it fails closed unless an environment is fully configured,
+and production needs `ASSISTANT_ALLOW_PRODUCTION=true` on top. While off, the
+endpoint answers 503 without a model call and the homepage renders exactly
+as before (no input, no BotID script). Setup, controls, costs and privacy:
+`docs/assistant/RUNTIME.md`; knowledge and evaluation: `docs/assistant/README.md`.
+
+* `runtime/config.ts` (fail-closed configuration, the only place that reads
+  the environment), `runtime/handler.ts` (origin, size, BotID, WAF rate
+  limit, validation, model call; dependencies injected for testing),
+  `runtime/generate.ts` (the one AI SDK call: AI Gateway, no tools, no
+  retries), `runtime/models.ts` (the two approved model ids and prices),
+  `runtime/limits.ts`, `runtime/validate.ts`, `runtime/prompt.ts`.
+* The spending cap is the AI Gateway **project budget**, set by the Founder;
+  never a prompt or browser counter. Logs carry no visitor text, IP or user
+  agent. Nothing is stored.
+* `npm run test:assistant-endpoint` (offline security tests) and
+  `npm run eval:assistant` (dry-run cost estimate; a paid run needs `--run`,
+  `--budget-usd` and a Gateway key).
 
 * `knowledge.ts`: every statement is labelled product-fact, limitation,
   marketing-copy, policy or unknown. Product facts and limitations cite
@@ -265,8 +285,13 @@ Facts current at `b676a07` that copy and any future assistant must respect:
   from there, in legal and footer contexts and structured data. Never use it
   as a headline, product name or public brand.
 * **Marketing prose contains zero em dashes (U+2014).**
-* **Never ship a fake assistant.** No input, text area or "Ask anything"
-  prompt appears until the assistant works (guarded by M7).
+* **Never ship a fake assistant.** The only assistant input is
+  `components/AskOperza.tsx`, rendered only when `isAssistantAvailable()` is
+  true (guarded by M7, M7b, I5 and the endpoint tests). Never a disabled or
+  pretend box, never branded "Ask Operza AI".
+* **The assistant fails closed and never activates in production by
+  accident.** Do not weaken `runtime/config.ts`, add model tools, add
+  retries, log visitor content, or add a second AI package without a review.
 * **Operza Linspace promises nothing.** In development, stated in words; no
   dates, pricing, launch, beta, waiting list or sign-up; `noindex`; no
   structured data (guarded by section N).
@@ -402,6 +427,23 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-17 — Working assistant, switched off (GAD v1 PR #26)
+
+Built the "Ask anything about Operza..." assistant end to end on the PR #25
+knowledge: `/api/assistant` (AI SDK 7 through AI Gateway, OIDC on Vercel, no
+tools, no retries, 500-token answers, 25 s cap), a hero input with streaming
+answers, follow-ups, safe whitelisted links and loading, error, rate-limited
+and unavailable states, Vercel BotID and WAF rate limiting through
+`@vercel/firewall`, strict validation, and content-free logs. Compatibility
+was verified before installing (`ai` 7.0.173 needs Node >= 22; the project is
+on Node 24.x; AI SDK 7 renamed `system` to `instructions` and `textStream`
+hides errors, so the code uses `stream`). Everything fails closed and is off:
+no Gateway credentials, budget or WAF rule existed, so no paid call or live
+evaluation was made and the Preview shows the unchanged homepage. With the
+assistant off, the homepage was compared with `main`: identical text, classes
+and element count. The PR #24/#25 "no assistant yet" guards were rewritten
+as allow-lists (M6, M7, M7b-d, I1-I5); 8 planted defects were all caught.
 
 ## 2026-11-17 — Assistant knowledge and evaluation foundation (GAD v1 PR #25)
 

@@ -21,10 +21,10 @@ decisions.
 - **Operza** is the public brand. The legal name, Operza Technologies Private
   Limited, appears only in the footer's legal line and the Organization's
   `legalName`.
-- A conversational assistant ("Ask anything about Operza...") is planned. Its
-  knowledge base, behaviour rules and offline evaluation set are in
-  `lib/assistant/` (see `docs/assistant/README.md`); nothing is rendered, no
-  model is called, and no placeholder input is shown until it works.
+- The conversational assistant ("Ask anything about Operza...") is built and
+  **switched off**: it fails closed until an environment is configured, and
+  production needs a separate switch. See `docs/assistant/RUNTIME.md` for how
+  it works, its safeguards, costs and the setup steps.
 
 ## Operza Shift and the Health Check
 
@@ -198,6 +198,8 @@ npm run build            # type-checks and builds
 npm run lint
 npm run test:marketing   # both static guards
 npm run test:assistant   # assistant knowledge and evaluation guard (offline)
+npm run test:assistant-endpoint   # assistant endpoint security tests (offline)
+npm run eval:assistant   # live-evaluation cost estimate (paid run needs --run, --budget-usd, a key)
 OPERZA_APP_DIR=<operza-app checkout> npm run verify:assistant-sources
 ```
 

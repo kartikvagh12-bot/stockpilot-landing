@@ -678,15 +678,27 @@ section("M. THE COMPANY HOMEPAGE IS THE FOUNDER'S, AND FAKES NOTHING");
   ok("(M5) the hero's actions are the approved pair",
      /Explore our products/.test(hero) && /Book a demo/.test(hero));
   ok("(M6) the homepage composes the approved sections in order",
-     /<CompanyHero \/>\s*<WhatWeBuild \/>\s*<ShiftShowcase \/>\s*<LinspacePreview \/>\s*<Approach \/>\s*<CompanyContact \/>/.test(home));
+     /<CompanyHero assistant=\{assistant\} \/>\s*<WhatWeBuild \/>\s*<ShiftShowcase \/>\s*<LinspacePreview \/>\s*<Approach \/>\s*<CompanyContact \/>/.test(home));
 
-  // The assistant is not built yet, so nothing may pretend to be it: no input,
-  // no text area, no "Ask anything" prompt anywhere on the homepage.
+  // The assistant (PR #26) is the homepage's only input, and it exists only in
+  // components/AskOperza.tsx, rendered only when the server has confirmed the
+  // assistant is fully configured. Everything else on the homepage stays free
+  // of inputs, and nothing may pretend to be an assistant.
   const homeFiles = [HOME, ...["CompanyHero", "WhatWeBuild", "ShiftShowcase", "LinspacePreview", "Approach", "CompanyContact", "Navbar", "Footer"]
     .map((c) => `components/${c}.tsx`)];
   const homeSrc = homeFiles.map((f) => strip(read(f))).join("\n");
-  ok("(M7) no fake, disabled or nonfunctional assistant input",
+  ok("(M7) no input or 'Ask anything' prompt outside the assistant component",
      !/<input\b|<textarea\b|contentEditable|Ask anything|Ask Operza/i.test(homeSrc));
+  const ask = read("components/AskOperza.tsx");
+  ok("(M7b) the assistant input renders only when the server confirms it works",
+     /\{assistant && <AskOperza \/>\}/.test(read("components/CompanyHero.tsx"))
+     && /const assistant = isAssistantAvailable\(\);/.test(home)
+     && (read("components/CompanyHero.tsx").match(/<AskOperza\b/g) ?? []).length === 1);
+  ok("(M7c) its prompt is exactly 'Ask anything about Operza...' and never 'Ask Operza AI'",
+     ask.includes('"Ask anything about Operza..."')
+     && !SURFACE.some((f) => /Ask Operza AI/i.test(read(f))));
+  ok("(M7d) it tells visitors answers are AI-written, and to keep personal details out",
+     /written by AI/.test(ask) && /don&apos;t share personal or financial details/.test(ask));
   ok("(M8) the homepage does not run a second lead form: demos go to the one on /shift",
      !/<Contact \/>|demo_requests|getSupabaseClient/.test(homeSrc)
      && /DEMO_HREF = "\/shift#contact"/.test(read("lib/site.ts")));

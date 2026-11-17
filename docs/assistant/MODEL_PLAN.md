@@ -1,9 +1,12 @@
 # Assistant model plan (candidates, not a decision)
 
-Status: **planning only.** No AI dependency is installed, no credential is
-configured, no endpoint exists and no model has been called. Nothing in this
-document is approved for production; the provider, model, budget and
-conversation-retention policy remain open Founder decisions (`CLAUDE.md`).
+Status (PR #26): **runtime implemented and switched off; not yet evaluated.**
+The AI SDK is installed (`ai` 7.0.173, verified compatible: Node 24 on the
+Vercel project, server-only use, no React hooks), the endpoint and homepage
+input exist behind fail-closed configuration, and the live evaluator exists.
+No paid call has been made: no credentials or approved evaluation budget were
+available. The model, budget and retention choices remain Founder decisions.
+See `RUNTIME.md` for controls, costs and setup.
 
 ## Candidates named by the Founder
 
@@ -30,15 +33,16 @@ evaluation set (especially plan boundaries, the GST and Tally limitations,
 prompt injection, Hindi and Gujarati) is exactly what the live evaluation
 must decide. Neither should be chosen on price alone.
 
-## Expected runtime (to verify, not assumed)
+## Runtime (as built in PR #26; originally "to verify")
 
 - **Vercel AI SDK and AI Gateway**, with plain `"provider/model"` strings
   through the Gateway so the model can be swapped without code changes.
-- **Compatibility is unverified.** This site runs Next.js 14.2 and React 18.
-  The current AI SDK major requires Node 22+ and ESM; before installing, the
-  runtime PR must confirm the SDK's server API works in a Next 14 App Router
-  route handler on the Node runtime, and whether its React hooks support
-  React 18 or whether the small client should be written without them.
+- **Compatibility, verified in PR #26.** `ai` 7.0.173 requires Node >= 22;
+  the Vercel project builds on Node 24.x. It is used only on the server, in a
+  Next 14 App Router route handler on the Node runtime, and type-checks
+  against the installed types (`instructions`, `stream`, `timeout`). The
+  browser reads a plain text stream, so `@ai-sdk/react` (and any React 19
+  assumption) is not used.
 - **Credentials**: Gateway access through Vercel's OIDC on the deployment,
   configured by the Founder. No key is created or stored by this work.
 - **Controls the runtime PR must include**: a spend cap, per-visitor rate

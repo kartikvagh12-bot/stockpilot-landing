@@ -11,13 +11,19 @@
     "test:marketing-copy": "node scripts/test-marketing-copy.mjs",
     "test:marketing": "npm run test:marketing-foundation && npm run test:marketing-copy",
     "test:assistant": "node --no-warnings --import ./scripts/lib/ts-resolve.mjs scripts/test-assistant-knowledge.mjs",
-    "verify:assistant-sources": "node --no-warnings --import ./scripts/lib/ts-resolve.mjs scripts/verify-assistant-sources.mjs"
+    "verify:assistant-sources": "node --no-warnings --import ./scripts/lib/ts-resolve.mjs scripts/verify-assistant-sources.mjs",
+    "test:assistant-endpoint": "node --no-warnings --import ./scripts/lib/ts-resolve.mjs scripts/test-assistant-endpoint.mjs",
+    "eval:assistant": "node --no-warnings --import ./scripts/lib/ts-resolve.mjs scripts/assistant-eval-live.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
+    "@vercel/firewall": "1.2.6",
+    "ai": "7.0.173",
+    "botid": "1.5.13",
     "next": "14.2.35",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

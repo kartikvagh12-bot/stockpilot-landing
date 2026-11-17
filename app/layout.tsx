@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { BotIdClient } from "botid/client";
+import { isAssistantAvailable } from "@/lib/assistant/runtime/config";
 import "./globals.css";
 
 const inter = Inter({
@@ -79,6 +81,12 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon-512.png" type="image/png" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* Vercel BotID marks requests to the assistant endpoint so the server
+            can tell people from bots. Mounted only when the assistant is
+            configured, so pages are unchanged while it is off. */}
+        {isAssistantAvailable() && (
+          <BotIdClient protect={[{ path: "/api/assistant", method: "POST" }]} />
+        )}
       </head>
       <body className="bg-white font-sans text-slate-900 antialiased">
         {children}

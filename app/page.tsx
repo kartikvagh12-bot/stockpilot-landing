@@ -8,6 +8,7 @@ import CompanyContact from "@/components/CompanyContact";
 import Footer from "@/components/Footer";
 import LegacyAnchorForward from "@/components/LegacyAnchorForward";
 import { SITE } from "@/lib/site";
+import { isAssistantAvailable } from "@/lib/assistant/runtime/config";
 
 // The Operza company homepage (Founder direction, 2026-11-17). Operza is the
 // parent brand; Operza Shift and Operza Linspace are introduced as its
@@ -19,12 +20,15 @@ import { SITE } from "@/lib/site";
 // Linspace gets none because it is not released.
 
 export default function HomePage() {
+  // Server-side and fail-closed: false unless every assistant requirement is
+  // configured for this deployment, in which case the input is not rendered.
+  const assistant = isAssistantAvailable();
   return (
     <>
       <LegacyAnchorForward />
       <Navbar />
       <main>
-        <CompanyHero />
+        <CompanyHero assistant={assistant} />
         <WhatWeBuild />
         <ShiftShowcase />
         <LinspacePreview />

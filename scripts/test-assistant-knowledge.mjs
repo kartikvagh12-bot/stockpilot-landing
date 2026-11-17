@@ -271,21 +271,32 @@ section("H. THE EVALUATION SET IS BROAD, SATISFIABLE AND DISCRIMINATING");
 }
 
 /* ========================================================================= */
-section("I. NOTHING HERE REACHES THE LIVE SITE OR A MODEL");
+section("I. THE ASSISTANT REACHES THE SITE ONLY THROUGH ITS APPROVED SEAMS");
 /* ========================================================================= */
 {
+  // PR #26 added the working assistant. These checks used to require that
+  // nothing existed; they now pin exactly what may exist, so anything beyond
+  // it still fails.
   const pkg = JSON.parse(read("package.json"));
-  const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
-  const AI = deps.filter((d) => /^(ai|@ai-sdk\/.*|openai|@anthropic-ai\/.*|@vercel\/ai.*|langchain.*)$/.test(d));
-  ok("(I1) no AI dependency is installed", AI.length === 0, AI.join(", "));
-  ok("(I2) there is no API route", !existsSync(join(ROOT, "app/api")));
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  const AI = Object.keys(deps).filter((d) => /^(ai|@ai-sdk\/.*|openai|@anthropic-ai\/.*|@vercel\/ai.*|langchain.*|@langchain\/.*)$/.test(d));
+  ok("(I1) the only AI dependency is the pinned AI SDK", AI.join() === "ai" && /^\d+\.\d+\.\d+$/.test(deps.ai), AI.join(", "));
+  ok("(I1b) ...with the firewall, BotID and zod pinned exactly",
+     ["@vercel/firewall", "botid", "zod"].every((d) => /^\d+\.\d+\.\d+$/.test(deps[d] ?? "")));
   const walk = (d) => readdirSync(join(ROOT, d), { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? walk(`${d}/${e.name}`) : [`${d}/${e.name}`]);
-  const assistantSrc = walk("lib/assistant").map(read).join("\n");
-  ok("(I3) the assistant modules read no environment and call nothing",
-     !/process\.env|fetch\(|XMLHttpRequest|generateText|streamText/.test(assistantSrc));
-  const importers = [...walk("app"), ...walk("components")].filter((f) => /lib\/assistant/.test(read(f)));
-  ok("(I4) no page or component imports the assistant yet", importers.length === 0, importers.join(", "));
+  ok("(I2) the only API route is the assistant's", walk("app/api").join() === "app/api/assistant/route.ts");
+  const knowledgeSrc = walk("lib/assistant").filter((f) => !f.startsWith("lib/assistant/runtime/")).map(read).join("\n");
+  ok("(I3) the knowledge, rules and evaluations stay pure: no environment, no network, no model",
+     !/process\.env|fetch\(|XMLHttpRequest|generateText|streamText/.test(knowledgeSrc));
+  const envReaders = walk("lib/assistant/runtime").filter((f) => /process\.env/.test(read(f).replace(/^\s*\/\/.*$/gm, "")));
+  ok("(I3b) in the runtime, only config.ts reads the environment", envReaders.join() === "lib/assistant/runtime/config.ts", envReaders.join(", "));
+  const importsOf = (f) => [...read(f).matchAll(/^\s*import[^"']*["']([^"']+)["']/gm)].map((m) => m[1]);
+  const importers = [...walk("app"), ...walk("components")].filter((f) => importsOf(f).some((s) => /lib\/assistant/.test(s)));
+  ok("(I4) only the route, the layout and the homepage import the assistant",
+     importers.sort().join() === "app/api/assistant/route.ts,app/layout.tsx,app/page.tsx", importers.join(", "));
+  ok("(I4b) ...and the layout and homepage import only its fail-closed config",
+     ["app/layout.tsx", "app/page.tsx"].every((f) => importsOf(f).filter((s) => /lib\/assistant/.test(s)).join() === "@/lib/assistant/runtime/config"));
   // Rendered code only: a comment that says the assistant will come later is
   // not an input on the page.
   const noComments = (t) => t.replace(/\{?\/\*[\s\S]*?\*\/\}?/g, " ").replace(/^\s*\/\/.*$/gm, " ");
@@ -294,8 +305,9 @@ section("I. NOTHING HERE REACHES THE LIVE SITE OR A MODEL");
   // The demo form's message box (components/Contact.tsx) is the one text area
   // the site is allowed; any other would be a chat box in waiting.
   const textAreas = files.filter((f) => f !== "components/Contact.tsx" && /<textarea\b/.test(noComments(read(f))));
-  ok("(I5) no chat input or 'Ask anything' prompt is rendered",
-     !/Ask anything/i.test(surface) && textAreas.length === 0, textAreas.join(", "));
+  const askers = files.filter((f) => /Ask anything/i.test(noComments(read(f))));
+  ok("(I5) 'Ask anything' appears only in the assistant component, and no other text area exists",
+     askers.join() === "components/AskOperza.tsx" && textAreas.length === 0, [...askers, ...textAreas].join(", "));
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
