@@ -5,10 +5,9 @@ unless it is explicitly marked current.**
 
 The site is now multi-product: `/` is the Operza company homepage, `/shift` is
 Operza Shift, `/linspace` is Operza Linspace (in development) and
-`/health-check` is unchanged. This was built as one release candidate (GAD v1
-PR 2, combining the cutover and the Linspace page at the Founder's request).
-It reaches production only when the Founder approves it visually and it is
-merged. Until then, `main` serves the earlier single-product site.
+`/health-check` is unchanged. It was built as one release candidate (GAD v1
+PR 2, #24), approved visually by the Founder, and has been live on
+www.operza.in since merge `e5e2cf5` (2026-11-17).
 
 ## Approved direction (Founder, 2026-11-17)
 
@@ -99,17 +98,29 @@ From the PR 2 brief (2026-11-17, provisional copy, minor edits allowed):
 7. **Health Check callout** stays on `/shift` only; the homepage links the
    Health Check from the navbar and footer.
 
+From the PR #24 final review (2026-11-17):
+
+8. **Visual approval** of the multi-product site: given; merged and live.
+
+From the PR #25 brief (2026-11-17):
+
+9. **The public assistant is approved for development**, in stages. Stage one
+   (PR #25) is the knowledge base and offline evaluation only: no endpoint,
+   no UI, no AI dependency, no credentials, no spending. GPT-6 Luna and
+   GPT-6.1 Terra are named candidates for later evaluation, not choices.
+   The assistant should adapt to English, Hindi and Gujarati.
+
 ### Open Founder decisions
 
-1. **Visual approval** of the release candidate as a whole.
-2. Final company-level copy. The homepage copy is the Founder's provisional
+1. Final company-level copy. The homepage copy is the Founder's provisional
    direction; nothing beyond it (history, team, customers, achievements) is
    on the site.
-3. Linspace later: indexing, early-interest handling, and any vocabulary that
+2. Linspace later: indexing, early-interest handling, and any vocabulary that
    would need the site-wide "cost intelligence" ban scoped deliberately.
-4. Assistant: provider, model, dependency, budget, conversation logging and
-   retention, and how it answers pricing questions. The homepage leaves room
-   under the hero copy; nothing stands in for it.
+3. Assistant runtime: the model (after live evaluation), budget and spend
+   cap, conversation logging and retention, rate limiting, and where the
+   input sits on the homepage. The knowledge base answers pricing questions
+   with "discussed during a demo"; changing that is a Founder decision.
 
 ## Site architecture
 
@@ -155,6 +166,25 @@ Operza Shift's positioning (no longer the company definition):
 > Operza Shift is manufacturing software for Indian factories. It runs the shop
 > floor and the business books, and in Operza Complete they are one system.
 
+## Assistant foundation (`lib/assistant/`, not rendered)
+
+The knowledge base, behaviour rules and evaluation set for the future
+"Ask anything about Operza..." assistant. Nothing imports it into a page,
+there is no endpoint and no model call. See `docs/assistant/README.md`.
+
+* `knowledge.ts`: every statement is labelled product-fact, limitation,
+  marketing-copy, policy or unknown. Product facts and limitations cite
+  `operza-app` at `PRODUCT_SOURCE.commit` with a verbatim anchor; copy cites
+  the page here that renders it. It is not a second authority: change a
+  statement only after re-reading its source, and move the pin (here and in
+  `lib/assistant/sources.ts`) when you re-verify.
+* `instructions.ts`: the behaviour rules and `systemInstructions()`.
+* `evals/cases.ts` and `evals/grade.ts`: the evaluation set and the
+  deterministic grader shared with the future live evaluation.
+* `npm run test:assistant` (offline, every run) and
+  `OPERZA_APP_DIR=<operza-app checkout> npm run verify:assistant-sources`
+  (re-reads every product citation at the pinned commit).
+
 ## Product truth (Operza Shift)
 
 Product truth lives in **`kartikvagh12-bot/operza-app`**, not here. This repo
@@ -189,13 +219,29 @@ connected behaviour belongs to Complete. Beyond inventory and production there
 is a cost and valuation engine, sales margin, double-entry accounting through
 to Profit & Loss and Balance Sheet, and a TallyPrime export path.
 
-Facts current at `b0077fc` that copy and any future assistant must respect:
+Facts current at `b676a07` that copy and any future assistant must respect:
 
 * **Tally is export only for customers.** A connector is built in the app but
   no customer has installed it. Do not claim sync, a direct connection or
   "complete Tally integration".
 * **No GST e-Invoice or e-Way Bill generation exists.** A GST add-on stores
   statutory details (GSTIN, addresses) only.
+* **Supplier-bill reading is AI reading, and not guaranteed everywhere.** In
+  Books and Complete an uploaded PDF or photo is read by an AI model, and the
+  user checks everything before it is recorded. Say "reads it, you verify";
+  never say OCR. It depends on deployment configuration (without it the app
+  replies "Bill reading isn't configured on this deployment."), so never
+  promise it for every workspace; manual entry always works.
+* **Four roles and six presets.** Roles are admin, operator, viewer and
+  accountant; Employee Access has six presets (Administrator, Storekeeper,
+  Production, Dispatch, Accounts, Read-only).
+* **Imports**: CSV, .xlsx or .ods up to 10,000 rows per file; the Factory
+  Workbook is .xlsx only, up to 6,000 data rows.
+* **No GST return filing.** `operza-app`'s own plans list it as a non-goal
+  (`GST_COMPLIANCE_V1.md` §22, `ACCOUNTING_V1.md`, `FIRST_CUSTOMER_PILOT_V1.md`).
+  Whether Operza can *prepare* return data (a GSTR-1 file) is unconfirmed:
+  do not promise it.
+* **The application is in English only.**
 * **Plan changes are narrow.** A Factory admin can turn on accounting from
   Settings, moving toward Complete; other changes need a workspace reset, and
   moving to a smaller plan is refused once data exists. Do not market plan
@@ -356,6 +402,19 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-17 — Assistant knowledge and evaluation foundation (GAD v1 PR #25)
+
+`lib/assistant/` gained the knowledge base for the future website assistant,
+re-verified against `operza-app` `b676a07` at the code level (123 citations,
+each a verbatim anchor, all re-read at the pinned commit by
+`verify:assistant-sources`), its behaviour rules (18), 70 knowledge entries and 67 evaluation cases in
+18 categories including multi-turn plan discovery, Hindi and Gujarati, prompt
+injection and data-access attempts. `test:assistant` proves every reference
+answer passes and every forbidden claim, planted into it, fails; both new
+scripts were mutation-tested. Model candidates are recorded in
+`docs/assistant/MODEL_PLAN.md` with Gateway ids and the prices listed on the
+day. No endpoint, UI, dependency, credential or rendered change.
 
 ## 2026-11-17 — Multi-product release candidate (GAD v1 PR 2)
 

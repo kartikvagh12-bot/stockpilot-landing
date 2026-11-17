@@ -9,7 +9,9 @@
     "lint": "next lint",
     "test:marketing-foundation": "node scripts/test-marketing-foundation.mjs",
     "test:marketing-copy": "node scripts/test-marketing-copy.mjs",
-    "test:marketing": "npm run test:marketing-foundation && npm run test:marketing-copy"
+    "test:marketing": "npm run test:marketing-foundation && npm run test:marketing-copy",
+    "test:assistant": "node --no-warnings --import ./scripts/lib/ts-resolve.mjs scripts/test-assistant-knowledge.mjs",
+    "verify:assistant-sources": "node --no-warnings --import ./scripts/lib/ts-resolve.mjs scripts/verify-assistant-sources.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
