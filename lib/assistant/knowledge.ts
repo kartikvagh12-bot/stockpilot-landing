@@ -438,13 +438,15 @@ export const KNOWLEDGE: readonly KnowledgeEntry[] = [
     kind: "product-fact",
     appliesTo: ["books", "complete"],
     statement:
-      "A supplier bill can be uploaded as a PDF or a photo, and Operza uses an AI model to read the supplier, the items and the GST. You check and correct everything before anything is recorded. Bills can also be entered by hand.",
+      "Operza Shift includes AI-assisted supplier-bill reading: a bill uploaded as a PDF or a photo is read by an AI model for the supplier, the items and the GST, and you check and correct everything before anything is recorded. It depends on how the service is configured, so it is not guaranteed for every workspace; confirm it with the Operza team. Bills can always be entered by hand.",
     sources: [
       app("features/documents/documents-view.tsx", "Drop in a supplier bill (PDF or photo) and Operza reads the supplier,"),
       app("features/documents/documents-view.tsx", "items, and GST for you. You verify everything before anything is"),
       app("lib/documents/extract.ts", "const client = new Anthropic({ apiKey });"),
+      app("app/api/documents/extract/route.ts", "Bill reading isn't configured on this deployment."),
     ],
-    links: ["/shift#books"],
+    links: ["/shift#books", "/shift#contact"],
+    confirmWithHuman: true,
   },
   {
     id: "expenses-phone",
@@ -460,12 +462,26 @@ export const KNOWLEDGE: readonly KnowledgeEntry[] = [
     kind: "limitation",
     appliesTo: ["books", "complete"],
     statement:
-      "Operza does not file GST returns. GST is recorded on invoices and bills and shown in the Sales Register; filing is done outside Operza, for example by the accountant.",
+      "Operza does not file GST returns (such as GSTR-1 or GSTR-3B). Operza's own product plans list return filing as outside the product, with filing staying with the accountant, for example in Tally.",
     sources: [
-      app("docs/PROJECT_STATE.md", "**GST Compliance:** no e-Invoice / e-Way Bill generation exists yet (§4.1)."),
-      app("lib/gst.ts", "migration 040's CGST/SGST-vs-IGST split compares business state vs"),
+      app("docs/GST_COMPLIANCE_V1.md", "* GST return filing (GSTR-1 / 3B)."),
+      app("docs/ACCOUNTING_V1.md", "GST return filing, TDS/TCS, payroll, statutory financial statements,"),
+      app("docs/FIRST_CUSTOMER_PILOT_V1.md", "* **GST return (GSTR) filing/preparation** — remains Tally's job."),
+    ],
+  },
+  {
+    id: "gst-return-prep-unknown",
+    topic: "gst",
+    kind: "unknown",
+    appliesTo: ["books", "complete"],
+    statement:
+      "Whether Operza can prepare or export GST return data for the accountant (for example a GSTR-1 file) is not confirmed. Do not promise it; offer to confirm with the Operza team.",
+    sources: [
+      app("docs/ACCOUNTING_M5.md", "GSTR return preparation (exports remain"),
+      app("docs/ACCOUNTING_V1.md", "GSTR-1 *data export*"),
     ],
     confirmWithHuman: true,
+    links: ["/shift#contact"],
   },
 
   /* ------------------------------------------------------------------- bank */

@@ -226,15 +226,21 @@ Facts current at `b676a07` that copy and any future assistant must respect:
   "complete Tally integration".
 * **No GST e-Invoice or e-Way Bill generation exists.** A GST add-on stores
   statutory details (GSTIN, addresses) only.
-* **Supplier-bill reading is AI reading.** In Books and Complete an uploaded
-  PDF or photo is read by an AI model, and the user checks everything before
-  it is recorded. Say "reads it, you verify"; never say OCR.
+* **Supplier-bill reading is AI reading, and not guaranteed everywhere.** In
+  Books and Complete an uploaded PDF or photo is read by an AI model, and the
+  user checks everything before it is recorded. Say "reads it, you verify";
+  never say OCR. It depends on deployment configuration (without it the app
+  replies "Bill reading isn't configured on this deployment."), so never
+  promise it for every workspace; manual entry always works.
 * **Four roles and six presets.** Roles are admin, operator, viewer and
   accountant; Employee Access has six presets (Administrator, Storekeeper,
   Production, Dispatch, Accounts, Read-only).
 * **Imports**: CSV, .xlsx or .ods up to 10,000 rows per file; the Factory
   Workbook is .xlsx only, up to 6,000 data rows.
-* **No GST return filing.** GST is recorded on invoices and bills; filing happens outside Operza.
+* **No GST return filing.** `operza-app`'s own plans list it as a non-goal
+  (`GST_COMPLIANCE_V1.md` §22, `ACCOUNTING_V1.md`, `FIRST_CUSTOMER_PILOT_V1.md`).
+  Whether Operza can *prepare* return data (a GSTR-1 file) is unconfirmed:
+  do not promise it.
 * **The application is in English only.**
 * **Plan changes are narrow.** A Factory admin can turn on accounting from
   Settings, moving toward Complete; other changes need a workspace reset, and

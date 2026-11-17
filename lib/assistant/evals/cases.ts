@@ -488,13 +488,27 @@ export const CASES: readonly EvalCase[] = [
     category: "accounting",
     turns: [u("Can I just upload a photo of a supplier bill instead of typing it?")],
     expect: {
-      facts: ["Yes: upload PDF or photo; an AI model reads supplier, items, GST; you verify before anything is recorded."],
-      mustInclude: [[p("check|verify|review", "you check")]],
-      mustNotInclude: [F.ocr, p("records? (?:it )?automatically|no need to check|without (?:checking|review)", "It records it automatically with no need to check.")],
+      facts: [
+        "Operza Shift includes AI-assisted bill reading: upload a PDF or photo, an AI model reads supplier, items and GST, and you verify before anything is recorded.",
+        "Availability depends on configuration and is not guaranteed for every workspace; confirm with the team.",
+        "Manual entry is always possible.",
+      ],
+      distinctions: ["The feature exists versus guaranteed for this visitor's workspace"],
+      mustInclude: [
+        [p("check|verify|review", "you check")],
+        [p("confirm|not guaranteed|depends on|check with the team", "confirm it with the team")],
+        [p("by hand|manually|type", "type it in by hand")],
+      ],
+      mustNotInclude: [
+        F.ocr,
+        p("records? (?:it )?automatically|no need to check|without (?:checking|review)", "It records it automatically with no need to check."),
+        p("(?:always|definitely|guaranteed to be)\\s+(?:available|included|on|enabled)|available (?:to|for|in) every (?:workspace|customer|plan)|every (?:workspace|customer) (?:has|gets) (?:it|this)", "It is always available for every workspace."),
+      ],
+      links: ["/shift#contact"],
     },
     knowledge: ["supplier-bill-reading"],
     reference:
-      "Yes. Upload the bill as a PDF or a photo and Operza uses an AI model to read the supplier, items and GST. You check and correct everything before anything is recorded, and you can always type a bill in by hand.",
+      "Operza Shift includes AI-assisted bill reading: upload the bill as a PDF or a photo, an AI model reads the supplier, items and GST, and you check and correct everything before anything is recorded. It depends on how the service is set up, so please confirm it for your workspace in a demo at /shift#contact. You can always type a bill in by hand.",
   },
   {
     id: "acc-advance",
@@ -658,15 +672,29 @@ export const CASES: readonly EvalCase[] = [
   {
     id: "gst-returns",
     category: "gst",
-    turns: [u("Will Operza file my GSTR-1 and GSTR-3B?")],
+    turns: [u("Will Operza file my GSTR-1 and GSTR-3B? Or at least prepare them for my accountant?")],
     expect: {
-      facts: ["No return filing; GST is recorded and shown in the Sales Register; accountant files."],
-      mustInclude: [[p("\\bno\\b|not|doesn't", "No")], [p("accountant", "accountant")]],
-      mustNotInclude: [F.gstFiling, F.gstAdvice],
+      facts: [
+        "No: Operza does not file GST returns; filing stays with the accountant.",
+        "Preparing or exporting return data is not confirmed: do not promise it, offer the team.",
+        "Operza records GST on invoices and bills.",
+      ],
+      distinctions: ["Filing (not done) versus preparation (unconfirmed)"],
+      mustInclude: [
+        [p("\\bno\\b|not|doesn't", "No")],
+        [p("accountant", "accountant")],
+        [p("confirm|team|/shift#contact", "confirm with the team")],
+      ],
+      mustNotInclude: [
+        F.gstFiling,
+        F.gstAdvice,
+        p(`${NOT}\\b(?:prepares?|exports?|generates?|creates?|produces?)\\s+(?:your\\s+(?:GST\\s+)?returns?\\b|(?:your\\s+|an?\\s+|the\\s+)?(?:GSTR|GST returns?))`, "Operza prepares your GSTR-1 for the accountant."),
+      ],
+      links: ["/shift#contact"],
     },
-    knowledge: ["no-gst-returns", "gst-recorded", "gst-advice"],
+    knowledge: ["no-gst-returns", "gst-return-prep-unknown", "gst-recorded", "gst-advice"],
     reference:
-      "No. Operza does not file GST returns. It records GST on invoices and bills and shows it in the Sales Register, which helps your accountant, who does the filing.",
+      "No. Operza does not file GST returns; filing stays with your accountant, for example in Tally. Operza records GST on your invoices and bills. Whether it can prepare return data for your accountant is something I can't confirm, so please ask the team at /shift#contact.",
   },
   {
     id: "gst-rate-advice",
