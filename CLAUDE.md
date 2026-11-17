@@ -402,7 +402,7 @@ Product is complete enough for early customer acquisition.
 `lib/assistant/` gained the knowledge base for the future website assistant,
 re-verified against `operza-app` `b676a07` at the code level (123 citations,
 each a verbatim anchor, all re-read at the pinned commit by
-`verify:assistant-sources`), its behaviour rules, and 63 evaluation cases in
+`verify:assistant-sources`), its behaviour rules (18), 70 knowledge entries and 67 evaluation cases in
 18 categories including multi-turn plan discovery, Hindi and Gujarati, prompt
 injection and data-access attempts. `test:assistant` proves every reference
 answer passes and every forbidden claim, planted into it, fails; both new
