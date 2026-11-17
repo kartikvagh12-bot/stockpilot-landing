@@ -1,8 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useReducer, useRef, useState } from "react";
 import Link from "next/link";
 import { DEMO_HREF, SITE } from "@/lib/site";
+import {
+  MAX_QUESTION_CHARS,
+  initialConversation,
+  isBusy,
+  reduce,
+  requestMessages,
+  type Exchange,
+  type Problem,
+} from "@/lib/assistant/client/conversation";
+import { streamAnswer } from "@/lib/assistant/client/stream";
 
 // "Ask anything about Operza...": the homepage's conversational input.
 //
@@ -10,17 +20,16 @@ import { DEMO_HREF, SITE } from "@/lib/site";
 // configured (lib/assistant/runtime/config.ts); otherwise the homepage shows
 // nothing here, never a disabled or pretend box.
 //
+// Conversation state is the pure state machine in
+// lib/assistant/client/conversation.ts, and the network call is
+// lib/assistant/client/stream.ts; both are exercised by the offline tests.
+// Only finished answers are ever sent back as history: a failed, stopped or
+// interrupted exchange stays visible with its status but is never reused.
+//
 // The conversation lives in this component's state only: nothing is stored
 // in the browser or sent anywhere but /api/assistant. Answers are rendered as
 // text; the only links created are the site's own approved destinations, so
 // a model answer can never inject markup or send a visitor off-site.
-
-type Turn = { role: "user" | "assistant"; content: string; interrupted?: boolean };
-type Problem = "rate_limited" | "unavailable" | "too_long" | "failed";
-
-const MAX_CHARS = 600;
-const MAX_HISTORY = 12;
-const STREAM_ERROR_MARKER = "\u001Eerror";
 
 // Paths the assistant is allowed to link to (lib/assistant/destinations.ts),
 // longest first so "/shift#contact" wins over "/shift".
@@ -33,28 +42,29 @@ const TOKEN = new RegExp(
   "g",
 );
 
+const linkClass =
+  "font-medium text-white underline decoration-brand-400/70 underline-offset-4 hover:decoration-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm";
+
 function Linked({ text }: { text: string }) {
   const parts = text.split(TOKEN);
   return (
     <>
       {parts.map((part, i) => {
         if (i % 2 === 0) return part;
-        const cls =
-          "font-medium text-white underline decoration-brand-400/70 underline-offset-4 hover:decoration-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm";
         if (part === SITE.app)
           return (
-            <a key={i} href={SITE.app} target="_blank" rel="noopener noreferrer" className={cls}>
+            <a key={i} href={SITE.app} target="_blank" rel="noopener noreferrer" className={linkClass}>
               {part}
             </a>
           );
         if (part === SITE.email)
           return (
-            <a key={i} href={`mailto:${SITE.email}`} className={cls}>
+            <a key={i} href={`mailto:${SITE.email}`} className={linkClass}>
               {part}
             </a>
           );
         return (
-          <Link key={i} href={part} className={cls}>
+          <Link key={i} href={part} className={linkClass}>
             {part}
           </Link>
         );
@@ -96,95 +106,100 @@ function Answer({ text }: { text: string }) {
 const PROBLEM_TEXT: Record<Problem, string> = {
   rate_limited: "That's a lot of questions in a short time. Please wait a minute and try again.",
   unavailable: "The assistant isn't available right now.",
-  too_long: "That question is too long. Please shorten it and try again.",
+  too_long: "That question is too long. Please shorten it and ask again.",
   failed: "Something went wrong while answering.",
 };
 
+function Status({ x, isLast, onRetry }: { x: Exchange; isLast: boolean; onRetry: () => void }) {
+  if (x.status === "stopped")
+    return (
+      <div className="text-sm text-white/55">
+        <p>Stopped. This answer won&apos;t be used for follow-up questions.</p>
+        {isLast && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-2 rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            Ask again
+          </button>
+        )}
+      </div>
+    );
+  if (x.status !== "failed" || !x.problem) return null;
+  const retryable = isLast && x.problem !== "too_long";
+  return (
+    <div role="alert" className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/80">
+      <p>
+        {x.answer ? "The answer was interrupted. " : ""}
+        {PROBLEM_TEXT[x.problem]}
+      </p>
+      {(x.problem === "unavailable" || x.problem === "failed") && (
+        <p className="mt-1.5 text-white/60">
+          You can still{" "}
+          <Link href={DEMO_HREF} className="underline underline-offset-4 hover:text-white">
+            book a demo
+          </Link>{" "}
+          or write to{" "}
+          <a href={`mailto:${SITE.email}`} className="underline underline-offset-4 hover:text-white">
+            {SITE.email}
+          </a>
+          .
+        </p>
+      )}
+      {retryable && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-3 rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        >
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AskOperza() {
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [state, dispatch] = useReducer(reduce, initialConversation);
   const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<Problem | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const inFlight = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
   const noteId = useId();
 
+  const busy = isBusy(state);
+  const started = state.exchanges.length > 0;
+
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // Keep the newest words in view inside the conversation panel only; the
-  // page itself is never scrolled.
+  // Start a request whenever the newest exchange is waiting (a new question
+  // or a retry). requestMessages sends finished exchanges only.
+  useEffect(() => {
+    const messages = requestMessages(state);
+    if (!messages || inFlight.current) return;
+    inFlight.current = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    void streamAnswer(messages, { fetchImpl: fetch, signal: controller.signal, emit: dispatch }).finally(() => {
+      inFlight.current = false;
+      if (abortRef.current === controller) abortRef.current = null;
+    });
+  }, [state]);
+
+  // Keep the newest words in view inside the conversation panel only.
   useEffect(() => {
     const el = logRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [turns, busy]);
-
-  const send = useCallback(async (history: Turn[]) => {
-    setProblem(null);
-    setBusy(true);
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    // Only text and roles go to the server, trimmed to the history limit and
-    // starting with a visitor turn.
-    let payload = history.map(({ role, content }) => ({ role, content }));
-    if (payload.length > MAX_HISTORY) payload = payload.slice(payload.length - MAX_HISTORY);
-    if (payload[0]?.role === "assistant") payload = payload.slice(1);
-
-    try {
-      const res = await fetch("/api/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: payload }),
-        signal: controller.signal,
-      });
-      if (!res.ok || !res.body) {
-        const code = res.status;
-        setProblem(code === 429 ? "rate_limited" : code === 400 || code === 413 ? "too_long" : code === 503 ? "unavailable" : "failed");
-        return;
-      }
-      setTurns([...history, { role: "assistant", content: "" }]);
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let text = "";
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        text += decoder.decode(value, { stream: true });
-        const shown = text.split(STREAM_ERROR_MARKER)[0];
-        setTurns([...history, { role: "assistant", content: shown }]);
-      }
-      if (text.includes(STREAM_ERROR_MARKER)) {
-        setTurns([...history, { role: "assistant", content: text.split(STREAM_ERROR_MARKER)[0], interrupted: true }]);
-        setProblem("failed");
-      }
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") setProblem("failed");
-    } finally {
-      setBusy(false);
-      abortRef.current = null;
-    }
-  }, []);
+  }, [state]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const q = draft.trim().slice(0, MAX_CHARS);
-    if (!q || busy) return;
-    // A failed or interrupted answer is dropped from what is sent next.
-    const clean = turns.filter((t) => !t.interrupted && t.content);
-    const history: Turn[] = [...clean, { role: "user", content: q }];
-    setTurns(history);
+    if (!draft.trim() || busy) return;
+    dispatch({ type: "ask", question: draft });
     setDraft("");
-    void send(history);
-  }
-
-  function retry() {
-    const clean = turns.filter((t) => !t.interrupted && t.content);
-    const history = clean.at(-1)?.role === "assistant" ? clean.slice(0, -1) : clean;
-    if (history.at(-1)?.role !== "user") return;
-    setTurns(history);
-    void send(history);
   }
 
   function stop() {
@@ -193,13 +208,10 @@ export default function AskOperza() {
 
   function reset() {
     abortRef.current?.abort();
-    setTurns([]);
-    setProblem(null);
+    dispatch({ type: "reset" });
     setDraft("");
     inputRef.current?.focus();
   }
-
-  const started = turns.length > 0;
 
   return (
     <div className="mt-10 max-w-2xl">
@@ -217,57 +229,37 @@ export default function AskOperza() {
             aria-label="Conversation about Operza"
             className="max-h-[min(26rem,55vh)] space-y-6 overflow-y-auto px-5 pb-2 pt-5 text-[15px] leading-7 text-white/85 sm:px-6"
           >
-            {turns.map((t, i) =>
-              t.role === "user" ? (
-                <div key={i}>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">You asked</p>
-                  <p className="mt-1 text-white">{t.content}</p>
+            {state.exchanges.map((x, i) => {
+              const isLast = i === state.exchanges.length - 1;
+              return (
+                <div key={i} className="space-y-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">You asked</p>
+                    <p className="mt-1 text-white">{x.question}</p>
+                  </div>
+                  {x.answer && (
+                    <div
+                      className={`border-l pl-4 ${
+                        x.status === "done" || x.status === "streaming" ? "border-brand-500/70" : "border-white/20 text-white/60"
+                      }`}
+                    >
+                      <Answer text={x.answer} />
+                    </div>
+                  )}
+                  {x.status === "waiting" && (
+                    <p className="flex items-center gap-2 text-sm text-white/55">
+                      <span aria-hidden="true" className="flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 motion-reduce:animate-none" />
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 [animation-delay:150ms] motion-reduce:animate-none" />
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 [animation-delay:300ms] motion-reduce:animate-none" />
+                      </span>
+                      Thinking
+                    </p>
+                  )}
+                  <Status x={x} isLast={isLast} onRetry={() => dispatch({ type: "retry" })} />
                 </div>
-              ) : (
-                <div key={i} className="border-l border-brand-500/70 pl-4">
-                  {t.content ? <Answer text={t.content} /> : null}
-                </div>
-              ),
-            )}
-            {busy && turns.at(-1)?.role === "user" && (
-              <p className="flex items-center gap-2 text-sm text-white/55">
-                <span aria-hidden="true" className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 motion-reduce:animate-none" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 [animation-delay:150ms] motion-reduce:animate-none" />
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 [animation-delay:300ms] motion-reduce:animate-none" />
-                </span>
-                Thinking
-              </p>
-            )}
-            {problem && (
-              <div role="alert" className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/80">
-                <p>{PROBLEM_TEXT[problem]}</p>
-                <p className="mt-1.5 text-white/60">
-                  {problem === "unavailable" || problem === "failed" ? (
-                    <>
-                      You can still{" "}
-                      <Link href={DEMO_HREF} className="underline underline-offset-4 hover:text-white">
-                        book a demo
-                      </Link>{" "}
-                      or write to{" "}
-                      <a href={`mailto:${SITE.email}`} className="underline underline-offset-4 hover:text-white">
-                        {SITE.email}
-                      </a>
-                      .
-                    </>
-                  ) : null}
-                </p>
-                {(problem === "failed" || problem === "rate_limited") && (
-                  <button
-                    type="button"
-                    onClick={retry}
-                    className="mt-3 rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                  >
-                    Try again
-                  </button>
-                )}
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
 
@@ -280,11 +272,11 @@ export default function AskOperza() {
             id={inputId}
             type="text"
             value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, MAX_CHARS))}
+            onChange={(e) => setDraft(e.target.value.slice(0, MAX_QUESTION_CHARS))}
             onKeyDown={(e) => {
               if (e.key === "Escape" && busy) stop();
             }}
-            maxLength={MAX_CHARS}
+            maxLength={MAX_QUESTION_CHARS}
             placeholder={started ? "Ask a follow-up..." : "Ask anything about Operza..."}
             autoComplete="off"
             spellCheck

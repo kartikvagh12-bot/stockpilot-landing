@@ -19,8 +19,13 @@ import { MODEL_CATALOG, type ModelPrice } from "@/lib/assistant/runtime/models";
 //   ASSISTANT_RATE_LIMIT_ID        id of the per-visitor WAF rate-limit rule
 //   ASSISTANT_GLOBAL_RATE_LIMIT_ID optional id of a site-wide rate-limit rule
 //   ASSISTANT_BUDGET_CONFIRMED     "true" once an AI Gateway project budget is
-//                                  set (the enforceable spend cap)
-//   ASSISTANT_ALLOWED_ORIGINS      comma-separated extra allowed origins
+//                                  set. A MANUAL ASSERTION by whoever sets it,
+//                                  not proof: code cannot see the budget. The
+//                                  budget and the WAF rule must be verified
+//                                  independently before activation
+//                                  (docs/assistant/RUNTIME.md).
+//   ASSISTANT_ALLOWED_ORIGINS      comma-separated extra allowed origins;
+//                                  production must include https://www.operza.in
 //   ASSISTANT_ZERO_DATA_RETENTION  "true" to require ZDR providers per request
 //   ASSISTANT_LOCAL_DEV            "true" for `next dev` only (see below)
 
@@ -42,6 +47,10 @@ export type ConfigResult =
 type Env = Record<string, string | undefined>;
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** The live site's only browser origin (operza.in and operza.vercel.app
+ *  redirect here). */
+export const PRODUCTION_ORIGIN = "https://www.operza.in";
 
 function origins(env: Env): Set<string> {
   const set = new Set<string>();
@@ -88,6 +97,12 @@ export function readAssistantConfig(env: Env = process.env): ConfigResult {
 
   const allowedOrigins = origins(env);
   if (localDev) allowedOrigins.add("http://localhost:3000");
+
+  // Production must name its public origin explicitly rather than rely on
+  // Vercel's automatic domain variables. operza.in and operza.vercel.app both
+  // redirect to www, so browsers on the live site send this origin only.
+  if (env.VERCEL_ENV === "production" && !(env.ASSISTANT_ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim().replace(/\/$/, "")).includes(PRODUCTION_ORIGIN))
+    reasons.push(`production requires ASSISTANT_ALLOWED_ORIGINS to include ${PRODUCTION_ORIGIN}`);
   if (allowedOrigins.size === 0) reasons.push("no allowed origins");
 
   if (reasons.length > 0 || !model) return { ok: false, reasons };

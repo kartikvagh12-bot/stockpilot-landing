@@ -199,6 +199,7 @@ npm run lint
 npm run test:marketing   # both static guards
 npm run test:assistant   # assistant knowledge and evaluation guard (offline)
 npm run test:assistant-endpoint   # assistant endpoint security tests (offline)
+npm run test:assistant-conversation   # assistant conversation recovery tests (offline)
 npm run eval:assistant   # live-evaluation cost estimate (paid run needs --run, --budget-usd, a key)
 OPERZA_APP_DIR=<operza-app checkout> npm run verify:assistant-sources
 ```

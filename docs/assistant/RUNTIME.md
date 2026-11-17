@@ -50,10 +50,51 @@ any action.
 | Prompt injection | Instructions sent as `instructions`, never mixed with visitor text; visitor and pasted text treated as untrusted (rule `untrusted-input`); no tools to misuse | The prompt and the absence of tools. Residual risk: a model can still be talked into a wrong answer; the evaluation set measures this. |
 | Forged history | A client can send invented "assistant" turns | Accepted risk: it can only influence its own conversation; caps keep it small, and the instructions outrank history. |
 | Misconfiguration | Fails closed on any missing setting, an unknown model, a missing WAF rule, or a BotID or rate-limit failure | `config.ts` and the handler |
+| Broken conversations | Only finished answers are sent back as history; failed, stopped or interrupted exchanges stay visible but are never reused, so history is always valid alternating turns | `lib/assistant/client/conversation.ts`, tested by `test:assistant-conversation` (including a 20,000-event random walk against the server's validator) |
+| Wrong production origin | Production requires `ASSISTANT_ALLOWED_ORIGINS` to name `https://www.operza.in` explicitly | `config.ts` |
 | Accidental production launch | `ASSISTANT_ALLOW_PRODUCTION=true` required in production, on top of `ASSISTANT_ENABLED` | `config.ts` |
 
 A prompt instruction or a browser counter is never treated as a spending
 control.
+
+### What `ASSISTANT_BUDGET_CONFIRMED` does and does not prove
+
+`ASSISTANT_BUDGET_CONFIRMED=true` is a **manual assertion** by whoever sets
+it. The code cannot see AI Gateway budgets (that would need a Vercel API
+token in the app, which this design deliberately avoids), so the flag proves
+nothing by itself. It exists so the assistant cannot be switched on by
+accident without someone stating that a budget exists.
+
+The per-visitor WAF rule is checked at request time: if `assistant-visitor`
+is missing, every request fails closed with 503. That proves the rule
+exists, not that its limits are the agreed ones.
+
+## Activation checklist (required before any Preview or Production activation)
+
+Each item is verified independently, by someone other than the person who
+configured it, and recorded with evidence (CLI output or dashboard
+screenshot) on the PR or activation issue:
+
+1. **Budget exists and is right**: `vercel ai-gateway budgets inspect project stockpilot-landing`
+   (or AI Gateway → Budgets) shows a monthly limit of the approved amount,
+   with alerts on.
+2. **WAF rule is published and right**: `vercel firewall rules inspect "<rule name>" --expand`
+   (or Firewall → Rules) shows rate-limit ID `assistant-visitor`, 10 requests
+   per 60 s, keyed by IP, action 429, published (not a draft).
+3. **Environment scope**: the assistant variables are set for the intended
+   environment only (Preview first); `ASSISTANT_ALLOW_PRODUCTION` is absent
+   until production release is approved.
+4. **Origins**: Preview needs nothing extra (the deployment's own URL is
+   allowed automatically). **Production** must set
+   `ASSISTANT_ALLOWED_ORIGINS=https://www.operza.in`. `operza.in` redirects
+   to `https://www.operza.in` (307) and `operza.vercel.app` to it (308), so
+   browsers on the live site send that origin only; the configuration
+   refuses production without it.
+5. **Smoke test on the deployment**: from the page itself (not curl, which
+   BotID rightly blocks), ask one question and confirm a streamed answer; ask
+   eleven questions within a minute and confirm the eleventh is refused as
+   rate-limited; confirm the request appears in AI Gateway Logs with the
+   expected model and cost.
 
 ## Founder setup to enable the protected Preview
 
@@ -88,7 +129,7 @@ Nothing below has been done; each step is a Founder action in Vercel.
    | `ASSISTANT_ENABLED` | `true` |
    | `ASSISTANT_MODEL` | `openai/gpt-6-luna` (or `openai/gpt-6.1-terra` after evaluation) |
    | `ASSISTANT_RATE_LIMIT_ID` | `assistant-visitor` |
-   | `ASSISTANT_BUDGET_CONFIRMED` | `true` (only after step 2) |
+   | `ASSISTANT_BUDGET_CONFIRMED` | `true`, only after step 2 **and** independent verification (see the activation checklist); a manual assertion, not proof |
    | `ASSISTANT_ZERO_DATA_RETENTION` | `true` once AI Gateway credits are purchased (see Privacy); leave unset before that, or requests fail with 403 |
 
    Do **not** set `ASSISTANT_ALLOW_PRODUCTION`. No model key is needed on
@@ -119,19 +160,56 @@ The model is chosen only by `ASSISTANT_MODEL`, from the two approved ids in
 `lib/assistant/runtime/models.ts`. There is no automatic fallback or upgrade
 to another model.
 
+## Bot protection (BotID): wired, not yet validated live
+
+- The client (`<BotIdClient>` in `app/layout.tsx`) protects exactly
+  `POST /api/assistant`; the route calls `checkBotId()` on every request.
+- `next.config.mjs` wraps the configuration with `withBotId`, as the
+  installed `botid` 1.5.13 README instructs for Next.js. Vercel's current
+  docs say BotID requests are routed automatically without it; the wrapper
+  is harmless if so (it adds two rewrites and a frame-ancestors header for
+  BotID's own fixed path) and keeps the existing redirect. It is applied only
+  when `ASSISTANT_ENABLED=true` at build time, so with the assistant off the
+  configuration is exactly as before.
+- `test:assistant-endpoint` section J proves the wiring (both
+  configurations, the protected path, the server check). **It does not prove
+  that BotID detects bots.** That can only be observed on a deployed,
+  configured Preview: a page `fetch` should succeed, and a direct `curl` POST
+  to `/api/assistant` should be refused with 403. Until that check is done,
+  bot detection is unvalidated. BotID Deep Analysis is Pro-only; this project
+  is on Hobby and gets Basic.
+- In `next dev`, BotID does not run (`checkBotId()` returns human), and the
+  handler skips it in explicit local-development mode.
+
 ## Live evaluation
 
-`npm run eval:assistant` runs a dry run (cost estimate, no calls).
-A paid run needs all of: `--run`, `--budget-usd <amount>`, and
-`AI_GATEWAY_API_KEY` in the shell (an AI Gateway API key, ideally with its
-own small key budget, for example $1). Before every call it checks that the
-worst case fits the remaining budget, and stops otherwise. It reports pass
-rates by category (product facts, plan recommendations, pricing, GST and
-Tally, Linspace, prompt injection, data access, languages), latency, tokens
-and cost, and writes answers to `eval-results/` (git-ignored).
+The evaluator keeps four results apart and never reports one as another:
+
+| Stage | What it measures | Cost |
+|---|---|---|
+| Deterministic checks | Pattern checks from `grade.ts`: forbidden claims absent, required keywords present, a valid link, the right script. **A floor, not accuracy.** | Free |
+| Semantic accuracy | Whether each required fact and distinction (`expect.facts`, `expect.distinctions`) was actually conveyed, with no claims beyond the ground truth (`lib/assistant/evals/judge.ts`). Graded by a **human reviewer** (default: a checklist and a verdicts file) or a **model judge** (`--judge <model>`, paid, inside the same budget, and never the candidate judging itself unless `--allow-self-judge`). The verdict is recomputed from the items, so a lenient overall "pass" cannot hide a missed fact. | Free (human) or paid (judge) |
+| Unevaluated | Answers with no valid semantic verdict yet (no review, malformed judge output, a failed call). Never counted as passes. | n/a |
+| Measured cost | From the token usage the Gateway returns, with answers and judging reported separately. | n/a |
+
+**Release gate** (`lib/assistant/evals/report.ts`): a model is eligible only
+if every case in the critical categories (pricing, prompt injection, data
+access, GST, Tally, Linspace) passes **both** the deterministic and the
+semantic stage, with none unevaluated.
+
+Commands: `npm run eval:assistant` (dry run, worst-case cost per stage, no
+calls); a paid run needs `--run`, `--budget-usd <amount>` and
+`AI_GATEWAY_API_KEY` (ideally a key with its own small key budget); before
+every answer or judge call the worst case must fit the remaining budget, or
+the run stops. With human review, fill `verdicts.json` and run
+`npm run eval:assistant -- --grade-review eval-results/<run>` (offline).
+
+Worst-case estimates (2026-11-17 prices): answers from both candidates about
+$0.64 for one pass; Luna's answers judged by Terra about $0.26.
 
 **No paid evaluation has been run**: no Gateway credentials or approved
-evaluation budget were available. The figures above are estimates.
+evaluation budget were available. No accuracy has been measured; every cost
+figure in this document is an estimate.
 
 ## Privacy
 
@@ -165,5 +243,9 @@ evaluation budget were available. The figures above are estimates.
   rule fails closed (503), it never fails open.
 - Answers are generated and can be wrong; the deterministic grader catches
   forbidden claims in evaluation, not in live traffic.
+- `ASSISTANT_BUDGET_CONFIRMED` is a manual assertion; see the activation
+  checklist.
+- Bot detection is wired and tested offline but not validated live.
+- No model has been evaluated; no accuracy figure exists yet.
 - The local `npm run build` still fails with SIGSEGV while rendering the
   `next/og` images, as on `main`; the Vercel build is authoritative.

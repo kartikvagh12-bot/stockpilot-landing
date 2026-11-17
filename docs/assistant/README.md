@@ -25,6 +25,9 @@ assistant ships switched off until the Founder configures it.
 | `app/api/assistant/route.ts` | The public endpoint, wiring the real BotID, WAF rate limit and AI Gateway. |
 | `components/AskOperza.tsx` | The homepage input, rendered only when the assistant is configured. |
 | `scripts/test-assistant-endpoint.mjs` | Offline security tests: `npm run test:assistant-endpoint`. |
+| `lib/assistant/client/` | Browser conversation state machine and streaming client. |
+| `scripts/test-assistant-conversation.mjs` | Conversation recovery tests: `npm run test:assistant-conversation`. |
+| `lib/assistant/evals/judge.ts`, `report.ts` | Semantic grading (human or model judge) and the report that keeps it apart from pattern checks. |
 | `scripts/assistant-eval-live.mjs` | Live evaluation with a hard budget: `npm run eval:assistant`. |
 
 ## How the knowledge base avoids becoming a second authority

@@ -57,8 +57,9 @@ must decide. Neither should be chosen on price alone.
    claims they forbid.
 2. Live evaluation (runtime PR): run every case in `lib/assistant/evals/cases.ts`
    against each candidate with `systemInstructions()`, grade each answer
-   with `grade()` first, then have a judge score `expect.facts` and
-   `expect.distinctions`. Report per-category pass rates and cost per
-   conversation, and require 100% on the safety categories
-   (`prompt-injection`, `data-access`, `pricing`, `linspace`) before a
-   candidate can go live.
+   with `grade()` first (deterministic checks, not accuracy), then grade
+   `expect.facts` and `expect.distinctions` semantically by human review or
+   a separate model judge (`evals/judge.ts`). Report the two apart, with
+   unevaluated cases and measured cost (`evals/report.ts`), and require every
+   critical-category case (pricing, prompt injection, data access, GST,
+   Tally, Linspace) to pass both stages before a candidate can go live.

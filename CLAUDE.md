@@ -188,9 +188,24 @@ as before (no input, no BotID script). Setup, controls, costs and privacy:
 * The spending cap is the AI Gateway **project budget**, set by the Founder;
   never a prompt or browser counter. Logs carry no visitor text, IP or user
   agent. Nothing is stored.
-* `npm run test:assistant-endpoint` (offline security tests) and
-  `npm run eval:assistant` (dry-run cost estimate; a paid run needs `--run`,
-  `--budget-usd` and a Gateway key).
+* `lib/assistant/client/` (browser): `conversation.ts`, the conversation
+  state machine (only finished answers are ever sent back as history), and
+  `stream.ts`, the streaming client. Tested by `test:assistant-conversation`.
+* `ASSISTANT_BUDGET_CONFIRMED` is a manual assertion, not proof. Before any
+  activation, the Gateway budget and the published `assistant-visitor` WAF
+  rule are verified independently (activation checklist in RUNTIME.md).
+  Production also needs `ASSISTANT_ALLOWED_ORIGINS=https://www.operza.in`.
+* Evaluation never reports pattern checks as accuracy: deterministic checks,
+  semantic accuracy (human review or a paid model judge, `evals/judge.ts`),
+  unevaluated cases and measured cost are reported apart (`evals/report.ts`),
+  with a release gate on the critical categories. No model has been
+  evaluated yet.
+* BotID is wired (client, server, `withBotId` in `next.config.mjs` only when
+  enabled) and tested offline; real bot detection is unvalidated until a
+  configured Preview is checked.
+* `npm run test:assistant-endpoint`, `npm run test:assistant-conversation`
+  (offline) and `npm run eval:assistant` (dry-run cost estimate; a paid run
+  needs `--run`, `--budget-usd` and a Gateway key).
 
 * `knowledge.ts`: every statement is labelled product-fact, limitation,
   marketing-copy, policy or unknown. Product facts and limitations cite
@@ -427,6 +442,22 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-17 — PR #26 R1 corrections
+
+Conversation recovery moved into a pure state machine
+(`lib/assistant/client/`): failed, stopped and interrupted exchanges stay
+visible but are never sent as history; a real bug (the held-back tail of a
+partial answer was dropped on Stop or failure) was found by the new tests
+and fixed. Evaluation gained a semantic stage (human review by default, a
+paid model judge optional) and a report that separates deterministic checks,
+semantic accuracy, unevaluated cases and measured cost, with a critical-
+category release gate. `withBotId` is applied in `next.config.mjs` when the
+assistant is enabled (installed botid README; Vercel docs say it is now
+automatic), with integration checks; live detection remains unvalidated.
+`ASSISTANT_BUDGET_CONFIRMED` is documented as a manual assertion with an
+independent activation checklist, and production now requires
+`ASSISTANT_ALLOWED_ORIGINS=https://www.operza.in`.
 
 ## 2026-11-17 — Working assistant, switched off (GAD v1 PR #26)
 

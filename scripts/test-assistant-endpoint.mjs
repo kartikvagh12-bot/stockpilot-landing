@@ -110,10 +110,14 @@ section("A. CONFIGURATION FAILS CLOSED");
   }
   ok("(A3) an unapproved model id is refused",
      !readAssistantConfig({ ...GOOD_ENV, ASSISTANT_MODEL: "openai/gpt-6-astra" }).ok);
+  const PROD = { ...GOOD_ENV, VERCEL_ENV: "production", VERCEL_PROJECT_PRODUCTION_URL: "www.operza.in" };
   ok("(A4) production is refused without the second switch",
-     !readAssistantConfig({ ...GOOD_ENV, VERCEL_ENV: "production" }).ok);
-  ok("(A5) ...and allowed only with ASSISTANT_ALLOW_PRODUCTION=true",
-     readAssistantConfig({ ...GOOD_ENV, VERCEL_ENV: "production", ASSISTANT_ALLOW_PRODUCTION: "true" }).ok);
+     !readAssistantConfig({ ...PROD, ASSISTANT_ALLOWED_ORIGINS: "https://www.operza.in" }).ok);
+  ok("(A4b) production is refused unless https://www.operza.in is named explicitly",
+     !readAssistantConfig({ ...PROD, ASSISTANT_ALLOW_PRODUCTION: "true" }).ok
+     && !readAssistantConfig({ ...PROD, ASSISTANT_ALLOW_PRODUCTION: "true", ASSISTANT_ALLOWED_ORIGINS: "https://operza.in" }).ok);
+  ok("(A5) ...and allowed only with both the second switch and the explicit origin",
+     readAssistantConfig({ ...PROD, ASSISTANT_ALLOW_PRODUCTION: "true", ASSISTANT_ALLOWED_ORIGINS: "https://www.operza.in" }).ok);
   ok("(A6) a malformed rate-limit id is refused",
      !readAssistantConfig({ ...GOOD_ENV, ASSISTANT_RATE_LIMIT_ID: "bad id; drop" }).ok);
   ok("(A7) local development needs NODE_ENV=development, the dev flag and a Gateway key",
@@ -286,7 +290,9 @@ section("H. THE BROWSER SIDE STAYS SMALL AND HONEST");
 /* ========================================================================= */
 {
   const ui = read("components/AskOperza.tsx");
-  const uiCode = ui.replace(/^\s*\/\/.*$/gm, "");
+  // Browser code is the component plus the client modules it imports.
+  const clientLib = ["lib/assistant/client/conversation.ts", "lib/assistant/client/stream.ts"];
+  const uiCode = [ui, ...clientLib.map(read)].join("\n").replace(/^\s*\/\/.*$/gm, "");
   ok("(H1) the prominent prompt is exactly 'Ask anything about Operza...'", ui.includes('"Ask anything about Operza..."'));
   ok("(H2) ...and is never branded 'Ask Operza AI'", !/Ask Operza AI/i.test(ui));
   ok("(H3) the input is rendered only when the server says the assistant is available",
@@ -295,14 +301,21 @@ section("H. THE BROWSER SIDE STAYS SMALL AND HONEST");
      && /<CompanyHero assistant=\{assistant\} \/>/.test(read("app/page.tsx")));
   ok("(H4) BotID's client is mounted only when the assistant is available",
      /\{isAssistantAvailable\(\) && \(\s*<BotIdClient protect=\{\[\{ path: "\/api\/assistant", method: "POST" \}\]\} \/>/.test(read("app/layout.tsx")));
-  ok("(H5) the browser talks only to /api/assistant",
-     (uiCode.match(/fetch\(/g) ?? []).length === 1 && /fetch\("\/api\/assistant"/.test(uiCode));
+  ok("(H5) the browser talks only to /api/assistant, through one injected fetch",
+     (uiCode.match(/fetchImpl\(/g) ?? []).length === 1 && /fetchImpl\("\/api\/assistant"/.test(read("lib/assistant/client/stream.ts"))
+     && !/\bfetch\(/.test(uiCode) && /fetchImpl: fetch/.test(ui));
   ok("(H6) no conversation storage in the browser",
      !/localStorage|sessionStorage|indexedDB|document\.cookie/.test(uiCode));
   ok("(H7) answers are rendered as text, never as HTML", !/dangerouslySetInnerHTML|innerHTML/.test(uiCode));
   ok("(H8) no model id, price or key appears in browser code",
      !/openai\/|gpt-|AI_GATEWAY|inputPerMillion/.test(uiCode));
-  ok("(H9) the input mirrors the server's length limit", new RegExp(`MAX_CHARS = ${LIMITS.maxMessageChars};`).test(ui));
+  const conv = read("lib/assistant/client/conversation.ts");
+  ok("(H9) the client mirrors the server's limits exactly",
+     conv.includes(`MAX_QUESTION_CHARS = ${LIMITS.maxMessageChars};`) && conv.includes(`MAX_MESSAGES = ${LIMITS.maxMessages};`)
+     && conv.includes(`MAX_ASSISTANT_CHARS = ${LIMITS.maxAssistantChars};`) && conv.includes(`MAX_TOTAL_CHARS = ${LIMITS.maxTotalChars};`)
+     && /maxLength=\{MAX_QUESTION_CHARS\}/.test(ui));
+  ok("(H9b) the browser's break marker is the server's",
+     read("lib/assistant/client/stream.ts").includes('STREAM_ERROR_MARKER = "\\u001Eerror"') && STREAM_ERROR_MARKER === "\u001Eerror");
   ok("(H10) the conversation is announced politely and marked busy while streaming",
      /role="log"/.test(ui) && /aria-live="polite"/.test(ui) && /aria-busy=\{busy\}/.test(ui));
   ok("(H11) the input has a real label and a 16px font (no iOS zoom)",
@@ -343,6 +356,51 @@ section("I. COSTS ARE ESTIMATED FROM THE VERIFIED PRICE TABLE");
   ok(`(I3) cost arithmetic is right (10k in + 500 out on Luna = $${c.toFixed(6)})`, Math.abs(c - 0.00125) < 1e-12);
   ok("(I4) cached input is billed at the cached rate",
      Math.abs(estimateCostUsd(luna, { inputTokens: 10_000, cachedInputTokens: 8_000, outputTokens: 0 }) - (2_000 * 0.1 + 8_000 * 0.01) / 1e6) < 1e-12);
+}
+
+/* ========================================================================= */
+section("J. BOTID IS WIRED END TO END (CONFIGURATION, CLIENT, SERVER)");
+/* ========================================================================= */
+{
+  // The real next.config.mjs, loaded twice: with the assistant off it must be
+  // exactly the old configuration; with it on, BotID's proxy is added and the
+  // existing redirect survives. Real bot detection can only be observed on a
+  // deployed Preview; these checks prove the wiring, not the detection.
+  const { pathToFileURL } = await import("node:url");
+  const cfgUrl = pathToFileURL(join(ROOT, "next.config.mjs")).href;
+  const prev = process.env.ASSISTANT_ENABLED;
+  delete process.env.ASSISTANT_ENABLED;
+  const off = (await import(`${cfgUrl}?off`)).default;
+  process.env.ASSISTANT_ENABLED = "true";
+  const on = (await import(`${cfgUrl}?on`)).default;
+  if (prev === undefined) delete process.env.ASSISTANT_ENABLED; else process.env.ASSISTANT_ENABLED = prev;
+
+  const offRedirects = await off.redirects();
+  ok("(J1) with the assistant off the config is unchanged: the redirect only, no rewrites or headers",
+     !("rewrites" in off) && !("headers" in off) && offRedirects.length === 1
+     && offRedirects[0].destination === "https://www.operza.in/:path*");
+  const rewrites = await on.rewrites();
+  const list = Array.isArray(rewrites) ? rewrites : rewrites.beforeFiles ?? [];
+  ok("(J2) with it on, BotID's challenge and proxy rewrites are added",
+     list.some((r) => /\/a-4-a\/c\.js$/.test(r.source) && r.destination.endsWith("/bot-protection/v1/challenge"))
+     && list.some((r) => r.source.endsWith("/:path*") && r.destination.endsWith("/bot-protection/v1/proxy/:path*")));
+  ok("(J3) ...the BotID path is framed only by this site", (await on.headers()).some((h) =>
+     h.headers.some((x) => x.key === "Content-Security-Policy" && /frame-ancestors 'self'/.test(x.value))));
+  ok("(J4) ...and the legacy-domain redirect survives",
+     JSON.stringify(await on.redirects()) === JSON.stringify(offRedirects));
+  ok("(J5) BotID's fixed path cannot collide with a page or API route",
+     list.every((r) => !existsSync(join(ROOT, "app", r.source.split("/")[1] ?? "x"))));
+
+  const layout = read("app/layout.tsx");
+  const protectedPath = (layout.match(/protect=\{\[\{ path: "([^"]+)", method: "([A-Z]+)" \}\]\}/) ?? []).slice(1);
+  ok("(J6) the client protects exactly the assistant endpoint's POST", protectedPath.join(" ") === "/api/assistant POST");
+  ok("(J7) the endpoint is that path, and the server checks every POST with checkBotId",
+     existsSync(join(ROOT, "app/api/assistant/route.ts"))
+     && /import \{ checkBotId \} from "botid\/server"/.test(read("app/api/assistant/route.ts"))
+     && /checkBot: \(\) => checkBotId\(\)/.test(read("app/api/assistant/route.ts")));
+  ok("(J8) the BotID config wrapper and client are both gated on the same switch",
+     /process\.env\.ASSISTANT_ENABLED === "true" \? withBotId\(nextConfig\) : nextConfig/.test(read("next.config.mjs"))
+     && /\{isAssistantAvailable\(\) && \(/.test(layout));
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
