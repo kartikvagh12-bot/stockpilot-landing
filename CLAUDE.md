@@ -202,8 +202,9 @@ as before (no input, no BotID script). Setup, controls, costs and privacy:
   semantic accuracy (human review or a paid model judge, `evals/judge.ts`),
   unevaluated cases and measured cost are reported apart (`evals/report.ts`),
   with a release gate on the critical categories measured against the full
-  case inventory: every critical case exactly once per model, so partial or
-  budget-stopped runs never pass. No model has been evaluated yet.
+  case inventory: every critical case exactly once per model, and the run
+  itself complete (not `--cases`-filtered, not budget-stopped, recorded in
+  `run.json`), so partial or interrupted runs never pass. No model has been evaluated yet.
 * BotID is wired (client, server, `withBotId` in `next.config.mjs` only when
   enabled) and tested offline; real bot detection is unvalidated until a
   configured Preview is checked.
@@ -446,6 +447,14 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-18 — PR #26 R3 correction
+
+The release gate now also requires a complete, uninterrupted run: the
+`partial` and `stoppedForBudget` flags (from `run.json`, or the paid run
+itself) block eligibility even when all 23 critical cases are present and
+pass, and a review without a run record is not eligible. Applied to both the
+paid-run report and `--grade-review`; 6 planted defects, all caught.
 
 ## 2026-11-18 — PR #26 R2 corrections
 

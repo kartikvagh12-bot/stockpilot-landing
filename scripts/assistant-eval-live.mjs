@@ -72,7 +72,12 @@ if (value("grade-review")) {
       : reviewed ? parseVerdict(c, v) : { status: "unevaluated", reason: "not reviewed" };
     return { ...r, semantic };
   });
-  const summary = summarise(results, { inventory: CASES, models: Array.isArray(run.models) ? run.models : undefined });
+  // No run.json, or flags that are not explicitly false, means the run
+  // cannot be confirmed complete, and nothing is eligible.
+  const record = typeof run.partial === "boolean" && typeof run.stoppedForBudget === "boolean"
+    ? { partial: run.partial, stoppedForBudget: run.stoppedForBudget }
+    : null;
+  const summary = summarise(results, { inventory: CASES, models: Array.isArray(run.models) ? run.models : undefined, run: record });
   writeFileSync(join(dir, "report.json"), JSON.stringify({ when: new Date().toISOString(), summary, results }, null, 2));
   for (const s of summary) console.log(describe(s).join("\n"));
   console.log(`Report: ${join(dir, "report.json")}`);
@@ -215,7 +220,7 @@ if (judge === "human") {
   writeFileSync(join(dir, "verdicts.json"), JSON.stringify(blank, null, 2));
   writeFileSync(join(dir, "review.md"), md.join("\n"));
 }
-const summary = summarise(results, { inventory: CASES, models });
+const summary = summarise(results, { inventory: CASES, models, run: { partial: !!only, stoppedForBudget } });
 writeFileSync(join(dir, "report.json"), JSON.stringify({ when: new Date().toISOString(), budgetUsd: budget, spentUsd: spent, stoppedForBudget, judge, summary }, null, 2));
 for (const s of summary) console.log(describe(s).join("\n"));
 console.log(`\nMeasured spend: $${spent.toFixed(4)} of $${budget}. Results: ${dir}`);

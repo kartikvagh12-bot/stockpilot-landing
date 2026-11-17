@@ -211,7 +211,11 @@ the one used). A run filtered with `--cases` is announced as partial and
 cannot make any model eligible; a run stopped by its budget records every
 requested model in `run.json`, so a model it never reached is reported, with
 all its critical cases missing, rather than silently dropped. The offline
-`--grade-review` merge applies the same rules.
+`--grade-review` merge applies the same rules. The run itself must also be
+complete: a run recorded in `run.json` as partial or stopped at its budget is
+never eligible, even if every critical case it reached passed, and a review
+with no `run.json` (or without both flags) is treated as unconfirmed and not
+eligible.
 
 Commands: `npm run eval:assistant` (dry run, worst-case cost per stage, no
 calls); a paid run needs `--run`, `--budget-usd <amount>` and

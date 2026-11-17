@@ -17,6 +17,11 @@ import type { SemanticResult } from "@/lib/assistant/evals/judge";
 // model that produced no results at all, or a results file with a case
 // missing or repeated can never be reported as eligible. The category used
 // for the gate comes from the inventory, not from the result row.
+//
+// The run itself must also be complete: a run filtered with --cases or
+// stopped by its budget is never eligible, even if every critical case it
+// reached passed, and a run whose completeness is unknown (no run record)
+// is treated the same way.
 
 export const CRITICAL_CATEGORIES: readonly EvalCategory[] = [
   "pricing",
@@ -41,6 +46,9 @@ export type CaseResult = {
 };
 
 type Tally = { pass: number; fail: number; unevaluated: number; total: number };
+
+/** How the run went, from run.json. null when there is no record. */
+export type RunRecord = { partial: boolean; stoppedForBudget: boolean } | null;
 
 export type ModelSummary = {
   model: string;
@@ -70,17 +78,25 @@ export function summarise(
     /** Every model the run was asked to evaluate, including any that
      *  produced no results (for example, stopped by the budget). */
     models?: readonly string[];
+    /** Whether the run was complete. Required, so no caller can skip it. */
+    run: RunRecord;
   },
 ): ModelSummary[] {
   const required = requiredCriticalCases(options.inventory);
   if (required.length === 0) throw new Error("summarise: the inventory has no critical cases; pass the full CASES list.");
   const categoryOf = new Map(options.inventory.map((c) => [c.id, c.category]));
   const models = [...new Set([...(options.models ?? []), ...results.map((r) => r.model)])];
+  const runBlockers: string[] = [];
+  if (!options.run) runBlockers.push("run: no run record, so completeness cannot be confirmed");
+  else {
+    if (options.run.partial !== false) runBlockers.push("run: partial (filtered with --cases), not a full evaluation");
+    if (options.run.stoppedForBudget !== false) runBlockers.push("run: stopped at its budget before finishing");
+  }
   return models.map((model) => {
     const rs = results.filter((r) => r.model === model);
     const semantic: Tally = { pass: 0, fail: 0, unevaluated: 0, total: rs.length };
     const byCategory: ModelSummary["byCategory"] = {};
-    const blockers: string[] = [];
+    const blockers: string[] = [...runBlockers];
     for (const r of rs) {
       semantic[r.semantic.status === "unevaluated" ? "unevaluated" : r.semantic.status]++;
       const c = (byCategory[r.category] ??= {

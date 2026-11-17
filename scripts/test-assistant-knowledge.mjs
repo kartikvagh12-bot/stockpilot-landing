@@ -358,7 +358,8 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   // The gate is measured against the full inventory of critical cases.
   const { requiredCriticalCases } = await import("../lib/assistant/evals/report.ts");
   const critical = requiredCriticalCases(CASES);
-  const inv = { inventory: CASES };
+  const COMPLETE = { partial: false, stoppedForBudget: false };
+  const inv = { inventory: CASES, run: COMPLETE };
   const full = critical.map((c) => row(c.id, c.category, true, "pass"));
   const swap = (id, r) => full.map((x) => (x.caseId === id ? r : x));
   const first = critical[0];
@@ -389,7 +390,7 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   const filtered = summarise(full.filter((r) => r.category === "pricing"), inv)[0];
   ok("(J14e) a run filtered to some cases (--cases) is never eligible, even if all it ran passed",
      !filtered.critical.eligible && filtered.criticalCoverage.missing.length === critical.length - full.filter((r) => r.category === "pricing").length);
-  const twoModels = summarise(full, { inventory: CASES, models: ["m", "openai/never-reached"] });
+  const twoModels = summarise(full, { ...inv, models: ["m", "openai/never-reached"] });
   ok("(J14f) a candidate that produced no results (budget stop) is listed and not eligible",
      twoModels.length === 2 && twoModels[0].critical.eligible && !twoModels[1].critical.eligible
      && twoModels[1].criticalCoverage.missing.length === critical.length);
@@ -397,8 +398,21 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   ok("(J14g) coverage is counted per model: one model's results never cover another's",
      perModel.find((x) => x.model === "m").critical.eligible && !perModel.find((x) => x.model === "n").critical.eligible);
   let threw = false;
-  try { summarise(full, { inventory: CASES.filter((c) => c.category === "company") }); } catch { threw = true; }
+  try { summarise(full, { inventory: CASES.filter((c) => c.category === "company"), run: COMPLETE }); } catch { threw = true; }
   ok("(J14h) a filtered inventory with no critical cases is refused, not treated as vacuously eligible", threw);
+  // R3: all critical cases present and passing is not enough; the run must
+  // also have been complete and uninterrupted.
+  const filteredAll = summarise(full, { ...inv, run: { partial: true, stoppedForBudget: false } })[0];
+  ok(`(J14i) a --cases run containing all ${critical.length} critical cases, all passing: not eligible`,
+     !filteredAll.critical.eligible && filteredAll.criticalCoverage.runOnce === critical.length
+     && filteredAll.critical.blockers.length === 1 && /partial/.test(filteredAll.critical.blockers[0]));
+  const budgetAll = summarise(full, { ...inv, run: { partial: false, stoppedForBudget: true } })[0];
+  ok("(J14j) a budget-stopped run whose critical cases all passed: not eligible",
+     !budgetAll.critical.eligible && budgetAll.criticalCoverage.runOnce === critical.length
+     && budgetAll.critical.blockers.length === 1 && /budget/.test(budgetAll.critical.blockers[0]));
+  const noRecord = summarise(full, { ...inv, run: null })[0];
+  ok("(J14k) a run with no run record: not eligible (completeness unknown)",
+     !noRecord.critical.eligible && /no run record/.test(noRecord.critical.blockers.join()));
   ok("(J15) answer and judging costs are measured separately",
      Math.abs(good.measuredCostUsd.answers - full.length * 0.001) < 1e-12 && Math.abs(good.measuredCostUsd.judging - full.length * 0.0005) < 1e-12);
   const text = describe(unevaluated).join("\n");
@@ -429,7 +443,7 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
 
   // The CLI's release gate, end to end from fixture files: one full, clean
   // run is eligible; every way of being incomplete is not.
-  const review = (answers, { run, verdictFor = () => true } = {}) => {
+  const review = (answers, { run = { partial: false, stoppedForBudget: false }, verdictFor = () => true } = {}) => {
     const d = mkdtempSync(join(tmpdir(), "assistant-gate-"));
     wf(join(d, "answers.json"), JSON.stringify(answers));
     const v = {};
@@ -454,9 +468,18 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
      review([...allCritical, ans(critical[0])])[0].critical.eligible === false);
   ok("(J17e) CLI: one critical fact reviewed as not met: not eligible",
      review(allCritical, { verdictFor: (r) => r.caseId !== critical[0].id })[0].critical.eligible === false);
-  const budgetStop = review(allCritical, { run: { models: ["m", "openai/gpt-6.1-terra"], stoppedForBudget: true } });
+  const budgetStop = review(allCritical, { run: { models: ["m", "openai/gpt-6.1-terra"], partial: false, stoppedForBudget: true } });
   ok("(J17f) CLI: a model the budget stopped before it answered is reported and not eligible",
-     budgetStop.length === 2 && budgetStop.find((x) => x.model === "openai/gpt-6.1-terra")?.critical.eligible === false);
+     budgetStop.length === 2 && budgetStop.find((x) => x.model === "openai/gpt-6.1-terra")?.critical.eligible === false
+     && budgetStop.find((x) => x.model === "openai/gpt-6.1-terra")?.criticalCoverage.missing.length === critical.length);
+  const allPass = critical.map((c) => ans(c));
+  ok(`(J17j) CLI: a --cases run whose run.json says partial, with all ${critical.length} critical cases passing: not eligible`,
+     review(allPass, { run: { models: ["m"], partial: true, stoppedForBudget: false } })[0].critical.eligible === false);
+  ok("(J17k) CLI: a budget-stopped run whose critical cases all passed: not eligible",
+     review(allPass, { run: { models: ["m"], partial: false, stoppedForBudget: true } })[0].critical.eligible === false);
+  ok("(J17l) CLI: a review with no run.json, or with the flags missing, is not eligible",
+     review(allPass, { run: null })[0].critical.eligible === false
+     && review(allPass, { run: { models: ["m"] } })[0].critical.eligible === false);
   const dry = execFileSync(process.execPath, ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--cases", critical[0].id], { cwd: ROOT, encoding: "utf8" });
   ok("(J17g) CLI: a --cases run is announced as partial and unable to make any model eligible",
      /Partial run \(--cases\): \d+ required critical case\(s\) are not included/.test(dry) && /Nothing was sent/.test(dry));
@@ -465,7 +488,8 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   ok("(J17h) CLI: an unknown --cases id is refused", refused);
   const cli = read("scripts/assistant-eval-live.mjs");
   ok("(J17i) CLI: both reports measure against the full inventory and every requested model",
-     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 2 && /run\.json/.test(cli));
+     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 2 && /run\.json/.test(cli)
+     && /run: \{ partial: !!only, stoppedForBudget \}/.test(cli) && /run: record \}/.test(cli));
 
   const src = read("scripts/assistant-eval-live.mjs");
   ok("(J18) the evaluator defaults to free human review and refuses a self-judging model",
