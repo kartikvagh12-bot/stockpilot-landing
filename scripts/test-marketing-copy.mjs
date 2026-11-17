@@ -73,17 +73,27 @@ function visibleStrings(file) {
   return out;
 }
 
-/** The homepage surface: the page, everything it composes, and the shared copy
- *  data. HealthCheck.tsx is excluded (separate change). */
-const COMPONENTS = readdirSync(join(ROOT, "components"))
-  .filter((f) => f.endsWith(".tsx"))
-  .map((f) => `components/${f}`);
+/** The judged surface: every page on the site, everything they compose, and
+ *  the shared copy data. Components are collected recursively, so a new
+ *  subfolder (components/art, components/demos) can never fall outside it. */
+const walk = (dir) =>
+  readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith(".tsx") ? [`${dir}/${e.name}`] : []);
+const COMPONENTS = walk("components").filter((f) => !f.startsWith("components/demos/"));
 const DEMO_FILES = readdirSync(join(ROOT, "components/demos"))
   .filter((f) => f.endsWith(".tsx"))
   .map((f) => `components/demos/${f}`);
 
+// Pages. The company homepage, Operza Shift (the manufacturing story that the
+// homepage told before the 2026-11 cutover) and Operza Linspace.
+const HOME = "app/page.tsx";
+const SHIFT_PAGE = "app/shift/page.tsx";
+const LINSPACE_PAGE = "app/linspace/page.tsx";
+
 const SURFACE = [
-  "app/page.tsx",
+  HOME,
+  SHIFT_PAGE,
+  LINSPACE_PAGE,
   "app/layout.tsx",
   "app/health-check/page.tsx",
   "app/health-check/HealthCheck.tsx",
@@ -103,6 +113,9 @@ ok(`(A1) extracted customer-visible strings (${strings.length} across ${SURFACE.
 ok("(A2) the Health Check route is inside the judged surface",
    SURFACE.includes("app/health-check/HealthCheck.tsx")
    && SURFACE.includes("app/health-check/page.tsx"));
+ok("(A3) every page and every component is inside the judged surface",
+   [HOME, SHIFT_PAGE, LINSPACE_PAGE].every((f) => existsSync(join(ROOT, f)))
+   && walk("components").every((f) => SURFACE.includes(f)));
 
 /* ========================================================================= */
 section("B. NO EM DASH IN RENDERED MARKETING PROSE");
@@ -292,38 +305,84 @@ section("E. THE CAPABILITY SEAM IS NOT BLURRED");
 }
 
 /* ========================================================================= */
-section("F. NAVIGATION RESOLVES");
+section("F. NAVIGATION RESOLVES, PAGE BY PAGE");
 /* ========================================================================= */
 {
-  const page = read("app/page.tsx");
-  const rendered = SURFACE.map(read).join("\n");
-  const ids = new Set([...rendered.matchAll(/\bid="([a-z-]+)"/g)].map((m) => m[1]));
-  const anchors = new Set([
-    ...[...rendered.matchAll(/href="\/?#([a-z-]+)"/g)].map((m) => m[1]),
-    // NAV_LINKS and the footer columns declare targets as data, not as a JSX
-    // href attribute, so they need their own sweep or the nav goes unchecked.
-    ...[...rendered.matchAll(/href:\s*"\/?#([a-z-]+)"/g)].map((m) => m[1]),
-  ]);
-  ok(`(F0) anchors were actually collected (${anchors.size})`, anchors.size >= 5,
-     [...anchors].join(", "));
-  for (const a of anchors)
-    ok(`(F1-#${a}) the anchor "#${a}" has a section on the page`, ids.has(a),
-       `known ids: ${[...ids].join(", ")}`);
+  // Since the multi-product cutover the same anchor name can mean different
+  // things on different pages (the homepage has #contact and so does
+  // /shift). So an anchor is resolved against the page it names: "/#x" against
+  // the homepage, "/shift#x" against the Shift page, and a bare "#x" against
+  // every page that renders the file it is written in.
+  // Follows only components a file actually RENDERS (a default import used as
+  // <Name ...>). Importing data from a component file, as the homepage does
+  // with PLANS, does not put that component's sections on the page.
+  const importsOf = (file, seen = new Set()) => {
+    if (seen.has(file)) return seen;
+    seen.add(file);
+    const src = read(file);
+    for (const m of src.matchAll(/import (\w+) from "@\/(components\/[^"]+)"/g)) {
+      const f = `${m[2]}.tsx`;
+      if (new RegExp(`<${m[1]}\\b`).test(src) && existsSync(join(ROOT, f))) importsOf(f, seen);
+    }
+    return seen;
+  };
+  const PAGES = { "/": HOME, "/shift": SHIFT_PAGE, "/linspace": LINSPACE_PAGE };
+  const composition = Object.fromEntries(
+    Object.entries(PAGES).map(([route, f]) => [route, [...importsOf(f)]]));
+  const idsOn = (route) => new Set(composition[route].flatMap((f) =>
+    [...read(f).matchAll(/\bid="([a-z-]+)"/g)].map((m) => m[1])));
+  const pagesRendering = (file) => Object.keys(PAGES).filter((r) => composition[r].includes(file));
+
+  const found = [];
+  for (const f of SURFACE.filter((f) => !f.startsWith("app/health-check"))) {
+    const src = strip(read(f));
+    for (const m of src.matchAll(/href(?:=|:\s*)\{?"(\/[a-z-]*)?#([a-z-]+)"/g)) found.push({ f, route: m[1] ?? null, id: m[2] });
+  }
+  // Data constants that hold a fragment link (DEMO_HREF) count too.
+  for (const m of read("lib/site.ts").matchAll(/=\s*"(\/[a-z-]*)#([a-z-]+)"/g))
+    found.push({ f: "lib/site.ts", route: m[1], id: m[2] });
+
+  ok(`(F0) anchors were actually collected (${found.length})`, found.length >= 8);
+  const unresolved = found.filter(({ f, route, id }) => {
+    if (route !== null) return !(route in PAGES) || !idsOn(route).has(id);
+    const routes = pagesRendering(f);
+    return routes.length === 0 ? false : routes.some((r) => !idsOn(r).has(id));
+  });
+  ok("(F1) every anchor resolves to a section on the page it points at",
+     unresolved.length === 0,
+     unresolved.map(({ f, route, id }) => `${f}: ${route ?? ""}#${id}`).join("\n      "));
   ok("(F2) no retired anchor survives",
-     !["features", "workflow", "screenshots", "simulator", "blind-spots"].some((a) => anchors.has(a)),
-     [...anchors].join(", "));
-  ok("(F3) the page composes the current section order",
-     /<Hero \/>[\s\S]*<ProductExperience \/>[\s\S]*<Plans \/>[\s\S]*<RunYourFactory \/>[\s\S]*<Costing \/>[\s\S]*<RunYourBooks \/>[\s\S]*<CompleteSection \/>[\s\S]*<HealthCheckCallout \/>[\s\S]*<FAQ \/>[\s\S]*<Contact \/>/.test(page));
-  ok("(F4) the retired sections are gone from the page",
-     !/BlindSpots|HealthCheckCTA|Workflow|Features|Screenshots|FinalCTA|FloatingAudit|BooksAndTally|CorrectionsAndHistory/.test(page));
+     !found.some(({ id }) => ["features", "workflow", "screenshots", "simulator", "blind-spots"].includes(id)));
+  const shift = read(SHIFT_PAGE);
+  ok("(F3) the Shift page composes the manufacturing story in order",
+     /<OperzaIntro \/>\s*<Hero \/>[\s\S]*<ProductExperience \/>[\s\S]*<Plans \/>[\s\S]*<RunYourFactory \/>[\s\S]*<Costing \/>[\s\S]*<RunYourBooks \/>[\s\S]*<CompleteSection \/>[\s\S]*<HealthCheckCallout \/>[\s\S]*<FAQ \/>[\s\S]*<Contact \/>/.test(shift));
+  ok("(F4) the retired sections are gone from every page",
+     [HOME, SHIFT_PAGE, LINSPACE_PAGE].every((f) =>
+       !/BlindSpots|HealthCheckCTA|Workflow|Features|Screenshots|FinalCTA|FloatingAudit|BooksAndTally|CorrectionsAndHistory/.test(read(f))));
+
+  // Old homepage links (/#factory and friends) are forwarded to the same
+  // section on /shift. The list must name only sections that exist there.
+  const fwd = read("components/LegacyAnchorForward.tsx");
+  const legacy = [...(fwd.match(/LEGACY_SHIFT_ANCHORS = \[([\s\S]*?)\]/)?.[1] ?? "").matchAll(/"([a-z-]+)"/g)].map((m) => m[1]);
+  ok(`(F5) the homepage forwards old manufacturing anchors (${legacy.length})`,
+     /<LegacyAnchorForward \/>/.test(read(HOME))
+     && ["product", "plans", "factory", "costing", "books", "complete", "faq"].every((a) => legacy.includes(a)));
+  ok("(F6) ...each to a section that exists on /shift",
+     legacy.every((a) => idsOn("/shift").has(a)), legacy.filter((a) => !idsOn("/shift").has(a)).join(", "));
+  ok("(F7) ...and none of them collides with a homepage section",
+     legacy.every((a) => !idsOn("/").has(a)), legacy.filter((a) => idsOn("/").has(a)).join(", "));
 }
 
 /* ========================================================================= */
 section("G. FAQ HAS ONE SOURCE OF TRUTH");
 /* ========================================================================= */
 {
-  const page = read("app/page.tsx");
+  // The FAQ is the Operza Shift FAQ, so its structured data lives on /shift,
+  // the page that renders it.
+  const page = read(SHIFT_PAGE);
   const faqComponent = read("components/FAQ.tsx");
+  ok("(G0) the FAQ renders on /shift and its structured data moved with it",
+     /<FAQ \/>/.test(page) && !/<FAQ \/>|faqJsonLd/.test(read(HOME)));
   ok("(G1) the structured data is generated, not hand-written",
      /faqJsonLd\(\)/.test(page) && !/acceptedAnswer/.test(page));
   ok("(G2) the visible list reads the same array", /FAQ_ITEMS/.test(faqComponent));
@@ -397,7 +456,6 @@ section("I. THE HOMEPAGE EXPLAINS THROUGH INTERACTION, NOT SCREENSHOTS");
   // Founder direction (2026-09): the homepage no longer shows the app. Real
   // captures read as blurry documentation and exposed literal product data, so
   // the product story is now website-native interfaces the visitor can click.
-  const page = read("app/page.tsx");
   const surfaceSrc = SURFACE.map(read).join("\n");
 
   ok("(I1) no homepage component references a product screenshot",
@@ -477,16 +535,19 @@ section("K. THE FOUNDER DIRECTION IS ON THE PAGE");
   ok("(K2) Open App is present, and not relabelled",
      (flat.match(/Open App/g) ?? []).length >= 3,
      `found ${(flat.match(/Open App/g) ?? []).length}`);
-  ok("(K3) ...in the navbar, the hero and the closing area",
+  ok("(K3) ...in the navbar, the Shift hero and the closing area",
      /Open App/.test(read("components/Navbar.tsx"))
      && /Open App/.test(read("components/Hero.tsx"))
      && (/Open App/.test(read("components/Footer.tsx")) || /Open App/.test(read("components/Contact.tsx"))));
+  ok("(K3b) ...and on the company homepage's closing area, through SITE.app",
+     /Open App/.test(read("components/CompanyContact.tsx"))
+     && /href=\{SITE\.app\}/.test(read("components/CompanyContact.tsx")));
   ok("(K4) every Open App resolves through SITE.app rather than a pasted URL",
      !/https:\/\/app\.operza\.in/.test(SURFACE.filter((f) => f !== "lib/site.ts").map(read).join("\n")));
 
-  ok("(K5) the Health Check has a homepage section, not just a footer link",
+  ok("(K5) the Health Check has a section on the Shift page, not just a footer link",
      existsSync(join(ROOT, "components/HealthCheckCallout.tsx"))
-     && /<HealthCheckCallout \/>/.test(read("app/page.tsx")));
+     && /<HealthCheckCallout \/>/.test(read(SHIFT_PAGE)));
   ok("(K6) ...linking to the route",
      /href="\/health-check"/.test(read("components/HealthCheckCallout.tsx")));
   ok("(K7) ...with the approved framing",
@@ -503,13 +564,15 @@ section("K. THE FOUNDER DIRECTION IS ON THE PAGE");
 }
 
 /* ========================================================================= */
-section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
+section("L. OPERZA SHIFT IS INTRODUCED BEFORE ITS HERO");
 /* ========================================================================= */
 {
   // Founder direction (2026-09-29): a cold visitor was reading what Operza lets
-  // them run before being told what Operza is. The intro answers that first,
-  // then the unchanged hero takes over.
-  const page = read("app/page.tsx");
+  // them run before being told what it is. The intro answers that first, then
+  // the unchanged hero takes over. Since the multi-product cutover (approved
+  // decision 1, 2026-11-17) intro and hero live on /shift, and the intro
+  // defines Operza Shift rather than all of Operza.
+  const page = read(SHIFT_PAGE);
   const introFile = "components/OperzaIntro.tsx";
   const introSrc = read(introFile);
   const intro = visibleStrings(introFile).map((r) => r.text).join(" ");
@@ -523,11 +586,13 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   const introMarkup = strip(introSrc);
   const paras = [...introMarkup.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/g)].map((m) =>
     m[1].replace(/\{"\s*"\}/g, " ").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim());
+  // The founder-approved 2026-09-29 copy, with "Operza" made "Operza Shift"
+  // where it names the product, and nothing else changed.
   const LOCKED = [
-    "What is Operza?",
-    "Operza is a web-based manufacturing operations and accounting platform built for manufacturers.",
+    "What is Operza Shift?",
+    "Operza Shift is a web-based manufacturing operations and accounting platform built for manufacturers.",
     "It helps digitize the day-to-day flow of a manufacturing business, from materials, products and BOMs through production, packing, inventory and dispatch, while also supporting sales, purchases, costing, payments and financial records.",
-    "Instead of information being scattered across spreadsheets, registers and disconnected tools, Operza gives manufacturers a structured system for recording and understanding the work happening across the business.",
+    "Instead of information being scattered across spreadsheets, registers and disconnected tools, Operza Shift gives manufacturers a structured system for recording and understanding the work happening across the business.",
   ];
   ok(`(L2b) the intro renders exactly four paragraphs (${paras.length})`, paras.length === 4,
      JSON.stringify(paras));
@@ -548,7 +613,7 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
   // dash. Red is carried by text alone, with no ornament of any kind.
   const labelTag = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>([\s\S]*?)<\/p>/) ?? [])[1] ?? "";
   ok("(L6b) the label holds only its text: no line, dash, dot or icon before it",
-     labelTag.trim() === "What is Operza?" && !/aria-hidden/.test(introMarkup), labelTag.trim());
+     labelTag.trim() === "What is Operza Shift?" && !/aria-hidden/.test(introMarkup), labelTag.trim());
   const labelOpen = (introMarkup.match(/<p\b[^>]*id="operza-intro-label"[^>]*>/) ?? [""])[0];
   // The intro is light, so its red is brand-600, which holds AA contrast on
   // that ground where the logo red (brand-500) does not. Pinned exactly: the
@@ -590,6 +655,102 @@ section("L. OPERZA IS INTRODUCED BEFORE THE HERO");
       "small business", "small businesses", "small factory", "small manufacturer",
       "small-scale factories"].every((t) => SMALL_CUSTOMER.test(t))
      && !SMALL_CUSTOMER.test("a small helper for the activity list"));
+}
+
+/* ========================================================================= */
+section("M. THE COMPANY HOMEPAGE IS THE FOUNDER'S, AND FAKES NOTHING");
+/* ========================================================================= */
+{
+  // Founder direction (2026-11-17): Operza is the parent brand, and the
+  // homepage introduces the company and its products.
+  const home = read(HOME);
+  const hero = read("components/CompanyHero.tsx");
+  const h1s = [HOME, ...["CompanyHero", "WhatWeBuild", "ShiftShowcase", "LinspacePreview", "Approach", "CompanyContact"]
+    .map((c) => `components/${c}.tsx`)].map(read).join("\n").match(/<h1\b/g) ?? [];
+  const heroH1 = (hero.match(/<h1[\s\S]*?<\/h1>/) ?? [""])[0]
+    .replace(/\{"\s*"\}/g, " ").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+  ok("(M1) the headline is exactly the Founder's line", heroH1 === "Complex work. Clearer possibilities.", heroH1);
+  ok(`(M2) ...and it is the homepage's only h1 (${h1s.length})`, h1s.length === 1);
+  ok("(M3) the eyebrow is the approved one",
+     /<p className="label-invert">Software for complex work<\/p>/.test(hero));
+  ok("(M4) the supporting line names the two industries and nothing more",
+     /Operza builds software for complex business workflows\. Our first\s+product serves manufacturing, and we&apos;re developing our next\s+for construction\./.test(hero));
+  ok("(M5) the hero's actions are the approved pair",
+     /Explore our products/.test(hero) && /Book a demo/.test(hero));
+  ok("(M6) the homepage composes the approved sections in order",
+     /<CompanyHero \/>\s*<WhatWeBuild \/>\s*<ShiftShowcase \/>\s*<LinspacePreview \/>\s*<Approach \/>\s*<CompanyContact \/>/.test(home));
+
+  // The assistant is not built yet, so nothing may pretend to be it: no input,
+  // no text area, no "Ask anything" prompt anywhere on the homepage.
+  const homeFiles = [HOME, ...["CompanyHero", "WhatWeBuild", "ShiftShowcase", "LinspacePreview", "Approach", "CompanyContact", "Navbar", "Footer"]
+    .map((c) => `components/${c}.tsx`)];
+  const homeSrc = homeFiles.map((f) => strip(read(f))).join("\n");
+  ok("(M7) no fake, disabled or nonfunctional assistant input",
+     !/<input\b|<textarea\b|contentEditable|Ask anything|Ask Operza/i.test(homeSrc));
+  ok("(M8) the homepage does not run a second lead form: demos go to the one on /shift",
+     !/<Contact \/>|demo_requests|getSupabaseClient/.test(homeSrc)
+     && /DEMO_HREF = "\/shift#contact"/.test(read("lib/site.ts")));
+
+  // Structured data describes the company only. The product application is
+  // on /shift, and an unreleased product gets none.
+  const ld = home.slice(home.indexOf("ld+json"));
+  ok("(M9) the homepage's structured data is the company, not a product",
+     /"@type": "Organization"/.test(ld) && !/SoftwareApplication|FAQPage/.test(ld));
+  ok("(M10) the company copy invents nothing about the company",
+     !/founded in|since 20\d\d|our team of|\d+\s*(people|employees|engineers)|award|years of experience/i.test(homeSrc));
+  // The registered name belongs to the footer's legal line and the
+  // Organization's legalName, nowhere else on the page.
+  const legalUsers = homeFiles.filter((f) =>
+    f !== "components/Footer.tsx" && f !== HOME && /Operza Technologies|SITE\.legalName/.test(strip(read(f))));
+  ok("(M11) the legal name never appears as a public brand on the homepage",
+     legalUsers.length === 0
+     && !/Operza Technologies/.test(strip(home))
+     && (strip(home).match(/SITE\.legalName/g) ?? []).length === 1
+     && /legalName: SITE\.legalName,/.test(home), legalUsers.join(", "));
+}
+
+/* ========================================================================= */
+section("N. OPERZA LINSPACE IS PRESENTED AS IN DEVELOPMENT, AND PROMISES NOTHING");
+/* ========================================================================= */
+{
+  // Not launched (Founder, 2026-11-17). It may be introduced as in development
+  // with no invented functionality, dates, pricing or availability. For this
+  // release candidate: noindex, no waiting list, no early-access sign-up.
+  const files = [LINSPACE_PAGE, "components/LinspaceHero.tsx", "components/LinspaceFocus.tsx",
+    "components/LinspaceStatus.tsx", "components/LinspacePreview.tsx"];
+  const text = files.flatMap(visibleStrings).map((r) => r.text);
+  const src = files.map((f) => strip(read(f))).join("\n");
+  const all = text.join(" ");
+
+  ok("(N1) the status is shown as In development, from the registry",
+     /STATUS_LABEL\[LINSPACE\.status\]/.test(src) && /status: "in-development"/.test(read("lib/site.ts")));
+  ok("(N2) ...and stated in words, not only as a badge",
+     /not available yet|in development and not available/i.test(all));
+  const PROMISE =
+    /coming soon|launch(es|ing|ed)?\b|available now|now available|beta\b|wait ?list|early access|sign[ -]?up|pre-?order|join the|notify me|release date (is|of)|\b20\d\d\b|Q[1-4]\b|₹|\bper (month|user|seat)\b|pricing|free trial/i;
+  // Judged on the extracted strings AND on the comment-stripped source text:
+  // the extractor reads text between tags, so a sentence that follows a JSX
+  // expression ({LINSPACE.name} is ...) would otherwise go unjudged.
+  const proseOf = (f) => strip(read(f)).replace(/className="[^"]*"/g, " ").replace(/<[^>]+>/g, " ");
+  const promises = [
+    ...text.filter((t) => PROMISE.test(t)),
+    ...files.flatMap((f) => (proseOf(f).match(new RegExp(`.{0,40}(?:${PROMISE.source}).{0,40}`, "gi")) ?? [])
+      .map((m) => `${f}: ${m.replace(/\s+/g, " ").trim()}`)),
+  ];
+  ok("(N3) no date, price, launch, beta or sign-up promise", promises.length === 0, promises.slice(0, 4).join("\n      "));
+  ok("(N4) no form or input: there is no interest-collection workflow",
+     !/<form\b|<input\b|<textarea\b|demo_requests|getSupabaseClient/.test(src));
+  ok("(N5) the page is noindex",
+     /robots:\s*\{\s*index: false/.test(read(LINSPACE_PAGE)));
+  ok("(N6) ...and carries no product structured data",
+     !/ld\+json|SoftwareApplication/.test(strip(read(LINSPACE_PAGE))));
+  // The direction is described as what it is being designed around, never as
+  // something the software does today.
+  ok("(N7) the capabilities are framed as design direction, not shipped features",
+     /being designed around/.test(all)
+     && !/Linspace (reads|measures|generates|produces|creates|automates|extracts|calculates)/i.test(all));
+  ok("(N8) no fake product interface or screenshot",
+     !/<img\b|next\/image|Interactive example|dashboard/i.test(src));
 }
 
 /* ========================================================================= */

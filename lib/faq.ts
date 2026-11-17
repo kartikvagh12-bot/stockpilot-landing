@@ -14,7 +14,7 @@ export type FaqItem = { question: string; answer: string };
 
 export const FAQ_ITEMS: readonly FaqItem[] = [
   {
-    question: "Who is Operza for?",
+    question: "Who is Operza Shift for?",
     answer:
       "Manufacturers in India who currently run on Excel, paper registers and WhatsApp. We have set up starting data for furniture, garments, packaging, food, chemicals and electrical plastics, but the model fits any factory that turns materials into products.",
   },

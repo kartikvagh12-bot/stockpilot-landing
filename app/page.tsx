@@ -1,35 +1,35 @@
 import Navbar from "@/components/Navbar";
-import OperzaIntro from "@/components/OperzaIntro";
-import Hero from "@/components/Hero";
-import ProductExperience from "@/components/ProductExperience";
-import Plans from "@/components/Plans";
-import RunYourFactory from "@/components/RunYourFactory";
-import Costing from "@/components/Costing";
-import RunYourBooks from "@/components/RunYourBooks";
-import CompleteSection from "@/components/CompleteSection";
-import HealthCheckCallout from "@/components/HealthCheckCallout";
-import FAQ from "@/components/FAQ";
-import Contact from "@/components/Contact";
+import CompanyHero from "@/components/CompanyHero";
+import WhatWeBuild from "@/components/WhatWeBuild";
+import ShiftShowcase from "@/components/ShiftShowcase";
+import LinspacePreview from "@/components/LinspacePreview";
+import Approach from "@/components/Approach";
+import CompanyContact from "@/components/CompanyContact";
 import Footer from "@/components/Footer";
+import LegacyAnchorForward from "@/components/LegacyAnchorForward";
 import { SITE } from "@/lib/site";
-import { faqJsonLd } from "@/lib/faq";
+
+// The Operza company homepage (Founder direction, 2026-11-17). Operza is the
+// parent brand; Operza Shift and Operza Linspace are introduced as its
+// products. The manufacturing story that used to live here is on /shift, and
+// old links to its sections are forwarded there by LegacyAnchorForward.
+//
+// Metadata is the root layout's company default. Structured data describes
+// the company only: the SoftwareApplication belongs to /shift, and Operza
+// Linspace gets none because it is not released.
 
 export default function HomePage() {
   return (
     <>
+      <LegacyAnchorForward />
       <Navbar />
       <main>
-        <OperzaIntro />
-        <Hero />
-        <ProductExperience />
-        <Plans />
-        <RunYourFactory />
-        <Costing />
-        <RunYourBooks />
-        <CompleteSection />
-        <HealthCheckCallout />
-        <FAQ />
-        <Contact />
+        <CompanyHero />
+        <WhatWeBuild />
+        <ShiftShowcase />
+        <LinspacePreview />
+        <Approach />
+        <CompanyContact />
       </main>
       <Footer />
 
@@ -39,31 +39,21 @@ export default function HomePage() {
           __html: JSON.stringify([
             {
               "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              name: SITE.name,
-              url: SITE.domain,
-              applicationCategory: "BusinessApplication",
-              applicationSubCategory:
-                "Manufacturing and accounting software",
-              operatingSystem: "Web",
-              description:
-                "Manufacturing software for Indian factories. Materials, production, packing and dispatch on the floor. Invoices, bills, payments and statements in the books.",
-            },
-            {
-              "@context": "https://schema.org",
               "@type": "Organization",
-              // The company, not the product: the SoftwareApplication above
-              // stays "Operza".
-              name: SITE.legalName,
+              // The public brand is the name; the registered company is the
+              // legalName (approved decision 2).
+              name: SITE.name,
               legalName: SITE.legalName,
-              alternateName: SITE.name,
               url: SITE.domain,
               logo: `${SITE.domain}/operza-logo.png`,
               email: SITE.email,
             },
-            // Built from lib/faq.ts, the same array the visible FAQ renders,
-            // so the structured data cannot drift from the page.
-            faqJsonLd(),
+            {
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: SITE.name,
+              url: SITE.domain,
+            },
           ]),
         }}
       />
