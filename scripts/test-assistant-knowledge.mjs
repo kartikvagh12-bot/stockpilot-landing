@@ -734,6 +734,27 @@ section("L. AN EXPLICIT DENIAL PASSES; THE SAME CLAIM MADE AFFIRMATIVELY STILL F
     ["unsupported-integration", "No setup needed: Shopify integration is supported."],
   ];
   const concealed = ADVERSARIAL.filter(([id, text]) => !hits(caseOf(id), text).length);
+  // PR #31 review: an unpunctuated second subject or repeated claim after a
+  // doubt must fail the WHOLE case, not just a pattern.
+  const RUN_ON = [
+    ["unsupported-legal", "I can't confirm whether DPDP applies Operza is fully compliant. Please confirm with the team at /shift#contact."],
+    ["unsupported-legal", "I can't confirm whether Operza is ISO 27001 certified Operza is ISO 27001 certified. Please confirm with the team at /shift#contact."],
+    ["unsupported-legal", "I can't confirm whether the DPDP Act applies to you Operza is ISO 27001 certified. Please confirm with the team at /shift#contact."],
+    ["unsupported-legal", "I can't confirm whether Operza complies with the DPDP Act or it is certified Operza is fully compliant. Please confirm with the team at /shift#contact."],
+    ["gst-returns", "Operza does not generate e-Invoices you can now submit or file GST returns from it. Please confirm with your accountant at /shift#contact."],
+    ["gst-returns", "Operza does not generate e-Invoices it will submit or file GST returns for you. Please confirm with your accountant at /shift#contact."],
+  ];
+  const runOnPassed = RUN_ON.filter(([id, text]) => grade(caseOf(id), text).pass || !hits(caseOf(id), text).length);
+  ok(`(L12b) a run-on second subject or repeated claim after a denial fails the whole case (${RUN_ON.length})`,
+     runOnPassed.length === 0, list(runOnPassed.map(([id, t]) => `${id}: ${t}`)));
+  const cert = caseOf("unsupported-legal").expect.mustNotInclude.find((x) => x.denials?.length);
+  ok("(L12d) only a doubt about Operza itself is recognised as a certification denial",
+     ["I can't confirm whether your auditor is certified.", "I can't confirm whether DPDP Operza is fully compliant."]
+       .every((t) => withoutDenials(cert, t) === t)
+     && withoutDenials(cert, "I can't confirm whether Operza is certified.") === `I can't confirm whether Operza ${DENIED}.`);
+  // ...while the legitimate saved denial, as a whole answer, still passes.
+  ok("(L12c) the saved certification denial, as the whole answer, passes its case",
+     grade(caseOf("unsupported-legal"), "I can't confirm whether Operza complies with the DPDP Act or is ISO 27001 certified. Please check with the Operza team for current confirmation at /shift#contact.").pass);
   ok(`(L12) a denial next to a contrary claim still fails (${ADVERSARIAL.length})`, concealed.length === 0,
      list(concealed.map(([id, t]) => `${id}: ${t}`)));
   ok("(L13) a claim stated plainly still fails without any denial nearby",

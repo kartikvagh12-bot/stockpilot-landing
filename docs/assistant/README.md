@@ -66,7 +66,10 @@ forms (`denials` on a `Pattern`, the `DENY` table in `evals/cases.ts`). Before
 that pattern runs, the grader replaces only the words a listed denial matches,
 so anything said before or after is still checked: "No automatic Tally sync,
 but Operza now synchronizes directly with TallyPrime" fails on its second
-half. Denials never cross a sentence, a semicolon, a comma clause or "but".
+half. Denials never cross a sentence, a semicolon, a comma clause or "but",
+and never absorb a second subject: "can't confirm whether ..." is recognised
+only when its subject is Operza itself, and a denied GST list may not bring
+in a new subject or modal ("you can", "it will").
 For pricing and certifications only doubt is recognised ("can't confirm",
 "isn't confirmed"), never a flat "there is no free trial", which would itself
 be an unapproved claim.

@@ -36,11 +36,15 @@ const deny = (pattern: Pattern, ...denials: Denial[]): Pattern => ({ ...pattern,
 // fail (section L of test:assistant).
 const SYNC_KIND = "(?:automatic|live|real[- ]time|two-way|direct)";
 const CANT_CONFIRM = "\\b(?:can't|cannot|can not|unable to)\\s+confirm";
-/** Words a denied list may not contain: each starts a new or contrary claim. */
-const SAME_CLAIM = "(?:(?!\\b(?:but|however|though|although|yet|while|whereas|instead|except|and|it|Operza|we)\\b)[^.;:!?\\n,])";
-/** Inside "can't confirm whether ...", the subject may be Operza; only a
- *  conjunction or punctuation ends the doubted clause. */
-const SAME_DOUBT = "(?:(?!\\b(?:but|however|though|although|yet|while|whereas|instead|except|and)\\b)[^.;:!?\\n,])";
+/** Words a denied list may not contain: each starts a new or contrary claim,
+ *  or brings in a new subject or modal ("you can", "it will") that could
+ *  turn a later item into an affirmative one. */
+const SAME_CLAIM = "(?:(?!\\b(?:but|however|though|although|yet|while|whereas|instead|except|and|it|Operza|we|you|they|this|that|which|can|could|will|would|now|also|then)\\b)[^.;:!?\\n,])";
+/** What "can't confirm whether ..." may be about: Operza itself, never a
+ *  second subject. */
+const DOUBTED_SUBJECT = "(?:Operza(?:\\s+(?:Shift|Factory|Books|Complete))?|it)";
+/** At most one regulation the same subject is doubted to comply with. */
+const DOUBTED_COMPLIANCE = "(?:complies|is compliant)\\s+with\\s+(?:the\\s+)?(?:DPDP(?:\\s+Act)?|GDPR|IT Act)\\s+or\\s+";
 const DENY = {
   tallySync: {
     re: `(?:\\bno|\\bnot|n't(?:\\s+(?:have|offer|provide|include))?)\\s+(?:an?\\s+|any\\s+)?${SYNC_KIND}(?:\\s*(?:,|/|\\bor\\b)\\s*${SYNC_KIND})*\\s+(?:Tally(?:Prime)?\\s+)?(?:sync|synchroni[sz]ation|connection|integration|link|connector)\\b`,
@@ -79,8 +83,10 @@ const DENY = {
     affirmative: "Operza has a Shopify integration.",
   },
   certificationUnconfirmed: {
-    // Only the certification words are set aside; the words between are still checked.
-    re: `(?<=${CANT_CONFIRM}\\s+(?:whether|if)\\s+${SAME_DOUBT}{0,80})\\b(?:is|are)\\s+(?:fully\\s+)?(?:ISO 27001\\s+)?(?:compliant|certified)\\b`,
+    // Only the certification words are set aside. The doubted clause must be
+    // "whether Operza [complies with <regulation> or] is ...": no free text, so
+    // a second subject or a repeated claim after it is still checked.
+    re: `(?<=${CANT_CONFIRM}\\s+(?:whether|if)\\s+${DOUBTED_SUBJECT}\\s+(?:${DOUBTED_COMPLIANCE})?)\\b(?:is|are)\\s+(?:fully\\s+)?(?:ISO 27001\\s+)?(?:compliant|certified)\\b`,
     example: "I can't confirm whether Operza complies with the DPDP Act or is ISO 27001 certified.",
     affirmative: "Operza is ISO 27001 certified.",
   },
