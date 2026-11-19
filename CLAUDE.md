@@ -218,7 +218,11 @@ as before (no input, no BotID script). Setup, controls, costs and privacy:
   the page here that renders it. It is not a second authority: change a
   statement only after re-reading its source, and move the pin (here and in
   `lib/assistant/sources.ts`) when you re-verify.
-* `instructions.ts`: the behaviour rules and `systemInstructions()`.
+* `instructions.ts`: the behaviour rules, `TOPIC_CHECKLISTS` (points an
+  answer on Factory vs Complete, Tally, GST or Linspace must not leave out,
+  each restating cited knowledge) and `systemInstructions()`. Every link a
+  case expects must be in `destinations.ts`, which the browser links
+  exactly (section K of `test:assistant`).
 * `evals/cases.ts` and `evals/grade.ts`: the evaluation set and the
   deterministic grader shared with the future live evaluation.
 * `npm run test:assistant` (offline, every run) and
@@ -447,6 +451,17 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-19 — Assistant response quality (links and completeness)
+
+The first live evaluation (saved locally, not changed) showed 26 missed
+links and incomplete answers on Tally and GST. Root causes: four `/shift`
+sections the cases expect were never offered as destinations; the link rule
+only said "when a link helps"; the Linspace rule offered contact as an equal
+choice. Added the sections, a most-specific-link rule, Linspace-first
+routing, and grounded topic checklists, with section K tests (10 planted
+defects caught). No grader, forbidden pattern, knowledge statement or
+runtime control changed; no paid call was made.
 
 ## 2026-11-18 — PR #26 R3 correction
 
