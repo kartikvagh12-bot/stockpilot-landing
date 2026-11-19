@@ -21,19 +21,23 @@ const SCRIPTS = {
 export function grade(c: EvalCase, answer: string): Grade {
   const failures: string[] = [];
   const e = c.expect;
+  // Model replies often use typographic apostrophes. Normalizing only these
+  // characters avoids false misses such as "I can’t" versus /can't/ without
+  // changing the underlying forbidden-claim patterns or release gate.
+  const checkedAnswer = answer.replace(/[\u2018\u2019\u02BC]/g, "'").replace(/\u00A0/g, " ");
 
   for (const p of e.mustNotInclude) {
-    if (toRegExp(p).test(answer)) failures.push(`forbidden: /${p.re}/`);
+    if (toRegExp(p).test(checkedAnswer)) failures.push(`forbidden: /${p.re}/`);
   }
   for (const alternatives of e.mustInclude ?? []) {
-    if (!alternatives.some((p) => toRegExp(p).test(answer)))
+    if (!alternatives.some((p) => toRegExp(p).test(checkedAnswer)))
       failures.push(`missing one of: ${alternatives.map((p) => `/${p.re}/`).join(" | ")}`);
   }
-  if (e.clarify && !/[?？]/.test(answer)) failures.push("expected a follow-up question");
-  if (e.links?.length && !e.links.some((l) => answer.includes(l)))
+  if (e.clarify && !/[?？]/.test(checkedAnswer)) failures.push("expected a follow-up question");
+  if (e.links?.length && !e.links.some((l) => checkedAnswer.includes(l)))
     failures.push(`expected a link to one of: ${e.links.join(", ")}`);
-  if (e.language === "hi" && !SCRIPTS.hi.test(answer)) failures.push("expected Hindi (Devanagari)");
-  if (e.language === "gu" && !SCRIPTS.gu.test(answer)) failures.push("expected Gujarati script");
+  if (e.language === "hi" && !SCRIPTS.hi.test(checkedAnswer)) failures.push("expected Hindi (Devanagari)");
+  if (e.language === "gu" && !SCRIPTS.gu.test(checkedAnswer)) failures.push("expected Gujarati script");
 
   return { pass: failures.length === 0, failures };
 }
