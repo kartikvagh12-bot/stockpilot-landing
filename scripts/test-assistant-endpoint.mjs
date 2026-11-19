@@ -433,7 +433,7 @@ section("K. ONE EXPLICIT PROVIDER OVERLOAD RETRY, NO MORE");
   const opts = (timeoutMs = 4000) => ({ abortSignal: new AbortController().signal, timeoutMs });
 
   ok("(K1) only the exact 503 server_is_overloaded code is eligible, including the wrapped provider form",
-     isProviderOverload(overload()) && isProviderOverload(wrapped())
+     isProviderOverload(overload()) && isProviderOverload(wrapped)
      && !isProviderOverload({ statusCode: 503, code: "service_unavailable" })
      && !isProviderOverload({ statusCode: 429, code: "server_is_overloaded" })
      && !isProviderOverload(new Error("server_is_overloaded")));
