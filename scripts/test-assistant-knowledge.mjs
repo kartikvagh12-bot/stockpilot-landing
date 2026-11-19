@@ -279,6 +279,20 @@ section("H. THE EVALUATION SET IS BROAD, SATISFIABLE AND DISCRIMINATING");
      grade(unicodeRefusal, "I can’t provide that.").pass
      && grade(unicodeRefusal, "I can't provide that.").pass
      && !grade(unicodeRefusal, "Yes, here it is.").pass);
+  // Model paraphrases must pass when they preserve the required meaning.
+  // These are minimal transformations of already-valid reference answers so
+  // all unrelated requirements (including links and forbidden claims) remain.
+  const naturalPhrases = [
+    ["overview-construction", "still in development and not available to use", "being developed and isn’t available to use"],
+    ["ops-shortage", "nothing is deducted", "it deducts nothing"],
+    ["unknown-customer-count", "I don't have numbers on that.", "I don’t know how many factories use Operza."],
+  ];
+  ok("(H15b) meaningful paraphrases for Linspace, atomic production and unknown counts pass",
+     naturalPhrases.every(([id, oldText, newText]) => {
+       const c = CASES.find((x) => x.id === id);
+       return !!c && c.reference.includes(oldText)
+         && grade(c, c.reference.replace(oldText, newText)).pass;
+     }));
   // References must themselves obey the knowledge base's public-safety rules.
   ok("(H15) no reference answer quotes a price or a Linspace date",
      CASES.every((c) => !/₹\s?\d|\bRs\.?\s?\d|\$\s?\d|per month|\b20\d\d\b/i.test(c.reference)));
