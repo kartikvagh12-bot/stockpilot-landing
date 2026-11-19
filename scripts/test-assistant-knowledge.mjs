@@ -501,9 +501,30 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   try { execFileSync(process.execPath, ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--cases", "no-such-case"], { cwd: ROOT, stdio: "pipe" }); } catch (e) { refused = e.status === 2; }
   ok("(J17h) CLI: an unknown --cases id is refused", refused);
   const cli = read("scripts/assistant-eval-live.mjs");
-  ok("(J17i) CLI: both reports measure against the full inventory and every requested model",
-     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 2 && /run\.json/.test(cli)
-     && /run: \{ partial: !!only, stoppedForBudget \}/.test(cli) && /run: record \}/.test(cli));
+  ok("(J17i) CLI: paid, offline review and offline regrade reports use the full inventory and requested models",
+     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 3 && /run\.json/.test(cli)
+     && /run: \{ partial: !!only, stoppedForBudget \}/.test(cli) && /run: record \}/.test(cli)
+     && /if \(value\("regrade"\)\)/.test(cli) && /regraded-report\.json/.test(cli));
+  // Exercise the new no-network regrade path, not just its source text.
+  // A deliberately stale result should be fixed without touching the saved
+  // answers or granting release to a model that has not covered the inventory.
+  const offlineDir = mkdtempSync(join(tmpdir(), "assistant-regrade-"));
+  const staleRow = { ...ans(critical[0]), deterministic: { pass: false, failures: ["stale result"] },
+    semantic: { status: "unevaluated", reason: "not reviewed" } };
+  const saved = JSON.stringify([staleRow]);
+  wf(join(offlineDir, "answers.json"), saved);
+  wf(join(offlineDir, "run.json"), JSON.stringify({ models: ["m", "n"], partial: false, stoppedForBudget: false }));
+  execFileSync(process.execPath,
+     ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--regrade", offlineDir],
+     { cwd: ROOT, stdio: "ignore", env: { ...process.env, AI_GATEWAY_API_KEY: "" } });
+  const offline = JSON.parse(rf(join(offlineDir, "regraded-report.json"), "utf8"));
+  const changed = JSON.parse(rf(join(offlineDir, "regrade-diff.json"), "utf8"));
+  ok("(J17m) CLI: free offline regrade fixes stale checks, preserves answers and blocks incomplete candidates",
+     offline.summary.length === 2
+     && offline.summary.find((x) => x.model === "m")?.deterministic.pass === 1
+     && offline.summary.every((x) => !x.critical.eligible)
+     && changed.length === 1 && changed[0].after.pass === true
+     && rf(join(offlineDir, "answers.json"), "utf8") === saved);
 
   const src = read("scripts/assistant-eval-live.mjs");
   ok("(J18) the evaluator defaults to free human review and refuses a self-judging model",
