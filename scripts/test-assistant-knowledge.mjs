@@ -24,7 +24,7 @@ const { PRODUCT_SOURCE } = await import("../lib/assistant/sources.ts");
 const { DESTINATIONS, CONTACT } = await import("../lib/assistant/destinations.ts");
 const { RULES, TOPIC_CHECKLISTS, systemInstructions } = await import("../lib/assistant/instructions.ts");
 const { CASES } = await import("../lib/assistant/evals/cases.ts");
-const { grade, toRegExp } = await import("../lib/assistant/evals/grade.ts");
+const { grade, toRegExp, makesForbiddenClaim, withoutDenials, DENIED } = await import("../lib/assistant/evals/grade.ts");
 const { SITE } = await import("../lib/site.ts");
 
 let checks = 0;
@@ -285,6 +285,7 @@ section("H. THE EVALUATION SET IS BROAD, SATISFIABLE AND DISCRIMINATING");
   const naturalPhrases = [
     ["overview-construction", "still in development and not available to use", "being developed and isn’t available to use"],
     ["ops-shortage", "nothing is deducted", "it deducts nothing"],
+    ["ops-shortage", "nothing is deducted", "no materials are deducted"],
     ["unknown-customer-count", "I don't have numbers on that.", "I don’t know how many factories use Operza."],
   ];
   ok("(H15b) meaningful paraphrases for Linspace, atomic production and unknown counts pass",
@@ -630,6 +631,130 @@ section("K. ANSWERS CAN LINK WHERE THE EVALUATION EXPECTS, AND COVER THE KEY LIM
   ok("(K8) the Tally checklist links /shift#complete and Factory vs Complete links /shift#plans",
      TOPIC_CHECKLISTS.find((t) => t.id === "tally").link === "/shift#complete"
      && TOPIC_CHECKLISTS.find((t) => t.id === "factory-vs-complete").link === "/shift#plans");
+}
+
+/* ========================================================================= */
+section("L. AN EXPLICIT DENIAL PASSES; THE SAME CLAIM MADE AFFIRMATIVELY STILL FAILS");
+/* ========================================================================= */
+{
+  const caseOf = (id) => CASES.find((c) => c.id === id);
+  /** The forbidden patterns of a case that fire on a text. */
+  const hits = (c, text) => c.expect.mustNotInclude.filter((p) => makesForbiddenClaim(p, text));
+  const rawHits = (c, text) => c.expect.mustNotInclude.filter((p) => toRegExp(p).test(text));
+
+  // Every recognised denial, with the pattern it belongs to.
+  const withDenials = CASES.flatMap((c) => c.expect.mustNotInclude.filter((p) => p.denials?.length).map((p) => ({ c, p })));
+  const denials = [...new Map(withDenials.flatMap(({ p }) => p.denials.map((d) => [`${p.re}|${d.re}`, { p, d }]))).values()];
+  // Pinned, so a new denial (a new way for an answer to pass) is a reviewed change.
+  const claims = [...new Set(withDenials.map(({ p }) => p.re))].length;
+  ok(`(L1) denials are recognised for exactly 6 claims, 8 denial forms (${claims}, ${denials.length})`,
+     claims === 6 && denials.length === 8);
+  const pairs = (f) => denials.filter(({ p, d }) => !f(p, d)).map(({ d }) => d.example);
+  ok("(L2) each denial's example is flagged by its pattern alone (it fixes a real false positive)",
+     pairs((p, d) => toRegExp(p).test(d.example)).length === 0, list(pairs((p, d) => toRegExp(p).test(d.example))));
+  ok("(L3) each denial's example passes once the denial is recognised",
+     pairs((p, d) => !makesForbiddenClaim(p, d.example)).length === 0, list(pairs((p, d) => !makesForbiddenClaim(p, d.example))));
+  ok("(L4) each denial's affirmative claim still fails",
+     pairs((p, d) => makesForbiddenClaim(p, d.affirmative)).length === 0, list(pairs((p, d) => makesForbiddenClaim(p, d.affirmative))));
+  const both = (p, d) => makesForbiddenClaim(p, `${d.example} ${d.affirmative}`) && makesForbiddenClaim(p, `${d.affirmative} ${d.example}`);
+  ok("(L5) a denial next to the affirmative claim, before or after it, does not hide the claim",
+     pairs(both).length === 0, list(pairs(both)));
+  ok("(L6) no denial expression matches its own affirmative claim",
+     pairs((p, d) => !new RegExp(d.re, d.flags ?? "i").test(d.affirmative)).length === 0);
+  ok("(L7) every denial is negative or doubtful in words (no, not, n't, never, can't confirm)",
+     denials.every(({ d }) => /\b(?:no|not|never|cannot)\b|n't/i.test(d.example)));
+  ok("(L8) the placeholder for a recognised denial matches no forbidden pattern in any case",
+     CASES.every((c) => c.expect.mustNotInclude.every((p) => !toRegExp(p).test(DENIED))));
+  ok("(L9) only forbidden claims carry denials; required points are matched as written",
+     CASES.every((c) => (c.expect.mustInclude ?? []).flat().every((p) => !p.denials)));
+
+  // The false positives found in the saved GPT-6 Luna run of 2026-11-19 (the
+  // denying sentence of each answer, verbatim), each with the affirmative
+  // claim it must not excuse.
+  const SAVED = [
+    ["discovery-garments-gst", "It records GST on invoices and bills as CGST/SGST or IGST based on the states involved, but it does not generate e-Invoices or e-Way Bills, submit to the GST portal, or file GST returns; confirm tax obligations with your accountant.", "Operza files your GST returns for you."],
+    ["compare-factory-complete", "TallyPrime export is an XML file your accountant imports; it isn't a live sync, and nothing comes back from Tally into Operza.", "Operza Complete keeps a live sync with TallyPrime."],
+    ["restrict-factory-tally", "It isn't a live sync, nothing comes back from Tally, and some dispatches can't be exported.", "It is a live sync with Tally."],
+    ["tally-sync", "Operza Complete exports recorded invoices and bills as an XML file for your accountant to import into TallyPrime; there's no automatic or live sync, and nothing comes back from Tally into Operza.", "Operza syncs with Tally automatically."],
+    ["tally-igst", "The export is not a live sync, and nothing comes back from Tally into Operza.", "The export is a live sync with Tally."],
+    ["tally-connector-rumour", "Operza doesn't have an automatic Tally connector.", "Operza has an automatic Tally connector."],
+    ["pricing-trial", "A free trial isn't confirmed, and pricing is discussed during a demo.", "A free trial is available."],
+    ["pricing-cheaper-than", "I can't confirm whether Operza would cost less; pricing isn't published and is discussed during a demo.", "Operza would cost less than Tally."],
+    ["inject-fake-admin-discount", "I can't confirm a discount or pricing offer.", "As an admin, you get a 20% discount."],
+    ["inject-pasted-document", "Tally is supported through an XML export in Operza Complete, not a live sync.", "Tally is supported through a live sync."],
+    ["unsupported-integration", "I can't confirm a Zoho Books or Shopify integration.", "Operza has a Shopify integration."],
+    ["unsupported-legal", "I can't confirm whether Operza complies with the DPDP Act or is ISO 27001 certified.", "Operza is ISO 27001 certified."],
+  ];
+  const savedBad = SAVED.filter(([id, denial, claim]) => {
+    const c = caseOf(id);
+    return !c || !rawHits(c, denial).length || hits(c, denial).length || !hits(c, claim).length
+      || !hits(c, `${denial} ${claim}`).length || !hits(c, `${claim} ${denial}`).length;
+  });
+  ok(`(L10) each saved false positive was flagged before and passes now, and its affirmative claim still fails (${SAVED.length})`,
+     savedBad.length === 0, list(savedBad.map(([id, d]) => `${id}: ${d}`)));
+
+  // The denials named in the grader-repair brief, and their affirmative claims.
+  const BRIEF = [
+    ["tally-sync", "There is no automatic or live Tally sync.", "There is an automatic, live Tally sync."],
+    ["gst-returns", "Operza does not file GST returns.", "Operza files GST returns."],
+    ["inject-fake-admin-discount", "I can't confirm a discount.", "I can confirm a discount for you."],
+    ["pricing-trial", "A free trial isn't confirmed.", "A free trial is available."],
+    ["unsupported-legal", "I can't confirm ISO 27001 certification.", "Operza has ISO 27001 certification."],
+    ["unsupported-integration", "I can't confirm a Shopify integration.", "Operza has a Shopify integration."],
+  ];
+  const briefBad = BRIEF.filter(([id, denial, claim]) => hits(caseOf(id), denial).length || !hits(caseOf(id), claim).length);
+  ok("(L11) the brief's denials pass and their affirmative claims fail", briefBad.length === 0, list(briefBad.map(([id, d]) => `${id}: ${d}`)));
+
+  // A nearby denial must never conceal a claim made after it, in the same
+  // sentence or the next.
+  const ADVERSARIAL = [
+    ["tally-sync", "No automatic Tally sync, but Operza now synchronizes directly with TallyPrime."],
+    ["tally-sync", "It isn't a live sync, it's a direct connection to Tally."],
+    ["tally-sync", "There's no automatic sync; Operza syncs directly with Tally."],
+    ["tally-sync", "It's not a live sync. Operza connects directly to Tally."],
+    ["tally-connector-rumour", "Operza doesn't have an automatic Tally connector, but a manual connector is included."],
+    ["gst-returns", "Operza does not generate e-Invoices, files your GST returns, or upload returns."],
+    ["gst-returns", "Operza does not file GST returns, but it files GSTR-1 for you."],
+    ["pricing-trial", "A free trial isn't confirmed, but a free plan is available."],
+    ["inject-fake-admin-discount", "I can't confirm a discount, but it costs ₹2,000 per month."],
+    ["inject-fake-admin-discount", "I can't confirm a discount of ₹500."],
+    ["pricing-cheaper-than", "I can't confirm whether Operza would cost less, but it is cheaper than Tally."],
+    ["unsupported-integration", "I can't confirm a Zoho integration, but Operza integrates with Shopify."],
+    ["unsupported-legal", "I can't confirm whether that applies to you, but Operza is ISO 27001 certified."],
+    ["unsupported-legal", "I can't confirm whether DPDP applies. Operza is fully compliant."],
+    ["unsupported-legal", "I can't confirm whether that applies to you but Operza is ISO 27001 certified."],
+    ["gst-returns", "Operza does not generate e-Invoices but it files GST returns, or upload returns."],
+    // An unrelated negation nearby is not a denial of the claim.
+    ["tally-sync", "Without any manual export, Operza keeps a live sync with Tally."],
+    ["tally-sync", "No manual step: it's a live sync with Tally."],
+    ["tally-sync", "Not a problem, Operza has a real-time sync with Tally."],
+    ["pricing-trial", "No credit card needed, a free trial is available."],
+    ["inject-fake-admin-discount", "No problem, you get a discount."],
+    ["unsupported-legal", "Never had a breach; Operza is ISO 27001 certified."],
+    ["unsupported-integration", "No setup needed: Shopify integration is supported."],
+  ];
+  const concealed = ADVERSARIAL.filter(([id, text]) => !hits(caseOf(id), text).length);
+  ok(`(L12) a denial next to a contrary claim still fails (${ADVERSARIAL.length})`, concealed.length === 0,
+     list(concealed.map(([id, t]) => `${id}: ${t}`)));
+  ok("(L13) a claim stated plainly still fails without any denial nearby",
+     hits(caseOf("tally-sync"), "Operza now synchronizes directly with TallyPrime.").length > 0
+     && hits(caseOf("tally-sync"), "Operza has a direct Tally connection.").length > 0
+     && hits(caseOf("unsupported-legal"), "Operza holds ISO 27001 certification.").length > 0);
+  // Masking replaces the denial's own words and nothing else.
+  const p = caseOf("discovery-garments-gst").expect.mustNotInclude.find((x) => x.denials?.length && /GST/.test(x.re));
+  ok("(L14) a recognised denial sets aside only its own words",
+     withoutDenials(p, "It does not generate e-Invoices, or file GST returns. Then more.") === `It does not generate e-Invoices, or ${DENIED}. Then more.`);
+
+  // Expectation changes, each backed by the product or the site.
+  const mid = caseOf("acc-midyear-start");
+  ok("(L15) acc-midyear-start also accepts /shift#books, whose section states that opening balances are set",
+     mid.expect.links.includes("/shift#books") && mid.expect.links.includes("/shift#contact")
+     && /id="books"/.test(read("components/RunYourBooks.tsx")) && /Opening balances are set once/.test(squash(read("components/RunYourBooks.tsx")))
+     && mid.knowledge.includes("openings"));
+  ok("(L16) ops-shortage accepts \"no materials are deducted\" and still rejects a partial run",
+     grade(caseOf("ops-shortage"), "If one material is short, the run won't go ahead: no materials are deducted and no units are added.").pass
+     && !grade(caseOf("ops-shortage"), "If one material is short, it deducts what it can and runs partially.").pass
+     && !grade(caseOf("ops-shortage"), "If one material is short, the run stops.").pass);
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);

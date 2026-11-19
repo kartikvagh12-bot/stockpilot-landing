@@ -100,9 +100,23 @@ export type KnowledgeEntry = {
   confirmWithHuman?: boolean;
 };
 
+/**
+ * One exact way of DENYING a forbidden claim that the claim's pattern would
+ * otherwise match ("it isn't a live sync" contains "live sync"). Before the
+ * forbidden pattern runs, the grader replaces only the text this expression
+ * matches, so anything said before or after it is still checked.
+ *
+ * Each denial carries two sentences the test suite holds it to:
+ * `example`, a denial the forbidden pattern alone flags and that must pass
+ * once the denial is recognised, and `affirmative`, the matching claim, which
+ * must still fail, on its own and next to the denial.
+ */
+export type Denial = { re: string; flags?: string; example: string; affirmative: string };
+
 /** A regular expression stored as source + flags, with a sentence that
- *  matches it, so the test suite can prove the pattern does what it says. */
-export type Pattern = { re: string; flags?: string; example: string };
+ *  matches it, so the test suite can prove the pattern does what it says.
+ *  `denials` is used on forbidden claims only. */
+export type Pattern = { re: string; flags?: string; example: string; denials?: Denial[] };
 
 export type Turn = { role: "user" | "assistant"; content: string };
 

@@ -452,6 +452,19 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-11-20 — Evaluation grader: denials versus claims
+
+12 forbidden-claim flags in the saved Luna run were correct denials ("it
+isn't a live sync", "I can't confirm a discount"). Forbidden patterns can now
+list exact denial forms, and only those words are set aside before the
+pattern runs; there is no general negation rule. The Tally pattern now also
+catches "synchronizes directly with TallyPrime" and the certification pattern
+"has ISO 27001 certification", both missed before. Offline regrade 51/67 to
+63/67 with no new failures; `acc-midyear-start` also accepts `/shift#books`
+and `ops-shortage` accepts "no materials are deducted". Section L of
+`test:assistant`, 12 planted defects caught. No paid call, runtime,
+instruction or knowledge change.
+
 ## 2026-11-19 — Assistant response quality (links and completeness)
 
 The first live evaluation (saved locally, not changed) showed 26 missed
