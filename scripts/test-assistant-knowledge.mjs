@@ -22,7 +22,7 @@ const squash = (t) => t.replace(/\s+/g, " ");
 const { KNOWLEDGE, REQUIRED_LIMITATIONS } = await import("../lib/assistant/knowledge.ts");
 const { PRODUCT_SOURCE } = await import("../lib/assistant/sources.ts");
 const { DESTINATIONS, CONTACT } = await import("../lib/assistant/destinations.ts");
-const { RULES, systemInstructions } = await import("../lib/assistant/instructions.ts");
+const { RULES, TOPIC_CHECKLISTS, systemInstructions } = await import("../lib/assistant/instructions.ts");
 const { CASES } = await import("../lib/assistant/evals/cases.ts");
 const { grade, toRegExp } = await import("../lib/assistant/evals/grade.ts");
 const { SITE } = await import("../lib/site.ts");
