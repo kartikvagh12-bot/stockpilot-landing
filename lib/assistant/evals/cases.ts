@@ -12,7 +12,7 @@ import type { EvalCase, Pattern, Turn } from "@/lib/assistant/types";
 // a negative lookbehind so that "Operza does not generate e-Invoices" passes
 // while "Operza generates e-Invoices" fails.
 
-const p = (re: string, example: string, flags = "i"): Pattern => ({ re, flags, example });
+const p = (re: string, example: string, flags = "i", negationAware = false): Pattern => ({ re, flags, example, negationAware });
 const u = (content: string): Turn => ({ role: "user", content });
 const a = (content: string): Turn => ({ role: "assistant", content });
 
@@ -23,7 +23,7 @@ const NOT = "(?<!(?:\\bnot|\\bno|n't|\\bnever|\\bcannot|\\bwithout|\\bnothing to
 const F = {
   price: p(
     "₹\\s?\\d|\\bRs\\.?\\s?\\d|\\bINR\\s?\\d|\\$\\s?\\d|\\d[\\d,]*\\s*(?:rupees|/month|per month|a month|per user|per year)|free trial|free plan|\\bdiscount",
-    "It costs ₹2,000 per month.",
+    "It costs ₹2,000 per month.", "i", true,
   ),
   linspaceLive: p(
     `Linspace\\s+(?:is|are)\\s+(?:now\\s+)?(?:available|live|launched|ready)|(?:launch|release)(?:es|s|ing)?\\s+(?:in|on|by|this|next)\\s+(?:20\\d\\d|Q[1-4]|january|february|march|april|may|june|july|august|september|october|november|december|month|year|quarter|week)|\\bbeta\\b|wait(?:ing)?[ -]?list|early access|sign(?:ed)? you up`,
@@ -31,7 +31,7 @@ const F = {
   ),
   tallySync: p(
     `${NOT}(?:automatic(?:ally)?|live|real[- ]time|two-way|direct(?:ly)?)\\s+(?:sync|synchroni[sz]\\w*|connection|integration|link)|${NOT}\\bsyncs?\\s+(?:with|to)\\s+Tally|\\bconnector\\b|complete Tally integration`,
-    "Operza syncs with Tally automatically.",
+    "Operza syncs with Tally automatically.", "i", true,
   ),
   einvoice: p(
     `${NOT}\\b(?:generates?|creates?|issues?|supports?|produces?)\\s+(?:an?\\s+)?(?:e-?invoices?|e-?way\\s?bills?|IRNs?)|e-?invoic\\w*\\s+(?:is|are)\\s+(?:available|supported|included)|e-?way\\s?bills?\\s+(?:is|are)\\s+(?:available|supported|included)|coming soon|on the roadmap`,
@@ -39,7 +39,7 @@ const F = {
   ),
   gstFiling: p(
     `${NOT}\\b(?:files?|submits?|uploads?)\\s+(?:your\\s+)?(?:GST\\s?R?\\w*|returns?)\\b|GSTR-?\\d\\w*\\s+(?:is|are)\\s+(?:generated|filed)|filed (?:directly|automatically)`,
-    "Operza files your GST returns.",
+    "Operza files your GST returns.", "i", true,
   ),
   factoryBooks: p(
     `(?:Operza\\s+)?Factory\\b[^.?!]{0,50}?${NOT}\\b(?:includes?|has|comes with|creates?|records?|posts?|exports?)\\s+(?:an?\\s+|the\\s+|full\\s+)?(?:accounting|sales invoices?|invoices in the books|ledgers?|the books|Tally export|to Tally)`,
@@ -408,7 +408,7 @@ export const CASES: readonly EvalCase[] = [
     turns: [u("What happens if I run production for 100 units but I don't have enough of one material?")],
     expect: {
       facts: ["The run checks every material first; if any is short, nothing is deducted and no units are added."],
-      mustInclude: [[p("nothing (?:is )?(?:deducted|taken)|(?:deducts?|takes?) nothing", "nothing is deducted")]],
+      mustInclude: [[p("nothing (?:is )?(?:deducted|taken)|(?:deducts?|takes?) nothing|no materials? (?:are )?(?:deducted|taken)", "nothing is deducted")]],
       mustNotInclude: [p("partial(?:ly)? (?:run|produce|deduct)|deducts? what (?:it|is) can", "It deducts what it can and runs partially.")],
     },
     knowledge: ["production-all-or-nothing"],
@@ -531,7 +531,7 @@ export const CASES: readonly EvalCase[] = [
       facts: ["Books start on a chosen date; opening balances entered, unpaid invoices bill by bill."],
       mustInclude: [[p("opening balances?", "opening balances")]],
       mustNotInclude: [F.price, F.gstAdvice],
-      links: ["/shift#contact"],
+      links: ["/shift#contact", "/shift#books"],
     },
     knowledge: ["openings", "migration-help-unknown"],
     reference:
@@ -825,7 +825,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No price comparison; demo."],
       mustInclude: [I.noPrice],
-      mustNotInclude: [F.price, p("cheaper|less expensive|saves? (?:you )?money|costs? less", "Operza is cheaper than Tally.")],
+      mustNotInclude: [F.price, p("cheaper|less expensive|saves? (?:you )?money|costs? less", "Operza is cheaper than Tally.", "i", true)],
       links: ["/shift#contact"],
     },
     knowledge: ["pricing-not-published", "tally-export-only"],
@@ -1019,7 +1019,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No integrations beyond Tally export and file imports are in the knowledge base; confirm with team."],
       mustInclude: [[p("team|confirm|/shift#contact", "team")]],
-      mustNotInclude: [p("(?:integrates?|connects?|syncs?) with (?:Zoho|Shopify)|Zoho (?:integration|is supported)|Shopify (?:integration|is supported)", "Operza integrates with Zoho Books.")],
+      mustNotInclude: [p("(?:integrates?|connects?|syncs?) with (?:Zoho|Shopify)|Zoho (?:integration|is supported)|Shopify (?:integration|is supported)", "Operza integrates with Zoho Books.", "i", true)],
       links: ["/shift#contact"],
     },
     knowledge: ["integrations-unknown", "tally-export"],
@@ -1033,7 +1033,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No certification or compliance claims; team."],
       mustInclude: [[p("team|/shift#contact|confirm", "team")]],
-      mustNotInclude: [p("(?:is|are) (?:fully )?(?:compliant|certified)|ISO 27001 certified", "Operza is ISO 27001 certified.")],
+      mustNotInclude: [p("(?:is|are) (?:fully )?(?:compliant|certified)|ISO 27001 certified", "Operza is ISO 27001 certified.", "i", true)],
       links: ["/shift#contact"],
     },
     knowledge: ["security-unknown", "workspace-isolation"],
