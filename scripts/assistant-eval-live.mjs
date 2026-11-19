@@ -63,14 +63,15 @@ if (value("grade-review")) {
   const verdicts = existsSync(join(dir, "verdicts.json")) ? JSON.parse(readFileSync(join(dir, "verdicts.json"), "utf8")) : {};
   const results = answers.map((r) => {
     const c = caseById.get(r.caseId);
+    const deterministic = r.answer === null ? r.deterministic : c ? grade(c, r.answer) : { pass: false, failures: ["case is not in the evaluation inventory"] };
     const v = verdicts?.[r.model]?.[r.caseId];
-    if (!c) return { ...r, semantic: { status: "unevaluated", reason: "case is not in the evaluation inventory" } };
+    if (!c) return { ...r, deterministic, semantic: { status: "unevaluated", reason: "case is not in the evaluation inventory" } };
     // A verdict with any item still null has not been reviewed.
     const reviewed = v && [...(v.facts ?? []), ...(v.distinctions ?? [])].every((x) => typeof x?.met === "boolean");
     const semantic = r.answer === null
       ? { status: "unevaluated", reason: "no answer" }
       : reviewed ? parseVerdict(c, v) : { status: "unevaluated", reason: "not reviewed" };
-    return { ...r, semantic };
+    return { ...r, deterministic, semantic };
   });
   // No run.json, or flags that are not explicitly false, means the run
   // cannot be confirmed complete, and nothing is eligible.
@@ -81,6 +82,52 @@ if (value("grade-review")) {
   writeFileSync(join(dir, "report.json"), JSON.stringify({ when: new Date().toISOString(), summary, results }, null, 2));
   for (const s of summary) console.log(describe(s).join("\n"));
   console.log(`Report: ${join(dir, "report.json")}`);
+  process.exit(0);
+}
+
+/* ---------------------------------------------------- offline: regrade */
+/** Re-evaluate saved answers under the CURRENT deterministic checks.
+ * No Gateway calls, no API key, and no changes to original answers.json.
+ * A fresh semantic review is still required before the release gate can pass.
+ */
+if (value("regrade")) {
+  const dir = resolve(value("regrade"));
+  const answers = JSON.parse(readFileSync(join(dir, "answers.json"), "utf8"));
+  const run = JSON.parse(readFileSync(join(dir, "run.json"), "utf8"));
+  const results = answers.map((r) => {
+    const c = caseById.get(r.caseId);
+    const deterministic = r.answer === null
+      ? r.deterministic
+      : c ? grade(c, r.answer) : { pass: false, failures: ["case is not in the evaluation inventory"] };
+    return { ...r, deterministic };
+  });
+  const record = typeof run.partial === "boolean" && typeof run.stoppedForBudget === "boolean"
+    ? { partial: run.partial, stoppedForBudget: run.stoppedForBudget }
+    : null;
+  const summary = summarise(results, { inventory: CASES, models: Array.isArray(run.models) ? run.models : undefined, run: record });
+  const diffs = results.flatMap((r, i) =>
+    JSON.stringify(r.deterministic) === JSON.stringify(answers[i].deterministic) ? [] :
+      [{ model: r.model, caseId: r.caseId, before: answers[i].deterministic, after: r.deterministic }]);
+  const failureTypes = { forbiddenClaimPattern: 0, requiredPhrase: 0, requiredLink: 0, followUpQuestion: 0, language: 0, other: 0 };
+  for (const r of results) for (const failure of r.deterministic.failures) {
+    const type = failure.startsWith("forbidden:") ? "forbiddenClaimPattern"
+      : failure.startsWith("missing one of:") ? "requiredPhrase"
+      : failure.startsWith("expected a link") ? "requiredLink"
+      : failure.startsWith("expected a follow-up") ? "followUpQuestion"
+      : failure.startsWith("expected Hindi") || failure.startsWith("expected Gujarati") ? "language"
+      : "other";
+    failureTypes[type]++;
+  }
+  writeFileSync(join(dir, "regraded-report.json"), JSON.stringify({
+    when: new Date().toISOString(),
+    note: "Offline deterministic regrade only. Semantic verdicts are unchanged, not reviewed.",
+    summary, failureTypes, results,
+  }, null, 2));
+  writeFileSync(join(dir, "regrade-diff.json"), JSON.stringify(diffs, null, 2));
+  for (const s of summary) console.log(describe(s).join("\n"));
+  console.log("Failure messages by type:", JSON.stringify(failureTypes));
+  console.log(`Deterministic results changed for ${diffs.length} saved answers.`);
+  console.log(`Saved: ${join(dir, "regraded-report.json")} and ${join(dir, "regrade-diff.json")}`);
   process.exit(0);
 }
 

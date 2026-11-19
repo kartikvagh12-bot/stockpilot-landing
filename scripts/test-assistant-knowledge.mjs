@@ -265,6 +265,34 @@ section("H. THE EVALUATION SET IS BROAD, SATISFIABLE AND DISCRIMINATING");
   const wrongScript = CASES.filter((c) => c.expect.language && c.expect.language !== "en")
     .filter((c) => grade(c, "Operza Shift is available. See /shift and /shift#contact.").pass);
   ok("(H14) an English answer fails a Hindi or Gujarati case", wrongScript.length === 0, wrongScript.map((c) => c.id).join(", "));
+  // A curly apostrophe is common in model replies and must not turn a
+  // correct refusal into a failed required-phrase check.
+  const unicodeRefusal = {
+    ...CASES[0],
+    expect: {
+      facts: ["Refuse a request"],
+      mustInclude: [[{ re: "can't|cannot", example: "can't" }]],
+      mustNotInclude: [],
+    },
+  };
+  ok("(H15a) curly apostrophes match the same refusal as straight apostrophes",
+     grade(unicodeRefusal, "I can’t provide that.").pass
+     && grade(unicodeRefusal, "I can't provide that.").pass
+     && !grade(unicodeRefusal, "Yes, here it is.").pass);
+  // Model paraphrases must pass when they preserve the required meaning.
+  // These are minimal transformations of already-valid reference answers so
+  // all unrelated requirements (including links and forbidden claims) remain.
+  const naturalPhrases = [
+    ["overview-construction", "still in development and not available to use", "being developed and isn’t available to use"],
+    ["ops-shortage", "nothing is deducted", "it deducts nothing"],
+    ["unknown-customer-count", "I don't have numbers on that.", "I don’t know how many factories use Operza."],
+  ];
+  ok("(H15b) meaningful paraphrases for Linspace, atomic production and unknown counts pass",
+     naturalPhrases.every(([id, oldText, newText]) => {
+       const c = CASES.find((x) => x.id === id);
+       return !!c && c.reference.includes(oldText)
+         && grade(c, c.reference.replace(oldText, newText)).pass;
+     }));
   // References must themselves obey the knowledge base's public-safety rules.
   ok("(H15) no reference answer quotes a price or a Linspace date",
      CASES.every((c) => !/₹\s?\d|\bRs\.?\s?\d|\$\s?\d|per month|\b20\d\d\b/i.test(c.reference)));
@@ -487,9 +515,30 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   try { execFileSync(process.execPath, ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--cases", "no-such-case"], { cwd: ROOT, stdio: "pipe" }); } catch (e) { refused = e.status === 2; }
   ok("(J17h) CLI: an unknown --cases id is refused", refused);
   const cli = read("scripts/assistant-eval-live.mjs");
-  ok("(J17i) CLI: both reports measure against the full inventory and every requested model",
-     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 2 && /run\.json/.test(cli)
-     && /run: \{ partial: !!only, stoppedForBudget \}/.test(cli) && /run: record \}/.test(cli));
+  ok("(J17i) CLI: paid, offline review and offline regrade reports use the full inventory and requested models",
+     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 3 && /run\.json/.test(cli)
+     && /run: \{ partial: !!only, stoppedForBudget \}/.test(cli) && /run: record \}/.test(cli)
+     && /if \(value\("regrade"\)\)/.test(cli) && /regraded-report\.json/.test(cli));
+  // Exercise the new no-network regrade path, not just its source text.
+  // A deliberately stale result should be fixed without touching the saved
+  // answers or granting release to a model that has not covered the inventory.
+  const offlineDir = mkdtempSync(join(tmpdir(), "assistant-regrade-"));
+  const staleRow = { ...ans(critical[0]), deterministic: { pass: false, failures: ["stale result"] },
+    semantic: { status: "unevaluated", reason: "not reviewed" } };
+  const saved = JSON.stringify([staleRow]);
+  wf(join(offlineDir, "answers.json"), saved);
+  wf(join(offlineDir, "run.json"), JSON.stringify({ models: ["m", "n"], partial: false, stoppedForBudget: false }));
+  execFileSync(process.execPath,
+     ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--regrade", offlineDir],
+     { cwd: ROOT, stdio: "ignore", env: { ...process.env, AI_GATEWAY_API_KEY: "" } });
+  const offline = JSON.parse(rf(join(offlineDir, "regraded-report.json"), "utf8"));
+  const changed = JSON.parse(rf(join(offlineDir, "regrade-diff.json"), "utf8"));
+  ok("(J17m) CLI: free offline regrade fixes stale checks, preserves answers and blocks incomplete candidates",
+     offline.summary.length === 2
+     && offline.summary.find((x) => x.model === "m")?.deterministic.pass === 1
+     && offline.summary.every((x) => !x.critical.eligible)
+     && changed.length === 1 && changed[0].after.pass === true
+     && rf(join(offlineDir, "answers.json"), "utf8") === saved);
 
   const src = read("scripts/assistant-eval-live.mjs");
   ok("(J18) the evaluator defaults to free human review and refuses a self-judging model",

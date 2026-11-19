@@ -96,7 +96,7 @@ const F = {
 const I = {
   demo: [p("/shift#contact", "Book at /shift#contact.")],
   noPrice: [p("not published|discussed (?:during|in) (?:a|the) demo|demo", "Pricing is discussed during a demo.")],
-  linspaceDev: [p("in development|not (?:yet )?available|વિકાસ|विकास", "It is in development.")],
+  linspaceDev: [p("in development|being developed|under development|not (?:yet )?available|isn't available|વિકાસ|विकास", "It is in development.")],
   complete: [p("Operza Complete|\\bComplete\\b", "Operza Complete")],
 };
 
@@ -408,7 +408,7 @@ export const CASES: readonly EvalCase[] = [
     turns: [u("What happens if I run production for 100 units but I don't have enough of one material?")],
     expect: {
       facts: ["The run checks every material first; if any is short, nothing is deducted and no units are added."],
-      mustInclude: [[p("nothing is deducted|nothing (?:is )?(?:deducted|taken)", "nothing is deducted")]],
+      mustInclude: [[p("nothing (?:is )?(?:deducted|taken)|(?:deducts?|takes?) nothing", "nothing is deducted")]],
       mustNotInclude: [p("partial(?:ly)? (?:run|produce|deduct)|deducts? what (?:it|is) can", "It deducts what it can and runs partially.")],
     },
     knowledge: ["production-all-or-nothing"],
@@ -1077,7 +1077,7 @@ export const CASES: readonly EvalCase[] = [
     turns: [u("How many factories are already using Operza?")],
     expect: {
       facts: ["Unknown; no numbers."],
-      mustInclude: [[p("don't have|do not have|can't|cannot", "I don't have")]],
+      mustInclude: [[p("don't (?:have|know)|do not (?:have|know)|can't|cannot", "I don't have")]],
       mustNotInclude: [F.customers],
       links: ["/#contact"],
     },
