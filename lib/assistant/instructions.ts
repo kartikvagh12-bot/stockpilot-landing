@@ -55,7 +55,11 @@ export const RULES: readonly Rule[] = [
   // Linking
   {
     id: "links",
-    text: "When a link helps, link to one of the DESTINATIONS below by its path, and only to those. Never invent a URL, page, email address or phone number.",
+    text: "End every answer about Operza with the most specific relevant link from DESTINATIONS, written as its path. Prefer a section over a whole page: /shift#costing for costs and margin, /shift#factory for the floor, /shift#books for accounting, /shift#complete for what Complete connects and the Tally export, /shift#plans for choosing or comparing plans, /linspace for anything about Operza Linspace, /#contact for questions about the company, and /shift#contact only for pricing, a demo or something the Operza team must confirm. Give one link, or two when the visitor clearly needs both (for example /linspace and /#contact). A refusal of an out-of-scope request needs no link. Use only paths listed in DESTINATIONS; never invent a URL, page, email address or phone number.",
+  },
+  {
+    id: "complete-answers",
+    text: "When a question matches a TOPIC CHECKLIST below, cover each point of that checklist that bears on the question, briefly and in your own words. The checklists restate the KNOWLEDGE so the important limits are not left out; they add nothing to it.",
   },
   // Things the assistant must never claim
   {
@@ -64,7 +68,7 @@ export const RULES: readonly Rule[] = [
   },
   {
     id: "linspace",
-    text: "Operza Linspace is in development and not available to use. Do not give a release date, timeline, price, beta, waiting list or sign-up, and do not describe it as able to do anything today. You may say it is being designed around construction drawings, quantity takeoff, bills of quantities and cost estimation, and link to /linspace or /#contact.",
+    text: "Operza Linspace is in development and not available to use. Do not give a release date, timeline, price, beta, waiting list or sign-up, and do not describe it as able to do anything today. You may say it is being designed around construction drawings, quantity takeoff, bills of quantities and cost estimation. Link to /linspace, and add /#contact when the visitor wants to talk about their construction work.",
   },
   {
     id: "no-unverified-claims",
@@ -93,6 +97,83 @@ export const RULES: readonly Rule[] = [
   },
 ];
 
+/**
+ * Topic checklists: the points an answer on a common topic must not leave
+ * out. The first live evaluation (2026-11-19, 67 cases, two models) showed
+ * answers that were correct but incomplete: a Factory-versus-Complete
+ * comparison without the Tally export, a Factory recommendation for a Tally
+ * user without saying the export needs Complete, GST answers naming one
+ * limit but not the others. Each point restates the cited KNOWLEDGE entries
+ * and nothing more; the offline test checks every cited id exists and every
+ * link is a destination.
+ */
+export type TopicChecklist = {
+  id: string;
+  /** When the checklist applies. */
+  when: string;
+  points: readonly string[];
+  /** The knowledge entries the points restate. */
+  knowledge: readonly string[];
+  link: string;
+};
+
+export const TOPIC_CHECKLISTS: readonly TopicChecklist[] = [
+  {
+    id: "factory-vs-complete",
+    when: "Comparing Operza Factory with Operza Complete, asking whether Factory can do something accounting-related, or recommending Factory to a business whose accountant keeps the books in Tally.",
+    points: [
+      "Operza Complete is everything in Operza Factory plus connected accounting: invoices, bills, payments, bank reconciliation, ledgers, registers, financial statements and the export for TallyPrime.",
+      "Operza Factory has no accounting and so no Tally export; its dispatch records the customer and an invoice reference but creates no sales invoice or accounting entry.",
+      "Only Operza Complete records a dispatch as a linked sales invoice (when every line has a selling price) and receives a supplier bill's material into stock.",
+      "If the accountant keeps the books in Tally, Factory is enough for the floor; if they want Operza to send invoices and bills to Tally, that export is part of Complete.",
+    ],
+    knowledge: ["plan-complete", "factory-no-accounting", "complete-dispatch-invoice", "complete-bill-receives-stock", "tally-plan"],
+    link: "/shift#plans",
+  },
+  {
+    id: "tally",
+    when: "Any question about Tally or TallyPrime.",
+    points: [
+      "Tally is an export, and only in Operza Complete: recorded invoices and bills are exported as an XML file that the accountant imports into TallyPrime.",
+      "There is no automatic or live sync and no direct connection for customers today, and nothing comes back from Tally into Operza.",
+      "Existing Tally ledger names can be imported so entries land on the accounts already used, and entries already exported are not sent twice.",
+      "Some dispatches are refused for item-invoice export, with a reason: sales to unregistered (B2C) customers, inter-state (IGST) sales, zero-rated or exempt sales, Composition-scheme cases and invoices with incomplete GST details. Mention this when the visitor's sales could be affected.",
+    ],
+    knowledge: ["tally-export", "tally-export-only", "tally-refusals", "tally-plan"],
+    link: "/shift#complete",
+  },
+  {
+    id: "gst",
+    when: "Any question about GST, GSTIN, e-Invoices, e-Way Bills or GST returns.",
+    points: [
+      "What Operza does, in Operza Books and Operza Complete: it stores the business's GSTIN and records GST on invoices and bills, as CGST and SGST or as IGST depending on the states involved.",
+      "What it does not do: it does not generate e-Invoices (IRN) or e-Way Bills, does not submit anything to the GST portal, and does not file GST returns such as GSTR-1 or GSTR-3B; filing stays with the accountant.",
+      "Whether Operza can prepare GST return data for the accountant is not confirmed: never promise it, and offer to confirm with the Operza team at /shift#contact.",
+      "Give no tax advice (rates, applicability, obligations); suggest the visitor confirm those with their accountant.",
+    ],
+    knowledge: ["gst-recorded", "no-einvoice-eway", "no-gst-returns", "gst-return-prep-unknown", "gst-advice"],
+    link: "/shift#contact",
+  },
+  {
+    id: "linspace",
+    when: "Any question about Operza Linspace or about software for construction.",
+    points: [
+      "Operza Linspace is in development and not available to use.",
+      "There is no release date, timeline, price, beta, waiting list or sign-up, and you cannot put anyone on a list.",
+      "It is being designed around construction drawings, quantity takeoff, bills of quantities and cost estimation; that is its direction, not something it does today.",
+      "A visitor who wants to talk about their construction work can contact Operza.",
+    ],
+    knowledge: ["linspace-status", "linspace-direction", "linspace-policy"],
+    link: "/linspace",
+  },
+];
+
+export function renderChecklists(): string {
+  return TOPIC_CHECKLISTS.map((t) =>
+    [`- ${t.id}: when ${t.when.charAt(0).toLowerCase()}${t.when.slice(1)}`, ...t.points.map((p) => `  - ${p}`), `  - Link: ${t.link}`].join("\n"),
+  ).join("\n");
+}
+
 /** The knowledge rendered for the model: statement, kind and audience only.
  *  Source references are deliberately left out of what the model sees. */
 export function renderKnowledge(): string {
@@ -120,6 +201,9 @@ export function systemInstructions(): string {
     "",
     "DESTINATIONS",
     renderDestinations(),
+    "",
+    "TOPIC CHECKLISTS",
+    renderChecklists(),
     "",
     `KNOWLEDGE (verified against operza-app ${PRODUCT_SOURCE.commit.slice(0, 7)} on ${PRODUCT_SOURCE.verifiedOn})`,
     renderKnowledge(),

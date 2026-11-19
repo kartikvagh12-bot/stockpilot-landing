@@ -13,8 +13,8 @@ assistant ships switched off until the Founder configures it.
 | `lib/assistant/types.ts` | Types for knowledge entries, sources and evaluation cases. |
 | `lib/assistant/sources.ts` | The one pinned `operza-app` commit every product statement was checked against. |
 | `lib/assistant/knowledge.ts` | The knowledge base: one entry per statement, each labelled and cited. |
-| `lib/assistant/destinations.ts` | The only pages and contact details the assistant may link to, read from `lib/site.ts`. |
-| `lib/assistant/instructions.ts` | The behaviour rules, and `systemInstructions()`, the exact text a model would receive. |
+| `lib/assistant/destinations.ts` | The only pages and contact details the assistant may link to, read from `lib/site.ts`, most specific first (the `/shift` sections, then whole pages). The browser links exactly this list. |
+| `lib/assistant/instructions.ts` | The behaviour rules, the topic checklists (`TOPIC_CHECKLISTS`), and `systemInstructions()`, the exact text a model would receive. |
 | `lib/assistant/evals/cases.ts` | The evaluation dataset. |
 | `lib/assistant/evals/grade.ts` | The deterministic grader shared by the offline tests and the future live evaluation. |
 | `scripts/test-assistant-knowledge.mjs` | Offline guard: `npm run test:assistant`. |
@@ -29,6 +29,30 @@ assistant ships switched off until the Founder configures it.
 | `scripts/test-assistant-conversation.mjs` | Conversation recovery tests: `npm run test:assistant-conversation`. |
 | `lib/assistant/evals/judge.ts`, `report.ts` | Semantic grading (human or model judge) and the report that keeps it apart from pattern checks. |
 | `scripts/assistant-eval-live.mjs` | Live evaluation with a hard budget: `npm run eval:assistant`. |
+
+## Response quality: links and topic checklists
+
+The first live evaluation (2026-11-19, 67 cases, GPT-6 Luna and GPT-6.1
+Terra, saved locally under `eval-results/`) gave answers that were mostly
+correct but missed links and left out key limits. Of the 26 missed links:
+
+* 10 expected `/shift#factory`, `#books`, `#costing` or `#complete`, which
+  were never in `DESTINATIONS`, so the model had never been offered them;
+* 10 had no link at all, because the rule said "when a link helps";
+* 6 chose a less specific link, mostly `/#contact` for Linspace questions,
+  because the Linspace rule offered "/linspace or /#contact".
+
+The four sections are now destinations. The `links` rule asks for the most
+specific link at the end of every Operza answer and says which link fits
+which kind of question. The Linspace rule links `/linspace` first.
+
+`TOPIC_CHECKLISTS` lists the points an answer on Factory versus Complete,
+Tally, GST or Linspace should not leave out (for example, that the TallyPrime
+export is part of Complete, or every GST limit, not just one). Each point
+restates the knowledge entries it cites and adds nothing; section K of
+`test:assistant` checks the citations, the links, and that every specific
+term in a checklist comes from the knowledge it cites. Whether the models
+follow these is measured only by the next live evaluation.
 
 ## How the knowledge base avoids becoming a second authority
 

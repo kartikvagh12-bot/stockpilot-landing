@@ -22,7 +22,7 @@ const squash = (t) => t.replace(/\s+/g, " ");
 const { KNOWLEDGE, REQUIRED_LIMITATIONS } = await import("../lib/assistant/knowledge.ts");
 const { PRODUCT_SOURCE } = await import("../lib/assistant/sources.ts");
 const { DESTINATIONS, CONTACT } = await import("../lib/assistant/destinations.ts");
-const { RULES, systemInstructions } = await import("../lib/assistant/instructions.ts");
+const { RULES, TOPIC_CHECKLISTS, systemInstructions } = await import("../lib/assistant/instructions.ts");
 const { CASES } = await import("../lib/assistant/evals/cases.ts");
 const { grade, toRegExp } = await import("../lib/assistant/evals/grade.ts");
 const { SITE } = await import("../lib/site.ts");
@@ -495,6 +495,92 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   ok("(J18) the evaluator defaults to free human review and refuses a self-judging model",
      /value\("judge"\) \?\? "human"/.test(src) && /would judge its own answers/.test(src)
      && /answerWorst\(MODEL_CATALOG\[id\], c\) \+ \(judge === "human" \? 0 : judgeWorst/.test(src));
+}
+
+/* ========================================================================= */
+section("K. ANSWERS CAN LINK WHERE THE EVALUATION EXPECTS, AND COVER THE KEY LIMITS");
+/* ========================================================================= */
+{
+  // Root cause found in the 2026-11-19 live evaluation: 11 cases expected
+  // links to /shift#factory, #books, #costing and #complete, which were not
+  // in DESTINATIONS, so the model had never been offered them.
+  const offered = new Set(DESTINATIONS.map((d) => d.url));
+  const unoffered = CASES.flatMap((c) => (c.expect.links ?? []).filter((l) => l !== "/" && !offered.has(l)).map((l) => `${c.id}: ${l}`));
+  ok("(K1) every link a case expects is offered to the model in DESTINATIONS", unoffered.length === 0, unoffered.join("; "));
+  ok("(K1b) ...and every case that expects a link has at least one offered alternative",
+     CASES.filter((c) => c.expect.links?.length).every((c) => c.expect.links.some((l) => offered.has(l))));
+  // "/" alone cannot be linked safely in plain text, so it is only ever an
+  // alternative, never a destination.
+  ok("(K1c) the bare homepage path is never a destination", !offered.has("/"));
+
+  const ui = read("components/AskOperza.tsx");
+  const pathsSrc = ui.match(/const PATHS = \[([\s\S]*?)\];/)?.[1] ?? "";
+  const uiPaths = new Set([...pathsSrc.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+  ok("(K2) the browser links exactly the destinations the model is offered (no more, no fewer)",
+     uiPaths.size === offered.size && [...offered].every((u) => uiPaths.has(u)),
+     `ui: ${[...uiPaths].join(",")} | offered: ${[...offered].join(",")}`);
+
+  const linksRule = RULES.find((r) => r.id === "links").text;
+  const linkedInRule = [...linksRule.matchAll(/(\/[a-z-]*(?:#[a-z-]+)?)/g)].map((m) => m[1]).filter((x) => x !== "/");
+  ok("(K3) the link rule asks for the most specific link at the end of every Operza answer",
+     /End every answer about Operza with the most specific relevant link/.test(linksRule) && /Prefer a section over a whole page/.test(linksRule));
+  ok("(K3b) ...names every /shift section and routes Linspace, company and pricing questions",
+     ["/shift#costing", "/shift#factory", "/shift#books", "/shift#complete", "/shift#plans", "/linspace", "/#contact", "/shift#contact"].every((u) => linksRule.includes(u))
+     && linkedInRule.every((u) => offered.has(u)), linkedInRule.filter((u) => !offered.has(u)).join(","));
+  ok("(K3c) ...still forbids invented URLs, emails and phone numbers", /never invent a URL, page, email address or phone number/.test(linksRule));
+  ok("(K3d) the Linspace rule now links /linspace first", /Link to \/linspace/.test(RULES.find((r) => r.id === "linspace").text));
+
+  const prompt = systemInstructions();
+  const ids = TOPIC_CHECKLISTS.map((t) => t.id);
+  ok("(K4) topic checklists exist for Factory vs Complete, Tally, GST and Linspace",
+     ["factory-vs-complete", "tally", "gst", "linspace"].every((id) => ids.includes(id)) && new Set(ids).size === ids.length);
+  ok("(K4b) ...and a rule tells the model to use them", RULES.some((r) => r.id === "complete-answers" && /TOPIC CHECKLIST/.test(r.text)));
+  ok("(K4c) ...and every point is in the instructions the model receives",
+     /TOPIC CHECKLISTS/.test(prompt) && TOPIC_CHECKLISTS.every((t) => t.points.every((p) => prompt.includes(p))));
+  const byId = new Map(KNOWLEDGE.map((e) => [e.id, e]));
+  const badRefs = TOPIC_CHECKLISTS.flatMap((t) => t.knowledge.filter((k) => !byId.has(k)).map((k) => `${t.id}: ${k}`));
+  ok("(K5) every checklist cites knowledge entries that exist", badRefs.length === 0, badRefs.join(", "));
+  const badLinks = TOPIC_CHECKLISTS.flatMap((t) => [t.link, ...t.points.flatMap((p) => p.match(/\/[a-z-]+(?:#[a-z-]+)?/g) ?? [])].filter((l) => !offered.has(l)).map((l) => `${t.id}: ${l}`));
+  ok("(K5b) every link in a checklist is a destination", badLinks.length === 0, badLinks.join(", "));
+
+  // No invention: every specific term a checklist uses must appear in one of
+  // the knowledge entries it cites.
+  const TERMS = ["TallyPrime", "XML", "ledger", "IGST", "CGST", "SGST", "B2C", "GSTIN", "IRN", "GSTR-1", "GSTR-3B", "e-Invoice",
+    "e-Way Bill", "GST portal", "Composition", "zero-rated", "bank reconciliation", "registers", "selling price", "waiting list",
+    "beta", "release date", "sign-up", "quantity takeoff", "bills of quantities", "cost estimation", "drawings", "exported", "invoice reference"];
+  const ungrounded = [];
+  for (const t of TOPIC_CHECKLISTS) {
+    const cited = t.knowledge.map((k) => byId.get(k)?.statement ?? "").join(" ").toLowerCase();
+    for (const p of t.points) for (const term of TERMS)
+      if (p.toLowerCase().includes(term.toLowerCase()) && !cited.includes(term.toLowerCase())) ungrounded.push(`${t.id}: "${term}"`);
+  }
+  ok("(K6) every specific term in a checklist comes from the knowledge it cites (nothing invented)", ungrounded.length === 0, ungrounded.join(", "));
+  const checklistText = TOPIC_CHECKLISTS.flatMap((t) => t.points).join(" ");
+  ok("(K6b) checklists contain no price, date, discount or launch claim",
+     !/₹\s?\d|\bRs\.?\s?\d|\$\s?\d|per month|free trial|discount|20\d\d|coming soon|launch(?:es|ed|ing)?\b/i.test(checklistText));
+  ok("(K6c) checklists cite only verified kinds (product facts, limitations, policy, unknowns, approved copy)",
+     TOPIC_CHECKLISTS.every((t) => t.knowledge.every((k) => ["product-fact", "limitation", "policy", "unknown", "marketing-copy"].includes(byId.get(k)?.kind))));
+
+  // The omissions seen in the saved answers, pinned as checklist content.
+  const pts = (id) => TOPIC_CHECKLISTS.find((t) => t.id === id).points.join(" ");
+  ok("(K7) Factory vs Complete: Complete includes the TallyPrime export; Factory has none; a Tally user who wants the export needs Complete",
+     /Operza Complete is everything in Operza Factory plus connected accounting[^.]*export for TallyPrime/.test(pts("factory-vs-complete"))
+     && /Operza Factory has no accounting and so no Tally export/.test(pts("factory-vs-complete"))
+     && /that export is part of Complete/.test(pts("factory-vs-complete")));
+  ok("(K7b) Tally: an XML export from Complete only, no automatic or live sync, nothing comes back, and the refusals",
+     /XML file/.test(pts("tally")) && /only in Operza Complete/.test(pts("tally")) && /no automatic or live sync/.test(pts("tally"))
+     && /nothing comes back from Tally/.test(pts("tally")) && /inter-state \(IGST\)/.test(pts("tally")));
+  ok("(K7c) GST: what is recorded, no e-Invoice, e-Way Bill, portal submission or return filing, return data unconfirmed, no tax advice",
+     /records GST on invoices and bills/.test(pts("gst")) && /e-Invoices \(IRN\) or e-Way Bills/.test(pts("gst"))
+     && /does not submit anything to the GST portal/.test(pts("gst")) && /does not file GST returns/.test(pts("gst"))
+     && /not confirmed: never promise it/.test(pts("gst")) && /no tax advice/i.test(pts("gst")));
+  ok("(K7d) Linspace: in development, not available, no date or list, direction not capability, links /linspace",
+     /in development and not available to use/.test(pts("linspace")) && /no release date/.test(pts("linspace"))
+     && /cannot put anyone on a list/.test(pts("linspace")) && /not something it does today/.test(pts("linspace"))
+     && TOPIC_CHECKLISTS.find((t) => t.id === "linspace").link === "/linspace");
+  ok("(K8) the Tally checklist links /shift#complete and Factory vs Complete links /shift#plans",
+     TOPIC_CHECKLISTS.find((t) => t.id === "tally").link === "/shift#complete"
+     && TOPIC_CHECKLISTS.find((t) => t.id === "factory-vs-complete").link === "/shift#plans");
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
