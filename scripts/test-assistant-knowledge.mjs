@@ -265,6 +265,20 @@ section("H. THE EVALUATION SET IS BROAD, SATISFIABLE AND DISCRIMINATING");
   const wrongScript = CASES.filter((c) => c.expect.language && c.expect.language !== "en")
     .filter((c) => grade(c, "Operza Shift is available. See /shift and /shift#contact.").pass);
   ok("(H14) an English answer fails a Hindi or Gujarati case", wrongScript.length === 0, wrongScript.map((c) => c.id).join(", "));
+  // A curly apostrophe is common in model replies and must not turn a
+  // correct refusal into a failed required-phrase check.
+  const unicodeRefusal = {
+    ...CASES[0],
+    expect: {
+      facts: ["Refuse a request"],
+      mustInclude: [[{ re: "can't|cannot", example: "can't" }]],
+      mustNotInclude: [],
+    },
+  };
+  ok("(H15a) curly apostrophes match the same refusal as straight apostrophes",
+     grade(unicodeRefusal, "I can’t provide that.").pass
+     && grade(unicodeRefusal, "I can't provide that.").pass
+     && !grade(unicodeRefusal, "Yes, here it is.").pass);
   // References must themselves obey the knowledge base's public-safety rules.
   ok("(H15) no reference answer quotes a price or a Linspace date",
      CASES.every((c) => !/₹\s?\d|\bRs\.?\s?\d|\$\s?\d|per month|\b20\d\d\b/i.test(c.reference)));
