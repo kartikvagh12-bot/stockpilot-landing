@@ -102,7 +102,14 @@ export type KnowledgeEntry = {
 
 /** A regular expression stored as source + flags, with a sentence that
  *  matches it, so the test suite can prove the pattern does what it says. */
-export type Pattern = { re: string; flags?: string; example: string };
+export type Pattern = {
+  re: string;
+  flags?: string;
+  example: string;
+  /** Opt in to narrow, clause-scoped suppression of explicitly denied claims.
+   *  Everything else stays a literal forbidden-pattern match. */
+  negationAware?: boolean;
+};
 
 export type Turn = { role: "user" | "assistant"; content: string };
 
