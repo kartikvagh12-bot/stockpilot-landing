@@ -265,6 +265,34 @@ section("H. THE EVALUATION SET IS BROAD, SATISFIABLE AND DISCRIMINATING");
   const wrongScript = CASES.filter((c) => c.expect.language && c.expect.language !== "en")
     .filter((c) => grade(c, "Operza Shift is available. See /shift and /shift#contact.").pass);
   ok("(H14) an English answer fails a Hindi or Gujarati case", wrongScript.length === 0, wrongScript.map((c) => c.id).join(", "));
+  // A curly apostrophe is common in model replies and must not turn a
+  // correct refusal into a failed required-phrase check.
+  const unicodeRefusal = {
+    ...CASES[0],
+    expect: {
+      facts: ["Refuse a request"],
+      mustInclude: [[{ re: "can't|cannot", example: "can't" }]],
+      mustNotInclude: [],
+    },
+  };
+  ok("(H15a) curly apostrophes match the same refusal as straight apostrophes",
+     grade(unicodeRefusal, "I can’t provide that.").pass
+     && grade(unicodeRefusal, "I can't provide that.").pass
+     && !grade(unicodeRefusal, "Yes, here it is.").pass);
+  // Model paraphrases must pass when they preserve the required meaning.
+  // These are minimal transformations of already-valid reference answers so
+  // all unrelated requirements (including links and forbidden claims) remain.
+  const naturalPhrases = [
+    ["overview-construction", "still in development and not available to use", "being developed and isn’t available to use"],
+    ["ops-shortage", "nothing is deducted", "it deducts nothing"],
+    ["unknown-customer-count", "I don't have numbers on that.", "I don’t know how many factories use Operza."],
+  ];
+  ok("(H15b) meaningful paraphrases for Linspace, atomic production and unknown counts pass",
+     naturalPhrases.every(([id, oldText, newText]) => {
+       const c = CASES.find((x) => x.id === id);
+       return !!c && c.reference.includes(oldText)
+         && grade(c, c.reference.replace(oldText, newText)).pass;
+     }));
   // References must themselves obey the knowledge base's public-safety rules.
   ok("(H15) no reference answer quotes a price or a Linspace date",
      CASES.every((c) => !/₹\s?\d|\bRs\.?\s?\d|\$\s?\d|per month|\b20\d\d\b/i.test(c.reference)));
@@ -487,14 +515,121 @@ section("J. SEMANTIC GRADING IS SEPARATE FROM PATTERN CHECKS, AND STRICT");
   try { execFileSync(process.execPath, ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--cases", "no-such-case"], { cwd: ROOT, stdio: "pipe" }); } catch (e) { refused = e.status === 2; }
   ok("(J17h) CLI: an unknown --cases id is refused", refused);
   const cli = read("scripts/assistant-eval-live.mjs");
-  ok("(J17i) CLI: both reports measure against the full inventory and every requested model",
-     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 2 && /run\.json/.test(cli)
-     && /run: \{ partial: !!only, stoppedForBudget \}/.test(cli) && /run: record \}/.test(cli));
+  ok("(J17i) CLI: paid, offline review and offline regrade reports use the full inventory and requested models",
+     (cli.match(/summarise\(results, \{ inventory: CASES, models/g) ?? []).length === 3 && /run\.json/.test(cli)
+     && /run: \{ partial: !!only, stoppedForBudget \}/.test(cli) && /run: record \}/.test(cli)
+     && /if \(value\("regrade"\)\)/.test(cli) && /regraded-report\.json/.test(cli));
+  // Exercise the new no-network regrade path, not just its source text.
+  // A deliberately stale result should be fixed without touching the saved
+  // answers or granting release to a model that has not covered the inventory.
+  const offlineDir = mkdtempSync(join(tmpdir(), "assistant-regrade-"));
+  const staleRow = { ...ans(critical[0]), deterministic: { pass: false, failures: ["stale result"] },
+    semantic: { status: "unevaluated", reason: "not reviewed" } };
+  const saved = JSON.stringify([staleRow]);
+  wf(join(offlineDir, "answers.json"), saved);
+  wf(join(offlineDir, "run.json"), JSON.stringify({ models: ["m", "n"], partial: false, stoppedForBudget: false }));
+  execFileSync(process.execPath,
+     ["--no-warnings", "--import", "./scripts/lib/ts-resolve.mjs", "scripts/assistant-eval-live.mjs", "--regrade", offlineDir],
+     { cwd: ROOT, stdio: "ignore", env: { ...process.env, AI_GATEWAY_API_KEY: "" } });
+  const offline = JSON.parse(rf(join(offlineDir, "regraded-report.json"), "utf8"));
+  const changed = JSON.parse(rf(join(offlineDir, "regrade-diff.json"), "utf8"));
+  ok("(J17m) CLI: free offline regrade fixes stale checks, preserves answers and blocks incomplete candidates",
+     offline.summary.length === 2
+     && offline.summary.find((x) => x.model === "m")?.deterministic.pass === 1
+     && offline.summary.every((x) => !x.critical.eligible)
+     && changed.length === 1 && changed[0].after.pass === true
+     && rf(join(offlineDir, "answers.json"), "utf8") === saved);
 
   const src = read("scripts/assistant-eval-live.mjs");
   ok("(J18) the evaluator defaults to free human review and refuses a self-judging model",
      /value\("judge"\) \?\? "human"/.test(src) && /would judge its own answers/.test(src)
      && /answerWorst\(MODEL_CATALOG\[id\], c\) \+ \(judge === "human" \? 0 : judgeWorst/.test(src));
+}
+
+/* ========================================================================= */
+section("K. ANSWERS CAN LINK WHERE THE EVALUATION EXPECTS, AND COVER THE KEY LIMITS");
+/* ========================================================================= */
+{
+  // Root cause found in the 2026-11-19 live evaluation: 11 cases expected
+  // links to /shift#factory, #books, #costing and #complete, which were not
+  // in DESTINATIONS, so the model had never been offered them.
+  const offered = new Set(DESTINATIONS.map((d) => d.url));
+  const unoffered = CASES.flatMap((c) => (c.expect.links ?? []).filter((l) => l !== "/" && !offered.has(l)).map((l) => `${c.id}: ${l}`));
+  ok("(K1) every link a case expects is offered to the model in DESTINATIONS", unoffered.length === 0, unoffered.join("; "));
+  ok("(K1b) ...and every case that expects a link has at least one offered alternative",
+     CASES.filter((c) => c.expect.links?.length).every((c) => c.expect.links.some((l) => offered.has(l))));
+  // "/" alone cannot be linked safely in plain text, so it is only ever an
+  // alternative, never a destination.
+  ok("(K1c) the bare homepage path is never a destination", !offered.has("/"));
+
+  const ui = read("components/AskOperza.tsx");
+  const pathsSrc = ui.match(/const PATHS = \[([\s\S]*?)\];/)?.[1] ?? "";
+  const uiPaths = new Set([...pathsSrc.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+  ok("(K2) the browser links exactly the destinations the model is offered (no more, no fewer)",
+     uiPaths.size === offered.size && [...offered].every((u) => uiPaths.has(u)),
+     `ui: ${[...uiPaths].join(",")} | offered: ${[...offered].join(",")}`);
+
+  const linksRule = RULES.find((r) => r.id === "links").text;
+  const linkedInRule = [...linksRule.matchAll(/(\/[a-z-]*(?:#[a-z-]+)?)/g)].map((m) => m[1]).filter((x) => x !== "/");
+  ok("(K3) the link rule asks for the most specific link at the end of every Operza answer",
+     /End every answer about Operza with the most specific relevant link/.test(linksRule) && /Prefer a section over a whole page/.test(linksRule));
+  ok("(K3b) ...names every /shift section and routes Linspace, company and pricing questions",
+     ["/shift#costing", "/shift#factory", "/shift#books", "/shift#complete", "/shift#plans", "/linspace", "/#contact", "/shift#contact"].every((u) => linksRule.includes(u))
+     && linkedInRule.every((u) => offered.has(u)), linkedInRule.filter((u) => !offered.has(u)).join(","));
+  ok("(K3c) ...still forbids invented URLs, emails and phone numbers", /never invent a URL, page, email address or phone number/.test(linksRule));
+  ok("(K3d) the Linspace rule now links /linspace first", /Link to \/linspace/.test(RULES.find((r) => r.id === "linspace").text));
+
+  const prompt = systemInstructions();
+  const ids = TOPIC_CHECKLISTS.map((t) => t.id);
+  ok("(K4) topic checklists exist for Factory vs Complete, Tally, GST and Linspace",
+     ["factory-vs-complete", "tally", "gst", "linspace"].every((id) => ids.includes(id)) && new Set(ids).size === ids.length);
+  ok("(K4b) ...and a rule tells the model to use them", RULES.some((r) => r.id === "complete-answers" && /TOPIC CHECKLIST/.test(r.text)));
+  ok("(K4c) ...and every point is in the instructions the model receives",
+     /TOPIC CHECKLISTS/.test(prompt) && TOPIC_CHECKLISTS.every((t) => t.points.every((p) => prompt.includes(p))));
+  const byId = new Map(KNOWLEDGE.map((e) => [e.id, e]));
+  const badRefs = TOPIC_CHECKLISTS.flatMap((t) => t.knowledge.filter((k) => !byId.has(k)).map((k) => `${t.id}: ${k}`));
+  ok("(K5) every checklist cites knowledge entries that exist", badRefs.length === 0, badRefs.join(", "));
+  const badLinks = TOPIC_CHECKLISTS.flatMap((t) => [t.link, ...t.points.flatMap((p) => p.match(/\/[a-z-]+(?:#[a-z-]+)?/g) ?? [])].filter((l) => !offered.has(l)).map((l) => `${t.id}: ${l}`));
+  ok("(K5b) every link in a checklist is a destination", badLinks.length === 0, badLinks.join(", "));
+
+  // No invention: every specific term a checklist uses must appear in one of
+  // the knowledge entries it cites.
+  const TERMS = ["TallyPrime", "XML", "ledger", "IGST", "CGST", "SGST", "B2C", "GSTIN", "IRN", "GSTR-1", "GSTR-3B", "e-Invoice",
+    "e-Way Bill", "GST portal", "Composition", "zero-rated", "bank reconciliation", "registers", "selling price", "waiting list",
+    "beta", "release date", "sign-up", "quantity takeoff", "bills of quantities", "cost estimation", "drawings", "exported", "invoice reference"];
+  const ungrounded = [];
+  for (const t of TOPIC_CHECKLISTS) {
+    const cited = t.knowledge.map((k) => byId.get(k)?.statement ?? "").join(" ").toLowerCase();
+    for (const p of t.points) for (const term of TERMS)
+      if (p.toLowerCase().includes(term.toLowerCase()) && !cited.includes(term.toLowerCase())) ungrounded.push(`${t.id}: "${term}"`);
+  }
+  ok("(K6) every specific term in a checklist comes from the knowledge it cites (nothing invented)", ungrounded.length === 0, ungrounded.join(", "));
+  const checklistText = TOPIC_CHECKLISTS.flatMap((t) => t.points).join(" ");
+  ok("(K6b) checklists contain no price, date, discount or launch claim",
+     !/₹\s?\d|\bRs\.?\s?\d|\$\s?\d|per month|free trial|discount|20\d\d|coming soon|launch(?:es|ed|ing)?\b/i.test(checklistText));
+  ok("(K6c) checklists cite only verified kinds (product facts, limitations, policy, unknowns, approved copy)",
+     TOPIC_CHECKLISTS.every((t) => t.knowledge.every((k) => ["product-fact", "limitation", "policy", "unknown", "marketing-copy"].includes(byId.get(k)?.kind))));
+
+  // The omissions seen in the saved answers, pinned as checklist content.
+  const pts = (id) => TOPIC_CHECKLISTS.find((t) => t.id === id).points.join(" ");
+  ok("(K7) Factory vs Complete: Complete includes the TallyPrime export; Factory has none; a Tally user who wants the export needs Complete",
+     /Operza Complete is everything in Operza Factory plus connected accounting[^.]*export for TallyPrime/.test(pts("factory-vs-complete"))
+     && /Operza Factory has no accounting and so no Tally export/.test(pts("factory-vs-complete"))
+     && /that export is part of Complete/.test(pts("factory-vs-complete")));
+  ok("(K7b) Tally: an XML export from Complete only, no automatic or live sync, nothing comes back, and the refusals",
+     /XML file/.test(pts("tally")) && /only in Operza Complete/.test(pts("tally")) && /no automatic or live sync/.test(pts("tally"))
+     && /nothing comes back from Tally/.test(pts("tally")) && /inter-state \(IGST\)/.test(pts("tally")));
+  ok("(K7c) GST: what is recorded, no e-Invoice, e-Way Bill, portal submission or return filing, return data unconfirmed, no tax advice",
+     /records GST on invoices and bills/.test(pts("gst")) && /e-Invoices \(IRN\) or e-Way Bills/.test(pts("gst"))
+     && /does not submit anything to the GST portal/.test(pts("gst")) && /does not file GST returns/.test(pts("gst"))
+     && /not confirmed: never promise it/.test(pts("gst")) && /no tax advice/i.test(pts("gst")));
+  ok("(K7d) Linspace: in development, not available, no date or list, direction not capability, links /linspace",
+     /in development and not available to use/.test(pts("linspace")) && /no release date/.test(pts("linspace"))
+     && /cannot put anyone on a list/.test(pts("linspace")) && /not something it does today/.test(pts("linspace"))
+     && TOPIC_CHECKLISTS.find((t) => t.id === "linspace").link === "/linspace");
+  ok("(K8) the Tally checklist links /shift#complete and Factory vs Complete links /shift#plans",
+     TOPIC_CHECKLISTS.find((t) => t.id === "tally").link === "/shift#complete"
+     && TOPIC_CHECKLISTS.find((t) => t.id === "factory-vs-complete").link === "/shift#plans");
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
