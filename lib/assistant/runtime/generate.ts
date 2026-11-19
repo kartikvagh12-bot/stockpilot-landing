@@ -1,17 +1,17 @@
 import { streamText } from "ai";
 import type { GenerateArgs } from "@/lib/assistant/runtime/handler";
+import { retryOnceOnProviderOverload } from "@/lib/assistant/runtime/overload-retry";
 
 // The one place the assistant calls a model, through Vercel AI Gateway.
 //
-// - The model is a plain "provider/model" string, which the AI SDK routes
-//   through AI Gateway. On Vercel the deployment authenticates with its own
-//   OIDC token, so no model key exists in this repository or the browser.
-// - No tools are passed: the model can only write text.
-// - maxRetries is 0 so a failure never silently spends twice.
-// - Errors are surfaced, not swallowed: textStream would hide them, so this
-//   reads `stream` and throws on an error part.
+// - Same configured model and zero-data-retention setting on both attempts.
+// - No tools are passed. AI SDK maxRetries stays 0.
+// - Only a 503 server_is_overloaded BEFORE any text permits one explicit
+//   retry, within the existing 25-second request deadline.
+// - All other errors, and every error after text begins, propagate normally.
+// - Read result.stream: textStream hides provider error events.
 
-export async function* generateWithGateway(args: GenerateArgs): AsyncIterable<string> {
+async function* streamAttempt(args: GenerateArgs, remainingMs: number): AsyncIterable<string> {
   const result = streamText({
     model: args.model,
     instructions: args.instructions,
@@ -20,7 +20,7 @@ export async function* generateWithGateway(args: GenerateArgs): AsyncIterable<st
     maxRetries: 0,
     temperature: 0.3,
     abortSignal: args.abortSignal,
-    timeout: { totalMs: args.timeoutMs, firstChunkMs: args.firstTokenTimeoutMs },
+    timeout: { totalMs: remainingMs, firstChunkMs: Math.min(args.firstTokenTimeoutMs, remainingMs) },
     providerOptions: {
       gateway: { zeroDataRetention: args.zeroDataRetention },
     },
@@ -33,4 +33,11 @@ export async function* generateWithGateway(args: GenerateArgs): AsyncIterable<st
       throw part.error;
     }
   }
+}
+
+export function generateWithGateway(args: GenerateArgs): AsyncIterable<string> {
+  return retryOnceOnProviderOverload(
+    (remainingMs) => streamAttempt(args, remainingMs),
+    { abortSignal: args.abortSignal, timeoutMs: args.timeoutMs },
+  );
 }
