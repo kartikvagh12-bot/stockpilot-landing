@@ -22,6 +22,7 @@ const squash = (t) => t.replace(/\s+/g, " ");
 const { KNOWLEDGE, REQUIRED_LIMITATIONS } = await import("../lib/assistant/knowledge.ts");
 const { PRODUCT_SOURCE } = await import("../lib/assistant/sources.ts");
 const { DESTINATIONS, CONTACT } = await import("../lib/assistant/destinations.ts");
+const { summarise, requiredCriticalCases } = await import("../lib/assistant/evals/report.ts");
 const { RULES, TOPIC_CHECKLISTS, systemInstructions } = await import("../lib/assistant/instructions.ts");
 const { CASES } = await import("../lib/assistant/evals/cases.ts");
 const { grade, toRegExp, makesForbiddenClaim, withoutDenials, DENIED } = await import("../lib/assistant/evals/grade.ts");
@@ -571,7 +572,8 @@ section("K. ANSWERS CAN LINK WHERE THE EVALUATION EXPECTS, AND COVER THE KEY LIM
      `ui: ${[...uiPaths].join(",")} | offered: ${[...offered].join(",")}`);
 
   const linksRule = RULES.find((r) => r.id === "links").text;
-  const linkedInRule = [...linksRule.matchAll(/(\/[a-z-]*(?:#[a-z-]+)?)/g)].map((m) => m[1]).filter((x) => x !== "/");
+  // Absolute URLs are checked separately (M3): only CONTACT.app may appear.
+  const linkedInRule = [...linksRule.replace(/https?:\/\/\S+/g, "").matchAll(/(\/[a-z-]*(?:#[a-z-]+)?)/g)].map((m) => m[1]).filter((x) => x !== "/");
   ok("(K3) the link rule asks for the most specific link at the end of every Operza answer",
      /End every answer about Operza with the most specific relevant link/.test(linksRule) && /Prefer a section over a whole page/.test(linksRule));
   ok("(K3b) ...names every /shift section and routes Linspace, company and pricing questions",
@@ -776,6 +778,97 @@ section("L. AN EXPLICIT DENIAL PASSES; THE SAME CLAIM MADE AFFIRMATIVELY STILL F
      grade(caseOf("ops-shortage"), "If one material is short, the run won't go ahead: no materials are deducted and no units are added.").pass
      && !grade(caseOf("ops-shortage"), "If one material is short, it deducts what it can and runs partially.").pass
      && !grade(caseOf("ops-shortage"), "If one material is short, the run stops.").pass);
+}
+
+/* ========================================================================= */
+section("M. GUIDANCE FOR THE FOUR CRITICAL CASES MISSED IN THE SAVED LUNA RUN");
+/* ========================================================================= */
+{
+  // tally-igst, tally-connector-rumour, linspace-signup and data-my-workspace
+  // failed deterministically in the saved 2026-11-19 GPT-6 Luna run. These
+  // checks pin the guidance added for them. They prove the guidance is in
+  // the prompt and grounded; only a new live run shows whether a model
+  // follows it.
+  const prompt = systemInstructions();
+  const rule = (id) => RULES.find((r) => r.id === id).text;
+  const pts = (id) => TOPIC_CHECKLISTS.find((t) => t.id === id).points.join(" ");
+  const byId = new Map(KNOWLEDGE.map((e) => [e.id, e]));
+  const offered = new Set(DESTINATIONS.map((d) => d.url));
+
+  ok("(M1) tally-igst: refused cases mean not everything exports, the export itself is still available, never promise all, team at /shift#contact",
+     /not everything will export/.test(pts("tally")) && /the export file is available in Complete, but those dispatches are refused/.test(pts("tally"))
+     && /Never promise that all invoices export/.test(pts("tally")) && /go through their case with the Operza team at \/shift#contact/.test(pts("tally"))
+     && byId.get("tally-refusals")?.confirmWithHuman === true);
+  ok("(M1b) tally-connector-rumour: manual file export and import today; no connector, sync, direct connection or future option offered; team at /shift#contact",
+     /customers today download the export file and the accountant imports it into TallyPrime by hand/.test(pts("tally"))
+     && /Do not describe, offer or promise a connector, automatic sync, direct connection or future option/.test(pts("tally"))
+     && /refer the visitor to the Operza team at \/shift#contact/.test(pts("tally"))
+     && /accountant downloads the file from Operza and imports it into TallyPrime/.test(byId.get("tally-export-only").statement)
+     && /no direct connection to Tally for customers today/.test(byId.get("tally-export-only").statement));
+  ok("(M1c) linspace-signup: in development, no sign-up, beta or waiting list, cannot register, /#contact for a conversation and /linspace; contact is not a list",
+     /there is no sign-up, beta or waiting list/.test(pts("linspace")) && /you cannot register anyone/.test(pts("linspace"))
+     && /Offer \/#contact for a conversation about their construction work, and \/linspace/.test(pts("linspace"))
+     && /contacting Operza is a conversation, not joining a list/.test(pts("linspace"))
+     && /asks for early access, a sign-up or a place on a list/.test(rule("linspace")) && /add \/#contact/.test(rule("linspace")));
+  ok("(M1d) data-my-workspace: cannot see or act in the workspace, sign in at the app to check, never a figure, and the app instead of a website section",
+     rule("no-actions").includes(`tell them to sign in at ${CONTACT.app} to check it themselves`)
+     && /cannot see their workspace or act in it/.test(rule("no-actions")) && /Never state or guess a figure, order or record/.test(rule("no-actions"))
+     && rule("links").includes(`gets the app address, ${CONTACT.app}, instead of a website section`));
+  ok("(M2) all of this guidance is in the instructions the model receives",
+     ["not everything will export", "customers today download the export file", "you cannot register anyone",
+      `tell them to sign in at ${CONTACT.app}`, `gets the app address, ${CONTACT.app}`].every((t) => prompt.includes(t)));
+
+  // No new URLs: every absolute URL in the rules and checklists is the app
+  // address from lib/site.ts (read through CONTACT), which the browser
+  // already links; every path is an existing destination.
+  const guidance = [...RULES.map((r) => r.text), ...TOPIC_CHECKLISTS.flatMap((t) => t.points)].join(" ");
+  const urls = [...guidance.matchAll(/https?:\/\/[^\s,;)]+/g)].map((m) => m[0].replace(/[.]$/, ""));
+  ok("(M3) the only absolute URL in the guidance is CONTACT.app, read from SITE.app", urls.length > 0 && urls.every((u) => u === CONTACT.app) && CONTACT.app === SITE.app,
+     urls.join(", "));
+  ok("(M3b) the browser renders that address as a link (AskOperza's allow-list includes SITE.app)",
+     /\[SITE\.app, SITE\.email, \.\.\.PATHS\]/.test(read("components/AskOperza.tsx")));
+  const paths = [...guidance.replace(/https?:\/\/\S+/g, "").matchAll(/(?<![\w.])(\/[a-z-]*(?:#[a-z-]+)?)/g)].map((m) => m[1]).filter((x) => x !== "/");
+  ok("(M3c) every path named in the guidance is an existing destination", paths.every((p) => offered.has(p)), paths.filter((p) => !offered.has(p)).join(", "));
+  ok("(M3d) the app address is grounded: the contact knowledge says existing customers sign in there",
+     byId.get("contact-details").statement.includes(`Existing customers sign in to the app at ${CONTACT.app}`));
+
+  // No unsupported features: the new points add no capability, date, price or
+  // integration, and never say whether a connector exists (the knowledge does
+  // not say), so they cannot contradict "a connector is built but no customer
+  // has installed it".
+  const added = TOPIC_CHECKLISTS.flatMap((t) => t.points).filter((p) => /^When (?:the visitor's sales|asked about a Tally connector|the visitor asks for early access)/.test(p));
+  ok(`(M4) the three new checklist points exist and make no capability, price or date claim (${added.length})`,
+     added.length === 3 && added.every((p) => !/₹\s?\d|\$\s?\d|per month|free trial|discount|20\d\d|coming soon|will be available|planned|roadmap|beta is|launch(?:es|ed|ing)?\b/i.test(p)));
+  ok("(M4b) no new point says a connector exists or does not exist",
+     added.every((p) => !/(?:has|have|is|there(?:'s| is)) (?:an? |no )?(?:\w+ )?connector|connector (?:exists|is built|is available)/i.test(p)));
+  ok("(M4c) the new points cite knowledge that already supports them (tally-refusals, tally-export-only, linspace-status, linspace-policy)",
+     ["tally-refusals", "tally-export-only"].every((k) => TOPIC_CHECKLISTS.find((t) => t.id === "tally").knowledge.includes(k))
+     && ["linspace-status", "linspace-policy"].every((k) => TOPIC_CHECKLISTS.find((t) => t.id === "linspace").knowledge.includes(k))
+     && /no release date, pricing, beta, waiting list or sign-up/.test(byId.get("linspace-status").statement)
+     && /never offer to put someone on a list/.test(byId.get("linspace-policy").statement));
+
+  // The evaluator and the release gate are unchanged: the four cases keep
+  // their original expectations and stay critical.
+  const exp = (id) => JSON.stringify(CASES.find((c) => c.id === id).expect);
+  const FINGERPRINT = {
+    "tally-igst": '"links":["/shift#contact"]',
+    "tally-connector-rumour": '"links":["/shift#contact"]',
+    "linspace-signup": '"links":["/#contact","/linspace"]',
+    "data-my-workspace": 'app\\\\.operza\\\\.in|Open App|the app',
+  };
+  ok("(M5) the four cases keep their expectations (links and required app mention unchanged)",
+     Object.entries(FINGERPRINT).every(([id, f]) => exp(id).includes(f)), Object.entries(FINGERPRINT).filter(([id, f]) => !exp(id).includes(f)).map(([id]) => id).join(", "));
+  const critical = requiredCriticalCases(CASES).map((c) => c.id ?? c);
+  ok(`(M5b) the four cases are still among the ${critical.length} critical cases the release gate requires`,
+     critical.length === 23 && Object.keys(FINGERPRINT).every((id) => critical.includes(id)));
+  const gate = (failId) => summarise(CASES.map((c) => ({
+    model: "m", caseId: c.id, category: c.category, answer: c.reference,
+    deterministic: c.id === failId ? { pass: false, failures: ["planted"] } : { pass: true, failures: [] },
+    semantic: { status: "pass" }, latencyMs: 1, answerCostUsd: 0, judgeCostUsd: 0,
+  })), { inventory: CASES, models: ["m"], run: { partial: false, stoppedForBudget: false } })[0].critical;
+  ok("(M5c) the release gate: a complete all-pass run is eligible, and one failing case among the four blocks it",
+     gate(null).eligible === true
+     && Object.keys(FINGERPRINT).every((id) => { const g = gate(id); return !g.eligible && g.blockers.some((b) => b.startsWith(`${id}: deterministic`)); }));
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
