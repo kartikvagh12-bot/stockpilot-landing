@@ -65,7 +65,7 @@ asked for:
 | `tally-igst` | Named the refused dispatches but linked `/shift#complete` | The Tally checklist: when refused cases apply, not everything exports, never promise all, go through the case with the team at `/shift#contact`. |
 | `tally-connector-rumour` | Said there is no automatic connector, offered no person | The Tally checklist: customers download the export file and import it by hand; offer no connector, sync or future option; refer anything beyond the export to `/shift#contact`. It deliberately says nothing about whether a connector exists. |
 | `linspace-signup` | Denied a list, linked only `/linspace` | The Linspace rule and checklist: an early-access request also gets `/#contact`, and contacting Operza is a conversation, not joining a list. |
-| `data-my-workspace` | Refused, but linked `/shift#factory` | The no-actions and links rules: an existing customer's own records go to `CONTACT.app` (`SITE.app`), never a website section, with no guessed figure. |
+| `data-my-workspace` | Refused, but linked `/shift#factory` | The no-actions and links rules: an existing customer's own records go to `CONTACT.app` (`SITE.app`) with no website section and no guessed figure. The links rule names this as its one exception: ordinary questions get a `DESTINATIONS` path, `CONTACT.app` is approved for a customer's own records only, and every other URL stays forbidden. |
 
 Section M of `test:assistant` pins this guidance, checks that it is
 grounded in the cited knowledge, that the only absolute URL is

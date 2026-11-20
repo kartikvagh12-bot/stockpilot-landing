@@ -575,11 +575,11 @@ section("K. ANSWERS CAN LINK WHERE THE EVALUATION EXPECTS, AND COVER THE KEY LIM
   // Absolute URLs are checked separately (M3): only CONTACT.app may appear.
   const linkedInRule = [...linksRule.replace(/https?:\/\/\S+/g, "").matchAll(/(\/[a-z-]*(?:#[a-z-]+)?)/g)].map((m) => m[1]).filter((x) => x !== "/");
   ok("(K3) the link rule asks for the most specific link at the end of every Operza answer",
-     /End every answer about Operza with the most specific relevant link/.test(linksRule) && /Prefer a section over a whole page/.test(linksRule));
+     /For a question about Operza's products, plans or company, end the answer with the most specific relevant link from DESTINATIONS/.test(linksRule) && /Prefer a section over a whole page/.test(linksRule));
   ok("(K3b) ...names every /shift section and routes Linspace, company and pricing questions",
      ["/shift#costing", "/shift#factory", "/shift#books", "/shift#complete", "/shift#plans", "/linspace", "/#contact", "/shift#contact"].every((u) => linksRule.includes(u))
      && linkedInRule.every((u) => offered.has(u)), linkedInRule.filter((u) => !offered.has(u)).join(","));
-  ok("(K3c) ...still forbids invented URLs, emails and phone numbers", /never invent a URL, page, email address or phone number/.test(linksRule));
+  ok("(K3c) ...still forbids invented URLs, emails and phone numbers", /Never invent or use any other URL, page, email address or phone number/.test(linksRule));
   ok("(K3d) the Linspace rule now links /linspace first", /Link to \/linspace/.test(RULES.find((r) => r.id === "linspace").text));
 
   const prompt = systemInstructions();
@@ -813,10 +813,26 @@ section("M. GUIDANCE FOR THE FOUR CRITICAL CASES MISSED IN THE SAVED LUNA RUN");
   ok("(M1d) data-my-workspace: cannot see or act in the workspace, sign in at the app to check, never a figure, and the app instead of a website section",
      rule("no-actions").includes(`tell them to sign in at ${CONTACT.app} to check it themselves`)
      && /cannot see their workspace or act in it/.test(rule("no-actions")) && /Never state or guess a figure, order or record/.test(rule("no-actions"))
-     && rule("links").includes(`gets the app address, ${CONTACT.app}, instead of a website section`));
+     && rule("no-actions").includes("with no website link added"));
+  // PR #32 review: the app exception must not conflict with the rest of the
+  // link rule. Ordinary questions use DESTINATIONS; a customer's own records
+  // get CONTACT.app and no section link; CONTACT.app is the only approved
+  // exception; every other URL stays forbidden.
+  const links = rule("links");
+  const at = (t) => links.indexOf(t);
+  ok("(M1e) the link rule separates ordinary questions (DESTINATIONS paths) from a customer's own records (CONTACT.app, no section link)",
+     at("For a question about Operza's products, plans or company, end the answer with the most specific relevant link from DESTINATIONS") === 0
+     && links.includes(`The one exception: when an existing customer asks about their own records`)
+     && links.includes(`give the app address ${CONTACT.app} and no DESTINATIONS link, not even a /shift section`));
+  ok("(M1f) CONTACT.app is named as the only approved exception, and every other URL stays forbidden",
+     links.includes(`${CONTACT.app} is approved for that case only; apart from it, use only the paths in DESTINATIONS and the contact details listed there`)
+     && at("Never invent or use any other URL, page, email address or phone number.") > at(`${CONTACT.app} is approved for that case only`));
+  ok("(M1g) no unconditional wording is left that contradicts the exception",
+     !/End every answer about Operza with/.test(links) && !/Use only paths listed in DESTINATIONS/.test(links)
+     && !RULES.some((r) => /Use only paths listed in DESTINATIONS|End every answer about Operza with/.test(r.text)));
   ok("(M2) all of this guidance is in the instructions the model receives",
      ["not everything will export", "customers today download the export file", "you cannot register anyone",
-      `tell them to sign in at ${CONTACT.app}`, `gets the app address, ${CONTACT.app}`].every((t) => prompt.includes(t)));
+      `tell them to sign in at ${CONTACT.app}`, `give the app address ${CONTACT.app} and no DESTINATIONS link`, `${CONTACT.app} is approved for that case only`].every((t) => prompt.includes(t)));
 
   // No new URLs: every absolute URL in the rules and checklists is the app
   // address from lib/site.ts (read through CONTACT), which the browser
