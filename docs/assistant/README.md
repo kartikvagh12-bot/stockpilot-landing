@@ -21,6 +21,7 @@ assistant ships switched off until the Founder configures it.
 | `scripts/verify-assistant-sources.mjs` | Citation check against `operza-app`: `npm run verify:assistant-sources`. |
 | `docs/assistant/MODEL_PLAN.md` | Candidate models and the runtime plan. Not a decision. |
 | `docs/assistant/RUNTIME.md` | How the live assistant works, every control, Founder setup, costs, privacy. |
+| `docs/assistant/PILOT_RELEASE.md` | The Founder's discovery-pilot release decision (2026-11-20): accepted limitations, activation status, launch sequence. |
 | `lib/assistant/runtime/` | Configuration, request handler, model call, limits, validation and served prompt. |
 | `app/api/assistant/route.ts` | The public endpoint, wiring the real BotID, WAF rate limit and AI Gateway. |
 | `components/AskOperza.tsx` | The homepage input, rendered only when the assistant is configured. |
@@ -164,8 +165,14 @@ commit with `git show`. If an anchor is not in the file, the citation fails.
    `npm run test:assistant`. Both must pass.
 5. Add or adjust evaluation cases for anything visitors will now ask about.
 
+6. Ship the knowledge change in the website deployment that follows the
+   feature's release, never before the feature is live for customers.
+
 Never edit a statement without re-reading its source, and never add a
-capability because the website or a sales conversation says so.
+capability because the website or a sales conversation says so. This is the
+standing maintenance rule for the discovery pilot (`PILOT_RELEASE.md`):
+the knowledge base stays static and verified; there is no automatic
+synchronisation or content-management system.
 
 ## Languages
 

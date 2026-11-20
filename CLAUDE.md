@@ -110,6 +110,18 @@ From the PR #25 brief (2026-11-17):
    GPT-6.1 Terra are named candidates for later evaluation, not choices.
    The assistant should adapt to English, Hindi and Gujarati.
 
+From the 2026-11-20 launch direction:
+
+10. **Discovery-pilot release of the assistant** (`docs/assistant/PILOT_RELEASE.md`):
+    a basic product-discovery assistant, released on the Founder's manual
+    acceptance of documented completeness limitations. The evaluation
+    results, the deterministic grader and the automated release gate stay
+    as they are (the gate still reports NOT eligible). Every safety, privacy
+    and spending control stays mandatory, and activation still needs the
+    checklist in RUNTIME.md and separate Production authorization.
+    Knowledge stays static: update and re-verify it when a customer-facing
+    feature ships, in the same website deployment.
+
 ### Open Founder decisions
 
 1. Final company-level copy. The homepage copy is the Founder's provisional
@@ -117,7 +129,8 @@ From the PR #25 brief (2026-11-17):
    on the site.
 2. Linspace later: indexing, early-interest handling, and any vocabulary that
    would need the site-wide "cost intelligence" ban scoped deliberately.
-3. Assistant (PR #26 built it switched off): the Founder actions in
+3. Assistant (PR #26 built it switched off; pilot release approved in
+   principle, decision 10, with outstanding items in PILOT_RELEASE.md): the Founder actions in
    `docs/assistant/RUNTIME.md` (AI Gateway access, the project budget, the
    `assistant-visitor` WAF rule, Preview protection bypass, Preview-only
    environment variables), an approved budget for the paid evaluation, the
@@ -451,6 +464,17 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-20 — Discovery-pilot release decision recorded
+
+Founder decision 10 documented in `docs/assistant/PILOT_RELEASE.md`: the
+pilot standard, the three Luna runs as reported (gate NOT eligible), the
+manually accepted completeness limitations kept apart from grader false
+positives and from prohibited safety failures (none found in a provisional
+scan; human review of the 23 critical answers recommended before
+activation), the activation prerequisites with what was and was not
+verified, the switch-off procedure and the launch sequence. README gained
+the release-time knowledge maintenance rule. Documentation only.
 
 ## 2026-11-20 — Tally connector answers
 
