@@ -25,8 +25,9 @@ app/api/assistant/route.ts  ->  lib/assistant/runtime/handler.ts
   7. conversation valid: visitor/assistant turns only,
      visitor first and last, size caps                     else 400
   8. model call through AI Gateway: reviewed instructions,
-     no tools, no retries, 500 output tokens, 15 s to the
-     first words, 25 s in total                            budget/credentials -> 503,
+     no tools or SDK retries, max one explicit 503-overload
+     retry before text, 500 output tokens, 15 s to first
+     words per attempt, 25 s across both attempts                            budget/credentials -> 503,
                                                            timeout -> 504
         |
   streamed plain text back to the browser
@@ -43,7 +44,7 @@ any action.
 |---|---|---|
 | Spending | AI Gateway **project budget** (monthly limit) | Vercel AI Gateway: requests past the limit are rejected with 402, shown to visitors as "unavailable". Soft cap: the single request that crosses the limit completes. |
 | Spending rate | Per-visitor rate limit; optional site-wide rule | Vercel WAF (`@vercel/firewall`), counted at the edge per region |
-| Runaway answers | 500 output tokens, 25 s total, 15 s to first words, no retries | The handler and the AI SDK call |
+| Runaway answers | 500 output tokens per attempt, 25 s total across attempts, 15 s to first words per attempt. AI SDK maxRetries=0; at most one explicit retry for an exact provider-overload 503 before text | The handler and the model generator |
 | Bots | Vercel BotID (Basic) | `checkBotId()` on every request |
 | Other sites calling the API | Origin and Sec-Fetch-Site checks | The handler |
 | Oversized or malformed input | 16 KB body, 600-character questions, 12 messages, 8,000 characters in total, strict schema | The handler and `validate.ts` |
@@ -54,6 +55,28 @@ any action.
 | Overlapping requests | Every request has its own id (a counter that "New conversation" never resets) and every network event carries it; the reducer ignores events from any request that is no longer current, so an abandoned request can never change a newer conversation. Requests are started once per id by `client/requests.ts`, with no shared "in flight" flag, so New conversation followed at once by a question, or a retry, is never blocked by an older request winding down | `lib/assistant/client/conversation.ts`, `lib/assistant/client/requests.ts`, tested by section H of `test:assistant-conversation` (hand-driven overlapping requests through the real runner, including requests that ignore the abort and keep sending) |
 | Wrong production origin | Production requires `ASSISTANT_ALLOWED_ORIGINS` to name `https://www.operza.in` explicitly | `config.ts` |
 | Accidental production launch | `ASSISTANT_ALLOW_PRODUCTION=true` required in production, on top of `ASSISTANT_ENABLED` | `config.ts` |
+
+### Provider-overload handling (Preview first)
+
+The model generator retries **only** when AI Gateway reports HTTP 503 with
+`code=server_is_overloaded` (including an SDK error that wraps this code), and
+only **before any text has reached the browser**. It pauses 250 ms, then
+makes **one** additional attempt using the **same model, instructions, chat
+messages, and zero-data-retention setting**. AI SDK's own `maxRetries` stays
+at `0`. No automatic model/provider override or fallback is introduced.
+
+There is no retry for 401/402/403 authentication, budget or privacy failures,
+408/timeouts, 429 throttling, generic 503s, or any error after output begins.
+A visitor abort stops the retry. Both attempts share the original 25-second
+wall-clock deadline; if insufficient time remains, the overload is surfaced
+instead of trying again. The handler's existing response/error behavior
+is unchanged.
+
+**Cost consequence:** one website question can invoke **up to two** paid
+model attempts when the first attempt fails with overload. Providers may
+charge for a failed attempt that processed tokens. The project Gateway
+budget and WAF rules remain essential; the monthly budget is a soft cap.
+Test on Preview and review logs before any Production authorization.
 
 A prompt instruction or a browser counter is never treated as a spending
 control.

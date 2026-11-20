@@ -110,6 +110,18 @@ From the PR #25 brief (2026-11-17):
    GPT-6.1 Terra are named candidates for later evaluation, not choices.
    The assistant should adapt to English, Hindi and Gujarati.
 
+From the 2026-11-20 launch direction:
+
+10. **Discovery-pilot release of the assistant** (`docs/assistant/PILOT_RELEASE.md`):
+    a basic product-discovery assistant, released on the Founder's manual
+    acceptance of documented completeness limitations. The evaluation
+    results, the deterministic grader and the automated release gate stay
+    as they are (the gate still reports NOT eligible). Every safety, privacy
+    and spending control stays mandatory, and activation still needs the
+    checklist in RUNTIME.md and separate Production authorization.
+    Knowledge stays static: update and re-verify it when a customer-facing
+    feature ships, in the same website deployment.
+
 ### Open Founder decisions
 
 1. Final company-level copy. The homepage copy is the Founder's provisional
@@ -117,7 +129,8 @@ From the PR #25 brief (2026-11-17):
    on the site.
 2. Linspace later: indexing, early-interest handling, and any vocabulary that
    would need the site-wide "cost intelligence" ban scoped deliberately.
-3. Assistant (PR #26 built it switched off): the Founder actions in
+3. Assistant (PR #26 built it switched off; pilot release approved in
+   principle, decision 10, with outstanding items in PILOT_RELEASE.md): the Founder actions in
    `docs/assistant/RUNTIME.md` (AI Gateway access, the project budget, the
    `assistant-visitor` WAF rule, Preview protection bypass, Preview-only
    environment variables), an approved budget for the paid evaluation, the
@@ -218,7 +231,11 @@ as before (no input, no BotID script). Setup, controls, costs and privacy:
   the page here that renders it. It is not a second authority: change a
   statement only after re-reading its source, and move the pin (here and in
   `lib/assistant/sources.ts`) when you re-verify.
-* `instructions.ts`: the behaviour rules and `systemInstructions()`.
+* `instructions.ts`: the behaviour rules, `TOPIC_CHECKLISTS` (points an
+  answer on Factory vs Complete, Tally, GST or Linspace must not leave out,
+  each restating cited knowledge) and `systemInstructions()`. Every link a
+  case expects must be in `destinations.ts`, which the browser links
+  exactly (section K of `test:assistant`).
 * `evals/cases.ts` and `evals/grade.ts`: the evaluation set and the
   deterministic grader shared with the future live evaluation.
 * `npm run test:assistant` (offline, every run) and
@@ -447,6 +464,101 @@ Product is complete enough for early customer acquisition.
 ---
 
 # Session log
+
+## 2026-11-21 — Assistant input: premium visual refinement
+
+Founder-approved UI and copy refinement only. The "Ask anything about
+Operza..." input now sits centred under the company hero (max 880px), as a
+white surface with a restrained shadow and a brand-red submit button, under
+the heading "Have a question? Just ask." and the line "Find out how Operza
+can work for your business."; the conversation panel is part of the white
+surface. The disclaimer is now exactly "AI-powered guidance to help you
+explore. For important details, our team can confirm. Please avoid sharing
+sensitive information." (still the input's aria-describedby). H14 and M7d
+follow the new wording; M7e pins the heading. No behaviour, backend, prompt,
+knowledge or grader change.
+
+## 2026-11-20 — Discovery-pilot release decision recorded
+
+Founder decision 10 documented in `docs/assistant/PILOT_RELEASE.md`: the
+pilot standard, the three Luna runs as reported (gate NOT eligible), the
+manually accepted completeness limitations kept apart from grader false
+positives and from prohibited safety failures (none found in a provisional
+scan; human review of the 23 critical answers recommended before
+activation), the activation prerequisites with what was and was not
+verified, the switch-off procedure and the launch sequence. README gained
+the release-time knowledge maintenance rule. Documentation only.
+
+## 2026-11-20 — Tally connector answers
+
+The 2026-11-20 Luna answer to `tally-connector-rumour` said "There isn't an
+automatic Tally connector" (operza-app at `b676a07`: built, but "No customer
+has received or installed the connector") and gave no team route. The Tally
+checklist's connector point now speaks only of what customers have today
+(manual XML export from Complete; no automatic connector, live sync or
+direct connection today), forbids saying none exists or none was built,
+offers no installation, early access or timeline, and ends with
+`/shift#contact`. Section O of `test:assistant`, 8 planted defects caught.
+No grader, case, knowledge or runtime change; no paid call.
+
+## 2026-11-20 — Second grader repair (after the Luna run on f7927be)
+
+The fresh Luna run scored 58/67 with 8 forbidden hits that were correct
+denials in new wordings. Five exact denial forms were added and three
+widened, and two rules were tightened: a denial followed in its sentence by
+a contrast word ("but", "yet", "except", ...) is not recognised, and masked
+lists join by "or" only (closing a comma gap that also existed in the first
+repair's discount form). After review (cycle 1), a denial is also not
+recognised when what follows takes it back: an affirmation ("and yes it
+is"), a referring clause ("it does", "there is one") or a bare
+reaffirmation in the next sentence (`takesDenialBack`). Cycle 2: one
+intensifier ("really", "truly", "clearly", ...) between subject and verb no
+longer hides a reversal ("and it really is"), while "it really isn't" and
+"it can't" stay negative. Final Founder-authorized correction: a next
+sentence that is a contrast word plus a bare reaffirmation ("But it is.")
+also takes a denial back. The grader task is closed; remaining regex limits
+are left to semantic review. Offline regrade of the saved answers: 58/67 to
+65/67 (critical 17/23 to 22/23); the 2026-11-19 answers stay 63/67. Still
+failing: tally-connector-rumour (no team route, a real miss) and
+unsupported-legal (link policy, a separate decision). Section N of
+`test:assistant`, 14 planted defects caught. No paid call.
+
+## 2026-11-20 — Guidance for the four remaining critical failures
+
+`tally-igst`, `tally-connector-rumour`, `linspace-signup` and
+`data-my-workspace` still failed in the saved Luna run after the grader
+repair, each because the prompt never asked for the missing link or point.
+Added two Tally checklist points (refused cases go to the team; connector
+questions get the manual export and the team, never a connector), a
+Linspace early-access point and trigger for `/#contact`, and a rule sending
+an existing customer's own records to `CONTACT.app`. Section M of
+`test:assistant` (12 planted defects caught). No case, grader, release
+gate, knowledge, destination, runtime or UI change; no paid call. Unmeasured
+until a new live run.
+
+## 2026-11-20 — Evaluation grader: denials versus claims
+
+12 forbidden-claim flags in the saved Luna run were correct denials ("it
+isn't a live sync", "I can't confirm a discount"). Forbidden patterns can now
+list exact denial forms, and only those words are set aside before the
+pattern runs; there is no general negation rule. The Tally pattern now also
+catches "synchronizes directly with TallyPrime" and the certification pattern
+"has ISO 27001 certification", both missed before. Offline regrade 51/67 to
+63/67 with no new failures; `acc-midyear-start` also accepts `/shift#books`
+and `ops-shortage` accepts "no materials are deducted". Section L of
+`test:assistant`, 12 planted defects caught. No paid call, runtime,
+instruction or knowledge change.
+
+## 2026-11-19 — Assistant response quality (links and completeness)
+
+The first live evaluation (saved locally, not changed) showed 26 missed
+links and incomplete answers on Tally and GST. Root causes: four `/shift`
+sections the cases expect were never offered as destinations; the link rule
+only said "when a link helps"; the Linspace rule offered contact as an equal
+choice. Added the sections, a most-specific-link rule, Linspace-first
+routing, and grounded topic checklists, with section K tests (10 planted
+defects caught). No grader, forbidden pattern, knowledge statement or
+runtime control changed; no paid call was made.
 
 ## 2026-11-18 — PR #26 R3 correction
 

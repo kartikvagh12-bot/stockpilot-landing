@@ -44,7 +44,7 @@ const TOKEN = new RegExp(
 );
 
 const linkClass =
-  "font-medium text-white underline decoration-brand-400/70 underline-offset-4 hover:decoration-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm";
+  "font-medium text-slate-900 underline decoration-brand-500/70 decoration-[1.5px] underline-offset-4 hover:text-brand-700 hover:decoration-brand-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 rounded-sm";
 
 function Linked({ text }: { text: string }) {
   const parts = text.split(TOKEN);
@@ -86,7 +86,7 @@ function Answer({ text }: { text: string }) {
             <ul key={i} className="space-y-1.5">
               {lines.map((l, j) => (
                 <li key={j} className="flex gap-2.5">
-                  <span aria-hidden="true" className="mt-[0.7em] h-1 w-1 shrink-0 rounded-full bg-brand-400" />
+                  <span aria-hidden="true" className="mt-[0.7em] h-1 w-1 shrink-0 rounded-full bg-brand-500" />
                   <span>
                     <Linked text={l.replace(/^\s*[-•]\s+/, "")} />
                   </span>
@@ -114,13 +114,13 @@ const PROBLEM_TEXT: Record<Problem, string> = {
 function Status({ x, isLast, onRetry }: { x: Exchange; isLast: boolean; onRetry: () => void }) {
   if (x.status === "stopped")
     return (
-      <div className="text-sm text-white/55">
+      <div className="text-sm text-slate-500">
         <p>Stopped. This answer won&apos;t be used for follow-up questions.</p>
         {isLast && (
           <button
             type="button"
             onClick={onRetry}
-            className="mt-2 rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="mt-2 rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
           >
             Ask again
           </button>
@@ -130,19 +130,19 @@ function Status({ x, isLast, onRetry }: { x: Exchange; isLast: boolean; onRetry:
   if (x.status !== "failed" || !x.problem) return null;
   const retryable = isLast && x.problem !== "too_long";
   return (
-    <div role="alert" className="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/80">
+    <div role="alert" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
       <p>
         {x.answer ? "The answer was interrupted. " : ""}
         {PROBLEM_TEXT[x.problem]}
       </p>
       {(x.problem === "unavailable" || x.problem === "failed") && (
-        <p className="mt-1.5 text-white/60">
+        <p className="mt-1.5 text-slate-600">
           You can still{" "}
-          <Link href={DEMO_HREF} className="underline underline-offset-4 hover:text-white">
+          <Link href={DEMO_HREF} className="font-medium text-slate-900 underline decoration-brand-500/70 underline-offset-4 hover:text-brand-700">
             book a demo
           </Link>{" "}
           or write to{" "}
-          <a href={`mailto:${SITE.email}`} className="underline underline-offset-4 hover:text-white">
+          <a href={`mailto:${SITE.email}`} className="font-medium text-slate-900 underline decoration-brand-500/70 underline-offset-4 hover:text-brand-700">
             {SITE.email}
           </a>
           .
@@ -152,7 +152,7 @@ function Status({ x, isLast, onRetry }: { x: Exchange; isLast: boolean; onRetry:
         <button
           type="button"
           onClick={onRetry}
-          className="mt-3 rounded-md border border-white/20 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          className="mt-3 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
         >
           Try again
         </button>
@@ -171,6 +171,7 @@ export default function AskOperza() {
   const logRef = useRef<HTMLDivElement>(null);
   const inputId = useId();
   const noteId = useId();
+  const headingId = useId();
 
   const busy = isBusy(state);
   const started = state.exchanges.length > 0;
@@ -209,12 +210,15 @@ export default function AskOperza() {
   }
 
   return (
-    <div className="mt-10 max-w-2xl">
-      <div
-        className={`rounded-2xl border bg-white/[0.035] transition-colors ${
-          started ? "border-white/15" : "border-white/[0.12] focus-within:border-white/30"
-        }`}
-      >
+    <section aria-labelledby={headingId} className="mx-auto mt-12 w-full max-w-[880px] lg:mt-10">
+      <div className="mb-6 text-center">
+        <h2 id={headingId} className="text-2xl font-semibold tracking-[-0.015em] text-white sm:text-[1.75rem]">
+          Have a question? Just ask.
+        </h2>
+        <p className="mt-2 text-base leading-7 text-white/65">Find out how Operza can work for your business.</p>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl bg-white text-slate-900 shadow-[0_28px_70px_-24px_rgba(0,0,0,0.65),0_2px_6px_rgba(0,0,0,0.08)] ring-1 ring-black/5">
         {started && (
           <div
             ref={logRef}
@@ -222,31 +226,31 @@ export default function AskOperza() {
             aria-live="polite"
             aria-busy={busy}
             aria-label="Conversation about Operza"
-            className="max-h-[min(26rem,55vh)] space-y-6 overflow-y-auto px-5 pb-2 pt-5 text-[15px] leading-7 text-white/85 sm:px-6"
+            className="max-h-[min(28rem,55vh)] space-y-6 overflow-y-auto border-b border-slate-200 px-5 pb-5 pt-6 text-[15px] leading-7 text-slate-700 sm:px-7"
           >
             {state.exchanges.map((x, i) => {
               const isLast = i === state.exchanges.length - 1;
               return (
                 <div key={i} className="space-y-3">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">You asked</p>
-                    <p className="mt-1 text-white">{x.question}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">You asked</p>
+                    <p className="mt-1 font-medium text-slate-900">{x.question}</p>
                   </div>
                   {x.answer && (
                     <div
-                      className={`border-l pl-4 ${
-                        x.status === "done" || x.status === "streaming" ? "border-brand-500/70" : "border-white/20 text-white/60"
+                      className={`border-l-2 pl-4 ${
+                        x.status === "done" || x.status === "streaming" ? "border-brand-500" : "border-slate-300 text-slate-500"
                       }`}
                     >
                       <Answer text={x.answer} />
                     </div>
                   )}
                   {x.status === "waiting" && (
-                    <p className="flex items-center gap-2 text-sm text-white/55">
+                    <p className="flex items-center gap-2 text-sm text-slate-500">
                       <span aria-hidden="true" className="flex gap-1">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 motion-reduce:animate-none" />
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 [animation-delay:150ms] motion-reduce:animate-none" />
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white/60 [animation-delay:300ms] motion-reduce:animate-none" />
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400 motion-reduce:animate-none" />
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400 [animation-delay:150ms] motion-reduce:animate-none" />
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400 [animation-delay:300ms] motion-reduce:animate-none" />
                       </span>
                       Thinking
                     </p>
@@ -258,7 +262,7 @@ export default function AskOperza() {
           </div>
         )}
 
-        <form onSubmit={submit} className="flex items-center gap-2 p-2 pl-4 sm:pl-5" role="search" aria-label="Ask about Operza">
+        <form onSubmit={submit} className="flex items-center gap-2 p-2.5 pl-5 sm:gap-3 sm:p-3 sm:pl-7" role="search" aria-label="Ask about Operza">
           <label htmlFor={inputId} className="sr-only">
             Ask a question about Operza
           </label>
@@ -277,13 +281,13 @@ export default function AskOperza() {
             spellCheck
             enterKeyHint="send"
             aria-describedby={noteId}
-            className="min-w-0 flex-1 bg-transparent py-3 text-base text-white placeholder:text-white/45 focus:outline-none"
+            className="min-w-0 flex-1 bg-transparent py-3 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none sm:py-3.5 sm:text-lg"
           />
           {busy ? (
             <button
               type="button"
               onClick={stop}
-              className="inline-flex h-10 shrink-0 items-center rounded-xl border border-white/20 px-3.5 text-sm font-semibold text-white transition hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="inline-flex h-11 shrink-0 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 sm:h-12"
             >
               Stop
             </button>
@@ -292,9 +296,9 @@ export default function AskOperza() {
               type="submit"
               disabled={!draft.trim()}
               aria-label="Send question"
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#05070f] transition hover:bg-white/90 disabled:bg-white/25 disabled:text-white/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#05070f]"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white shadow-sm transition hover:bg-brand-600 active:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-brand-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-12 sm:w-12"
             >
-              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path
                   fillRule="evenodd"
                   d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
@@ -306,21 +310,20 @@ export default function AskOperza() {
         </form>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-1">
-        <p id={noteId} className="max-w-lg text-xs leading-5 text-white/40">
-          Answers are written by AI from Operza&apos;s published product information and can be wrong.
-          Please don&apos;t share personal or financial details.
+      <div className="mt-4 flex flex-col items-center gap-2 px-1 text-center sm:flex-row sm:justify-center sm:gap-5">
+        <p id={noteId} className="max-w-xl text-xs leading-5 text-white/60">
+          AI-powered guidance to help you explore. For important details, our team can confirm. Please avoid sharing sensitive information.
         </p>
         {started && (
           <button
             type="button"
             onClick={reset}
-            className="shrink-0 rounded-sm text-xs font-semibold text-white/55 underline-offset-4 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="shrink-0 rounded-sm text-xs font-semibold text-white/70 underline-offset-4 transition hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             New conversation
           </button>
         )}
       </div>
-    </div>
+    </section>
   );
 }

@@ -12,10 +12,10 @@ import { DEMO_HREF, PRODUCTS, STATUS_LABEL } from "@/lib/site";
 // passing through a frame and leaving as ordered lanes. Below the copy, an
 // index of the products, so discovery starts in the first screen.
 //
-// The "Ask anything about Operza..." input sits under the actions, but only
-// when the server has confirmed the assistant is fully configured (the
-// `assistant` prop, from lib/assistant/runtime/config.ts). Otherwise nothing
-// is rendered there: never a disabled or pretend box.
+// The "Ask anything about Operza..." assistant sits centred under the hero,
+// across the full width, but only when the server has confirmed it is fully
+// configured (the `assistant` prop, from lib/assistant/runtime/config.ts).
+// Otherwise nothing is rendered there: never a disabled or pretend box.
 
 export default function CompanyHero({ assistant = false }: { assistant?: boolean }) {
   return (
@@ -33,14 +33,7 @@ export default function CompanyHero({ assistant = false }: { assistant?: boolean
       </div>
 
       <div className="container-wide pt-16 pb-14 sm:pt-24 lg:pt-28 lg:pb-16">
-        {/* With the assistant present the copy column can grow as a
-            conversation runs, so the drawing holds its place at the top
-            instead of drifting down with the column's centre. */}
-        <div
-          className={`grid gap-y-10 lg:grid-cols-12 lg:gap-x-10 ${
-            assistant ? "items-center lg:items-start" : "items-center"
-          }`}
-        >
+        <div className="grid gap-y-10 lg:grid-cols-12 lg:gap-x-10 items-center">
           <div className="lg:col-span-7">
             <p className="label-invert">Software for complex work</p>
             <h1 className="mt-7 h-editorial text-balance">
@@ -61,13 +54,14 @@ export default function CompanyHero({ assistant = false }: { assistant?: boolean
                 Book a demo
               </Link>
             </div>
-            {assistant && <AskOperza />}
           </div>
 
-          <div className={`lg:col-span-5 ${assistant ? "lg:mt-16" : ""}`}>
+          <div className="lg:col-span-5">
             <TangleToOrder className="mx-auto h-auto w-full max-w-[34rem] lg:max-w-none" />
           </div>
         </div>
+
+        {assistant && <AskOperza />}
 
         {/* Product index: the two products, as a ruled list. */}
         <ul className="mt-14 grid border-t border-white/10 sm:grid-cols-2 lg:mt-16">

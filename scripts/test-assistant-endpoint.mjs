@@ -9,7 +9,8 @@
 // limiting (including a missing or unreachable limiter), validation, model
 // failures, timeouts, and log privacy. Also checks the boundaries statically:
 // the UI renders nothing unless configured, the browser bundle cannot reach
-// server code or storage, and the model call has no tools and no retries.
+// server code or storage. The SDK does not retry; one guarded retry is
+// allowed only for a provider 503 overload before any text.
 // ---------------------------------------------------------------------------
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -24,6 +25,7 @@ const { validateConversation, cleanText } = await import("../lib/assistant/runti
 const { LIMITS } = await import("../lib/assistant/runtime/limits.ts");
 const { buildSystemPrompt } = await import("../lib/assistant/runtime/prompt.ts");
 const { MODEL_CATALOG, estimateCostUsd } = await import("../lib/assistant/runtime/models.ts");
+const { isProviderOverload, retryOnceOnProviderOverload } = await import("../lib/assistant/runtime/overload-retry.ts");
 
 let checks = 0;
 let failures = 0;
@@ -233,8 +235,10 @@ section("E. THE MODEL CALL IS CONSTRAINED");
      && (await run({ env: { ...GOOD_ENV, ASSISTANT_ZERO_DATA_RETENTION: "true" } })).calls.generate[0].zeroDataRetention === true);
 
   const gen = read("lib/assistant/runtime/generate.ts").replace(/^\s*\/\/.*$/gm, "");
-  ok("(E8) the model call passes no tools and never retries",
-     /maxRetries:\s*0/.test(gen) && !/\btools\s*:/.test(gen) && !/toolChoice|stopWhen|activeTools/.test(gen));
+  ok("(E8) the SDK has no automatic retries, tools or model fallback; only the guarded overload helper may retry",
+     /maxRetries:\s*0/.test(gen) && /retryOnceOnProviderOverload/.test(gen)
+     && /model:\s*args\.model/.test(gen) && /zeroDataRetention:\s*args\.zeroDataRetention/.test(gen)
+     && !/\btools\s*:/.test(gen) && !/toolChoice|stopWhen|activeTools/.test(gen));
   ok("(E9) ...uses AI SDK 7's instructions and error-surfacing stream",
      /instructions:\s*args\.instructions/.test(gen) && /result\.stream/.test(gen) && /part\.type === "error"/.test(gen)
      && !/textStream|fullStream/.test(gen));
@@ -323,8 +327,9 @@ section("H. THE BROWSER SIDE STAYS SMALL AND HONEST");
   ok("(H12) Escape stops an answer; a Stop button exists", /e\.key === "Escape" && busy/.test(ui) && />\s*Stop\s*</.test(ui));
   ok("(H13) loading, error-with-retry, rate-limited and unavailable states exist",
      /Thinking/.test(ui) && /Try again/.test(ui) && /rate_limited:/.test(ui) && /unavailable:/.test(ui));
-  ok("(H14) the visitor is told answers are AI-written and not to share personal details",
-     /written by AI/.test(ui) && /don&apos;t share personal or financial details/.test(ui));
+  // Founder-approved wording (2026-11-21), tied to the input by aria-describedby.
+  ok("(H14) the visitor is told the guidance is AI-powered, can be confirmed by the team, and not to share sensitive information",
+     /<p id=\{noteId\}[^>]*>\s*AI-powered guidance to help you explore\. For important details, our team can confirm\. Please avoid sharing sensitive information\.\s*<\/p>/.test(ui) && /aria-describedby=\{noteId\}/.test(ui));
   ok("(H14b) requests are started by the shared runner, keyed by request identity, with no shared in-flight flag",
      /runner\.sync\(state\)/.test(ui) && !/inFlight/.test(uiCode) && /pending\.requestId <= lastStarted/.test(read("lib/assistant/client/requests.ts"))
      && /emit: \(event\) => dispatch\(\{ \.\.\.event, requestId \}\)/.test(read("lib/assistant/client/requests.ts")));
@@ -404,6 +409,120 @@ section("J. BOTID IS WIRED END TO END (CONFIGURATION, CLIENT, SERVER)");
   ok("(J8) the BotID config wrapper and client are both gated on the same switch",
      /process\.env\.ASSISTANT_ENABLED === "true" \? withBotId\(nextConfig\) : nextConfig/.test(read("next.config.mjs"))
      && /\{isAssistantAvailable\(\) && \(/.test(layout));
+}
+
+/* ========================================================================= */
+section("K. ONE EXPLICIT PROVIDER OVERLOAD RETRY, NO MORE");
+/* ========================================================================= */
+{
+  const overload = () => Object.assign(new Error("overloaded"), {
+    statusCode: 503, code: "server_is_overloaded",
+  });
+  const wrapped = Object.assign(new Error("overloaded"), {
+    statusCode: 503, data: { code: "server_is_overloaded" },
+  });
+  const blocked = (statusCode) => Object.assign(new Error("not retryable"), { statusCode });
+  const readStream = async (stream) => {
+    const chunks = [];
+    try {
+      for await (const chunk of stream) chunks.push(chunk);
+      return { chunks, error: null };
+    } catch (error) {
+      return { chunks, error };
+    }
+  };
+  const opts = (timeoutMs = 4000) => ({ abortSignal: new AbortController().signal, timeoutMs });
+
+  ok("(K1) only the exact 503 server_is_overloaded code is eligible, including the wrapped provider form",
+     isProviderOverload(overload()) && isProviderOverload(wrapped)
+     && !isProviderOverload({ statusCode: 503, code: "service_unavailable" })
+     && !isProviderOverload({ statusCode: 429, code: "server_is_overloaded" })
+     && !isProviderOverload(new Error("server_is_overloaded")));
+
+  let attempts = 0;
+  const success = await readStream(retryOnceOnProviderOverload(async function* () {
+    attempts++;
+    yield "Operza answer.";
+  }, opts()));
+  ok("(K2) a successful response uses only one attempt", attempts === 1 && success.chunks.join("") === "Operza answer.");
+
+  attempts = 0;
+  const recovered = await readStream(retryOnceOnProviderOverload(async function* (remainingMs) {
+    attempts++;
+    if (attempts === 1) throw overload();
+    yield "Recovered.";
+  }, opts()));
+  ok("(K3) an overload before text is retried exactly once, and only the second answer is returned",
+     attempts === 2 && recovered.chunks.join("") === "Recovered." && recovered.error === null);
+
+  attempts = 0;
+  const twice = await readStream(retryOnceOnProviderOverload(async function* () {
+    attempts++;
+    throw overload();
+  }, opts()));
+  ok("(K4) two consecutive overloads stop after two attempts",
+     attempts === 2 && twice.error?.code === "server_is_overloaded");
+
+  attempts = 0;
+  const partial = await readStream(retryOnceOnProviderOverload(async function* () {
+    attempts++;
+    yield "Partial text";
+    throw overload();
+  }, opts()));
+  ok("(K5) an overload after any text is never retried or mixed into a second response",
+     attempts === 1 && partial.chunks.join("") === "Partial text" && partial.error?.statusCode === 503);
+
+  const neverRetry = [401, 402, 403, 408, 429, 500, 503];
+  const unapproved = [];
+  for (const status of neverRetry) {
+    let n = 0;
+    const out = await readStream(retryOnceOnProviderOverload(async function* () {
+      n++;
+      throw blocked(status);
+    }, opts()));
+    unapproved.push(n === 1 && out.error?.statusCode === status);
+  }
+  ok("(K6) auth, budget, ZDR, timeout, throttle, server error and generic 503 never retry",
+     unapproved.every(Boolean));
+
+  const ac = new AbortController();
+  ac.abort();
+  attempts = 0;
+  const aborted = await readStream(retryOnceOnProviderOverload(async function* () {
+    attempts++;
+    yield "Never emitted.";
+  }, { abortSignal: ac.signal, timeoutMs: 4000 }));
+  ok("(K7) an already-aborted request never starts a model attempt",
+     attempts === 0 && aborted.error?.name === "AbortError");
+
+  const during = new AbortController();
+  attempts = 0;
+  const stopped = await readStream(retryOnceOnProviderOverload(async function* () {
+    attempts++;
+    during.abort();
+    throw overload();
+  }, { abortSignal: during.signal, timeoutMs: 4000 }));
+  ok("(K8) an aborted first attempt never triggers a second call",
+     attempts === 1 && stopped.error?.statusCode === 503);
+
+  attempts = 0;
+  const short = await readStream(retryOnceOnProviderOverload(async function* () {
+    attempts++;
+    throw overload();
+  }, opts(100)));
+  ok("(K9) near-deadline overload does not create an extra model request",
+     attempts === 1 && short.error?.statusCode === 503);
+
+  const budgets = [];
+  const timeCapped = await readStream(retryOnceOnProviderOverload(async function* (remainingMs) {
+    budgets.push(remainingMs);
+    if (budgets.length === 1) throw wrapped;
+    yield "Within deadline.";
+  }, opts(2500)));
+  ok("(K10) second attempt receives only the remaining time, never a fresh full timeout",
+     timeCapped.error === null && budgets.length === 2
+     && budgets[0] <= 2500 && budgets[1] < budgets[0]
+     && timeCapped.chunks.join("") === "Within deadline.");
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);

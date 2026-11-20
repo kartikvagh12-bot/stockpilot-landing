@@ -14,16 +14,35 @@ export type Destination = {
   when: string;
 };
 
+// Ordered most specific first. The section anchors on /shift exist so an
+// answer can send a visitor to the part of the page that covers the topic,
+// rather than to the top of a long page; the browser links exactly this list
+// (components/AskOperza.tsx PATHS, checked by the offline tests).
 export const DESTINATIONS: readonly Destination[] = [
-  {
-    url: SHIFT.path as SiteRoute,
-    label: SHIFT.name,
-    when: "The visitor wants to understand the manufacturing and accounting product in depth.",
-  },
   {
     url: "/shift#plans",
     label: "Operza Shift plans",
-    when: "The visitor is choosing between Operza Factory, Operza Books and Operza Complete.",
+    when: "The visitor is choosing a plan, or comparing Operza Factory, Operza Books and Operza Complete.",
+  },
+  {
+    url: "/shift#factory",
+    label: "Operza Shift: running the factory",
+    when: "Stock, materials, recipes and bills of materials, production, packing or dispatch on the floor.",
+  },
+  {
+    url: "/shift#books",
+    label: "Operza Shift: running the books",
+    when: "Accounting on its own: invoices, supplier bills, payments, ledgers, registers or financial statements.",
+  },
+  {
+    url: "/shift#costing",
+    label: "Operza Shift: costs and margin",
+    when: "Product cost, average cost, cost changes or sales margin.",
+  },
+  {
+    url: "/shift#complete",
+    label: "Operza Complete",
+    when: "What Operza Complete connects (a dispatch recorded as a sale, a supplier bill received into stock) or the export to TallyPrime.",
   },
   {
     url: "/shift#faq",
@@ -31,14 +50,19 @@ export const DESTINATIONS: readonly Destination[] = [
     when: "A common setup or usage question the FAQ already answers.",
   },
   {
+    url: SHIFT.path as SiteRoute,
+    label: SHIFT.name,
+    when: "A general overview of the manufacturing and accounting product, when no section above fits better.",
+  },
+  {
     url: DEMO_HREF as SiteRoute,
     label: "Book a demo",
-    when: "The visitor wants a demo, pricing, a decision that needs a person, or anything the knowledge base cannot answer.",
+    when: "Pricing, a demo, or a product question that needs the Operza team to confirm (an integration, compliance, data migration, a specific setup).",
   },
   {
     url: LINSPACE.path as SiteRoute,
     label: LINSPACE.name,
-    when: "The visitor asks about construction, drawings, quantity takeoff, bills of quantities or estimating.",
+    when: "Any question about Operza Linspace or construction: drawings, quantity takeoff, bills of quantities or estimating.",
   },
   {
     url: "/health-check",
@@ -48,7 +72,7 @@ export const DESTINATIONS: readonly Destination[] = [
   {
     url: "/#contact",
     label: "Contact Operza",
-    when: "A general question for the company, including about Operza Linspace.",
+    when: "A question about the company itself (who runs it, where it is, its registered name, customers), or a visitor who wants to talk about Operza Linspace.",
   },
 ];
 

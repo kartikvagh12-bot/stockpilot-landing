@@ -697,8 +697,11 @@ section("M. THE COMPANY HOMEPAGE IS THE FOUNDER'S, AND FAKES NOTHING");
   ok("(M7c) its prompt is exactly 'Ask anything about Operza...' and never 'Ask Operza AI'",
      ask.includes('"Ask anything about Operza..."')
      && !SURFACE.some((f) => /Ask Operza AI/i.test(read(f))));
-  ok("(M7d) it tells visitors answers are AI-written, and to keep personal details out",
-     /written by AI/.test(ask) && /don&apos;t share personal or financial details/.test(ask));
+  ok("(M7d) it tells visitors the guidance is AI-powered and to keep sensitive information out (exact approved wording)",
+     /AI-powered guidance to help you explore\. For important details, our team can confirm\. Please avoid sharing sensitive information\./.test(ask) && /aria-describedby=\{noteId\}/.test(ask));
+  ok("(M7e) its discovery heading and line are the approved copy, inside the assistant component only",
+     ask.includes("Have a question? Just ask.") && ask.includes("Find out how Operza can work for your business.")
+     && !/Have a question\? Just ask/.test(read("components/CompanyHero.tsx")));
   ok("(M8) the homepage does not run a second lead form: demos go to the one on /shift",
      !/<Contact \/>|demo_requests|getSupabaseClient/.test(homeSrc)
      && /DEMO_HREF = "\/shift#contact"/.test(read("lib/site.ts")));

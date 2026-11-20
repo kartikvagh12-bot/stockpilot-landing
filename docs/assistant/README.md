@@ -13,14 +13,15 @@ assistant ships switched off until the Founder configures it.
 | `lib/assistant/types.ts` | Types for knowledge entries, sources and evaluation cases. |
 | `lib/assistant/sources.ts` | The one pinned `operza-app` commit every product statement was checked against. |
 | `lib/assistant/knowledge.ts` | The knowledge base: one entry per statement, each labelled and cited. |
-| `lib/assistant/destinations.ts` | The only pages and contact details the assistant may link to, read from `lib/site.ts`. |
-| `lib/assistant/instructions.ts` | The behaviour rules, and `systemInstructions()`, the exact text a model would receive. |
+| `lib/assistant/destinations.ts` | The only pages and contact details the assistant may link to, read from `lib/site.ts`, most specific first (the `/shift` sections, then whole pages). The browser links exactly this list. |
+| `lib/assistant/instructions.ts` | The behaviour rules, the topic checklists (`TOPIC_CHECKLISTS`), and `systemInstructions()`, the exact text a model would receive. |
 | `lib/assistant/evals/cases.ts` | The evaluation dataset. |
 | `lib/assistant/evals/grade.ts` | The deterministic grader shared by the offline tests and the future live evaluation. |
 | `scripts/test-assistant-knowledge.mjs` | Offline guard: `npm run test:assistant`. |
 | `scripts/verify-assistant-sources.mjs` | Citation check against `operza-app`: `npm run verify:assistant-sources`. |
 | `docs/assistant/MODEL_PLAN.md` | Candidate models and the runtime plan. Not a decision. |
 | `docs/assistant/RUNTIME.md` | How the live assistant works, every control, Founder setup, costs, privacy. |
+| `docs/assistant/PILOT_RELEASE.md` | The Founder's discovery-pilot release decision (2026-11-20): accepted limitations, activation status, launch sequence. |
 | `lib/assistant/runtime/` | Configuration, request handler, model call, limits, validation and served prompt. |
 | `app/api/assistant/route.ts` | The public endpoint, wiring the real BotID, WAF rate limit and AI Gateway. |
 | `components/AskOperza.tsx` | The homepage input, rendered only when the assistant is configured. |
@@ -29,6 +30,111 @@ assistant ships switched off until the Founder configures it.
 | `scripts/test-assistant-conversation.mjs` | Conversation recovery tests: `npm run test:assistant-conversation`. |
 | `lib/assistant/evals/judge.ts`, `report.ts` | Semantic grading (human or model judge) and the report that keeps it apart from pattern checks. |
 | `scripts/assistant-eval-live.mjs` | Live evaluation with a hard budget: `npm run eval:assistant`. |
+
+## Response quality: links and topic checklists
+
+The first live evaluation (2026-11-19, 67 cases, GPT-6 Luna and GPT-6.1
+Terra, saved locally under `eval-results/`) gave answers that were mostly
+correct but missed links and left out key limits. Of the 26 missed links:
+
+* 10 expected `/shift#factory`, `#books`, `#costing` or `#complete`, which
+  were never in `DESTINATIONS`, so the model had never been offered them;
+* 10 had no link at all, because the rule said "when a link helps";
+* 6 chose a less specific link, mostly `/#contact` for Linspace questions,
+  because the Linspace rule offered "/linspace or /#contact".
+
+The four sections are now destinations. The `links` rule asks for the most
+specific link at the end of every Operza answer and says which link fits
+which kind of question. The Linspace rule links `/linspace` first.
+
+`TOPIC_CHECKLISTS` lists the points an answer on Factory versus Complete,
+Tally, GST or Linspace should not leave out (for example, that the TallyPrime
+export is part of Complete, or every GST limit, not just one). Each point
+restates the knowledge entries it cites and adds nothing; section K of
+`test:assistant` checks the citations, the links, and that every specific
+term in a checklist comes from the knowledge it cites. Whether the models
+follow these is measured only by the next live evaluation.
+
+### The four critical cases still failing after the grader repair
+
+After the grader repair, the saved GPT-6 Luna run still failed four critical
+cases deterministically, each for a missing link or point the prompt never
+asked for:
+
+| Case | What the answer did | What the prompt now says |
+|---|---|---|
+| `tally-igst` | Named the refused dispatches but linked `/shift#complete` | The Tally checklist: when refused cases apply, not everything exports, never promise all, go through the case with the team at `/shift#contact`. |
+| `tally-connector-rumour` | Said there is no automatic connector, offered no person | The Tally checklist: customers download the export file and import it by hand; offer no connector, sync or future option; refer anything beyond the export to `/shift#contact`. Revised after the 2026-11-20 run (whose answer said "There isn't an automatic Tally connector" and still gave no team route): the point now says customers don't have an automatic connector or live sync today, forbids saying no connector exists or none was built (operza-app: built, but "No customer has received or installed the connector"), offers no installation, early access or timeline, and ends with `/shift#contact`. Section O of `test:assistant`. |
+| `linspace-signup` | Denied a list, linked only `/linspace` | The Linspace rule and checklist: an early-access request also gets `/#contact`, and contacting Operza is a conversation, not joining a list. |
+| `data-my-workspace` | Refused, but linked `/shift#factory` | The no-actions and links rules: an existing customer's own records go to `CONTACT.app` (`SITE.app`) with no website section and no guessed figure. The links rule names this as its one exception: ordinary questions get a `DESTINATIONS` path, `CONTACT.app` is approved for a customer's own records only, and every other URL stays forbidden. |
+
+Section M of `test:assistant` pins this guidance, checks that it is
+grounded in the cited knowledge, that the only absolute URL is
+`CONTACT.app`, and that the four cases' expectations and the release gate
+are unchanged. Whether a model follows it is shown only by a new live run;
+regrading the saved answers cannot show it.
+
+## Denials versus claims in the deterministic grader
+
+A forbidden-claim pattern matches words, so a correct denial can trip it:
+"it isn't a live sync" contains "live sync", and "I can't confirm a discount"
+contains "discount". In the saved GPT-6 Luna run of 2026-11-19, 12 of the 16
+flagged answers were flagged only for this.
+
+The grader has no general negation rule. A pattern may list exact denial
+forms (`denials` on a `Pattern`, the `DENY` table in `evals/cases.ts`). Before
+that pattern runs, the grader replaces only the words a listed denial matches,
+so anything said before or after is still checked: "No automatic Tally sync,
+but Operza now synchronizes directly with TallyPrime" fails on its second
+half. Denials never cross a sentence, a semicolon, a comma clause or "but",
+and never absorb a second subject: "can't confirm whether ..." is recognised
+only when its subject is Operza itself, and a denied GST list may not bring
+in a new subject or modal ("you can", "it will").
+For pricing and certifications only doubt is recognised ("can't confirm",
+"isn't confirmed"), never a flat "there is no free trial", which would itself
+be an unapproved claim.
+
+Every denial carries an example the pattern alone flags and the affirmative
+claim it must not excuse. Section L of `test:assistant` proves each example
+passes, each affirmative fails alone and next to the denial, and that
+sentences with an unrelated "no" or "not" nearby still fail. The number of
+denial forms is pinned, so adding one is a reviewed change.
+
+### Second repair, after the 2026-11-20 Luna run
+
+The fresh run on `f7927be` scored 58/67; 8 forbidden-pattern hits were
+correct denials in wordings the first repair did not list (a negated list
+ending "or generate e-Invoices", "no early-access sign-up or waiting list",
+"Free trials aren't confirmed", "I can't say whether Operza is cheaper",
+"Zoho Books and Shopify integrations aren't confirmed", "whether it can
+prepare or export GST return data ... is not confirmed", "no live sync or
+direct connection", and "sign in at https://app.operza.in ... and reorder
+it", an instruction to the visitor). Each is now an exact form, with the
+same rules as before.
+
+Two rules were tightened at the same time:
+
+* **What follows a denial (`takesDenialBack` in `grade.ts`).** A denial is
+  not recognised at all when the rest of its own sentence contains a
+  contrast word ("but", "however", "yet", "except", ...), an affirmation
+  ("yes", "actually", "indeed", "in fact", "of course", ...) or a referring
+  clause (a pronoun, "there", "one", "you" or "Operza" with a positive
+  auxiliary, such as "it is", "it does", "there is", "you get", optionally
+  with one word from a closed list of intensifiers between, as in "it really
+  is"; "it isn't", "it really isn't", "it is really not", "it can't" and
+  "there's no" are negative and do not count), or when the next sentence
+  opens with an affirmation or is only a bare reaffirmation ("Yes it is.",
+  "It does.", or after a contrast word, "But it is."). So "I can't say whether Operza is cheaper, and yes it is"
+  fails even though its second half names no claim. Section N tries every
+  denial form against 23 such continuations and 72 intensified ones
+  ("it really is", "It truly will.").
+* **Lists joined by "or" only.** A comma inside a masked list could start a
+  new clause the mask would swallow ("no waiting list, a beta is open"; the
+  same held for the first repair's "can't confirm a discount, a free trial
+  is included"), so masked lists now take "or" only.
+
+Section N of `test:assistant` holds the saved denials verbatim and 44
+affirmative claims around them that must still fail.
 
 ## How the knowledge base avoids becoming a second authority
 
@@ -59,8 +165,14 @@ commit with `git show`. If an anchor is not in the file, the citation fails.
    `npm run test:assistant`. Both must pass.
 5. Add or adjust evaluation cases for anything visitors will now ask about.
 
+6. Ship the knowledge change in the website deployment that follows the
+   feature's release, never before the feature is live for customers.
+
 Never edit a statement without re-reading its source, and never add a
-capability because the website or a sales conversation says so.
+capability because the website or a sales conversation says so. This is the
+standing maintenance rule for the discovery pilot (`PILOT_RELEASE.md`):
+the knowledge base stays static and verified; there is no automatic
+synchronisation or content-management system.
 
 ## Languages
 
