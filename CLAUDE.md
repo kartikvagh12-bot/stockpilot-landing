@@ -452,6 +452,18 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-11-20 — Tally connector answers
+
+The 2026-11-20 Luna answer to `tally-connector-rumour` said "There isn't an
+automatic Tally connector" (operza-app at `b676a07`: built, but "No customer
+has received or installed the connector") and gave no team route. The Tally
+checklist's connector point now speaks only of what customers have today
+(manual XML export from Complete; no automatic connector, live sync or
+direct connection today), forbids saying none exists or none was built,
+offers no installation, early access or timeline, and ends with
+`/shift#contact`. Section O of `test:assistant`, 8 planted defects caught.
+No grader, case, knowledge or runtime change; no paid call.
+
 ## 2026-11-20 — Second grader repair (after the Luna run on f7927be)
 
 The fresh Luna run scored 58/67 with 8 forbidden hits that were correct
