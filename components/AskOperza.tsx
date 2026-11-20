@@ -262,7 +262,7 @@ export default function AskOperza() {
           </div>
         )}
 
-        <form onSubmit={submit} className="flex items-center gap-2 p-2.5 pl-5 sm:gap-3 sm:p-3 sm:pl-7" role="search" aria-label="Ask about Operza">
+        <form onSubmit={submit} className="flex items-center gap-2 py-1.5 pl-5 pr-1.5 sm:gap-3 sm:pl-7" role="search" aria-label="Ask about Operza">
           <label htmlFor={inputId} className="sr-only">
             Ask a question about Operza
           </label>
@@ -281,13 +281,13 @@ export default function AskOperza() {
             spellCheck
             enterKeyHint="send"
             aria-describedby={noteId}
-            className="min-w-0 flex-1 bg-transparent py-3 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none sm:text-lg"
+            className="min-w-0 flex-1 bg-transparent py-2 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none sm:text-lg"
           />
           {busy ? (
             <button
               type="button"
               onClick={stop}
-              className="inline-flex h-11 shrink-0 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 sm:h-12"
+              className="inline-flex h-11 shrink-0 items-center rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60"
             >
               Stop
             </button>
@@ -296,7 +296,7 @@ export default function AskOperza() {
               type="submit"
               disabled={!draft.trim()}
               aria-label="Send question"
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#17191E] text-white shadow-sm transition hover:bg-[#2B2E34] active:bg-black disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-[#17191E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#17191E] focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-12 sm:w-12"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#17191E] text-white shadow-sm transition hover:bg-[#2B2E34] active:bg-black disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-[#17191E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#17191E] focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path
