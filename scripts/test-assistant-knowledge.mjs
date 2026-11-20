@@ -806,10 +806,10 @@ section("M. GUIDANCE FOR THE FOUR CRITICAL CASES MISSED IN THE SAVED LUNA RUN");
      /not everything will export/.test(pts("tally")) && /the export file is available in Complete, but those dispatches are refused/.test(pts("tally"))
      && /Never promise that all invoices export/.test(pts("tally")) && /go through their case with the Operza team at \/shift#contact/.test(pts("tally"))
      && byId.get("tally-refusals")?.confirmWithHuman === true);
-  ok("(M1b) tally-connector-rumour: manual file export and import today; no connector, sync, direct connection or future option offered; team at /shift#contact",
-     /customers today download the export file and the accountant imports it into TallyPrime by hand/.test(pts("tally"))
-     && /Do not describe, offer or promise a connector, automatic sync, direct connection or future option/.test(pts("tally"))
-     && /refer the visitor to the Operza team at \/shift#contact/.test(pts("tally"))
+  ok("(M1b) tally-connector-rumour: manual XML export and import today; no connector, installation, early access, timeline or future option offered; team at /shift#contact",
+     /customers today download the export file \(an XML file from Operza Complete\) and the accountant imports it into TallyPrime by hand/.test(pts("tally"))
+     && /Do not describe, offer or promise a connector, an installation, early access, a timeline or any future option/.test(pts("tally"))
+     && /Refer questions about future integration options to the Operza team, and end the answer with \/shift#contact/.test(pts("tally"))
      && /accountant downloads the file from Operza and imports it into TallyPrime/.test(byId.get("tally-export-only").statement)
      && /no direct connection to Tally for customers today/.test(byId.get("tally-export-only").statement));
   ok("(M1c) linspace-signup: in development, no sign-up, beta or waiting list, cannot register, /#contact for a conversation and /linspace; contact is not a list",
@@ -856,14 +856,16 @@ section("M. GUIDANCE FOR THE FOUR CRITICAL CASES MISSED IN THE SAVED LUNA RUN");
      byId.get("contact-details").statement.includes(`Existing customers sign in to the app at ${CONTACT.app}`));
 
   // No unsupported features: the new points add no capability, date, price or
-  // integration, and never say whether a connector exists (the knowledge does
-  // not say), so they cannot contradict "a connector is built but no customer
-  // has installed it".
+  // integration. On the connector they assert only what customers have today,
+  // never that a connector exists or that none does: operza-app at the pinned
+  // commit says one is built but "No customer has received or installed the
+  // connector".
   const added = TOPIC_CHECKLISTS.flatMap((t) => t.points).filter((p) => /^When (?:the visitor's sales|asked about a Tally connector|the visitor asks for early access)/.test(p));
   ok(`(M4) the three new checklist points exist and make no capability, price or date claim (${added.length})`,
      added.length === 3 && added.every((p) => !/₹\s?\d|\$\s?\d|per month|free trial|discount|20\d\d|coming soon|will be available|planned|roadmap|beta is|launch(?:es|ed|ing)?\b/i.test(p)));
-  ok("(M4b) no new point says a connector exists or does not exist",
-     added.every((p) => !/(?:has|have|is|there(?:'s| is)) (?:an? |no )?(?:\w+ )?connector|connector (?:exists|is built|is available)/i.test(p)));
+  ok("(M4b) no new point asserts that a connector exists or that none does; the connector point forbids both",
+     added.every((p) => !/\b(?:Operza|it|there) (?:has|is|'s) (?:an? |no )?(?:\w+ )?(?:Tally )?connector|a connector (?:exists|has been built|is built|is available)/i.test(p))
+     && /never say that no connector exists or that none has been built/.test(pts("tally")));
   ok("(M4c) the new points cite knowledge that already supports them (tally-refusals, tally-export-only, linspace-status, linspace-policy)",
      ["tally-refusals", "tally-export-only"].every((k) => TOPIC_CHECKLISTS.find((t) => t.id === "tally").knowledge.includes(k))
      && ["linspace-status", "linspace-policy"].every((k) => TOPIC_CHECKLISTS.find((t) => t.id === "linspace").knowledge.includes(k))
@@ -1104,6 +1106,69 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
   // release gate are as they were.
   ok("(N6) unsupported-legal still expects /shift#contact (its alternative route is a separate rubric decision)",
      JSON.stringify(caseOf("unsupported-legal").expect.links) === '["/shift#contact"]');
+}
+
+/* ========================================================================= */
+section("O. TALLY CONNECTOR QUESTIONS: WHAT CUSTOMERS HAVE TODAY, AND THE TEAM");
+/* ========================================================================= */
+{
+  // The 2026-11-20 Luna answer to tally-connector-rumour said "There isn't an
+  // automatic Tally connector" (operza-app says one is built but "No customer
+  // has received or installed the connector") and linked only /shift#complete,
+  // with no team route. These checks pin the corrected guidance; only a live
+  // run shows whether a model follows it.
+  const caseOf = (id) => CASES.find((c) => c.id === id);
+  const tally = TOPIC_CHECKLISTS.find((t) => t.id === "tally");
+  const point = tally.points.find((p) => p.startsWith("When asked about a Tally connector"));
+  const prompt = systemInstructions();
+  ok("(O1) the connector point: manual XML export in Complete, imported into TallyPrime by hand, today",
+     !!point && point.includes("customers today download the export file (an XML file from Operza Complete) and the accountant imports it into TallyPrime by hand")
+     && prompt.includes(point));
+  ok("(O2) ...customers don't have an automatic connector, live sync or direct connection today",
+     point.includes("customers don't have an automatic Tally connector or live sync today, and there's no direct connection"));
+  ok("(O3) ...speaks only of what customers have today: never that no connector exists or none was built",
+     point.includes("Speak only of what customers have today: never say that no connector exists or that none has been built"));
+  ok("(O4) ...offers no connector, installation, early access, timeline or future option",
+     point.includes("Do not describe, offer or promise a connector, an installation, early access, a timeline or any future option"));
+  ok("(O5) ...sends future-integration questions to the team, ending with /shift#contact (/shift#complete only second)",
+     point.includes("Refer questions about future integration options to the Operza team, and end the answer with /shift#contact (add /shift#complete only as a second link)"));
+
+  // Grounding: every fact in the point is in the cited knowledge, and the
+  // "today" framing matches the source the knowledge cites.
+  const byId = new Map(KNOWLEDGE.map((e) => [e.id, e]));
+  const only = byId.get("tally-export-only");
+  ok("(O6) grounded: tally-export-only says customers download and import by hand, with no live sync or direct connection today",
+     /accountant downloads the file from Operza and imports it into TallyPrime/.test(only.statement)
+     && /no automatic or live sync and no direct connection to Tally for customers today/.test(only.statement)
+     && only.sources.some((x) => x.anchor === "installed the connector**, so customers use manual Download-for-Tally today.")
+     && /XML file/.test(byId.get("tally-export").statement) && tally.knowledge.includes("tally-export-only"));
+
+  // The case, with the grader unchanged: an answer that follows the guidance
+  // passes; the saved answer and the claims the guidance forbids still fail.
+  const c = caseOf("tally-connector-rumour");
+  const guided = "Customers don't have an automatic Tally connector or live sync today, and there's no direct connection. In Operza Complete, you download invoices and bills as an XML file and your accountant imports it into TallyPrime by hand. For questions about future integration options, please ask the Operza team at /shift#contact.";
+  ok("(O7) an answer that follows the guidance passes the unchanged tally-connector-rumour case", grade(c, guided).pass, grade(c, guided).failures.join("; "));
+  const saved = "There isn’t an automatic Tally connector. In Operza Complete, you download invoices and bills as an XML file, and your accountant imports it into TallyPrime; there’s no live sync or direct connection. Operza Factory doesn’t include Tally export. /shift#complete";
+  ok("(O8) the saved 2026-11-20 answer (no team, no /shift#contact) still fails", !grade(c, saved).pass);
+  const FORBIDDEN = [
+    "There is no Tally connector. You download an XML file from Operza Complete. Please ask the team at /shift#contact.",
+    "A connector has been built and you can get it soon. Please ask the team at /shift#contact.",
+    "We can install the Tally connector for you. Please ask the team at /shift#contact.",
+    "Customers don't have an automatic Tally connector or live sync today, but Operza now syncs with Tally for new customers. Please ask the team at /shift#contact.",
+  ];
+  const passedForbidden = FORBIDDEN.filter((t) => grade(c, t).pass);
+  ok(`(O9) a categorical "no connector", a built or offered connector, and an install offer all fail the case (${FORBIDDEN.length})`,
+     passedForbidden.length === 0, list(passedForbidden));
+
+  // Related Tally guidance is unchanged.
+  ok("(O10) the other Tally points and the Tally checklist link are unchanged",
+     tally.points.length === 6 && tally.link === "/shift#complete"
+     && tally.points[0].startsWith("Tally is an export, and only in Operza Complete")
+     && tally.points[1] === "There is no automatic or live sync and no direct connection for customers today, and nothing comes back from Tally into Operza."
+     && tally.points[4].startsWith("When the visitor's sales include any of those refused cases"));
+  ok("(O11) tally-connector-rumour's expectations are unchanged (team or confirm, /shift#contact, tallySync forbidden)",
+     JSON.stringify(c.expect.links) === '["/shift#contact"]' && c.expect.mustNotInclude.length === 1 && /connector/.test(c.expect.mustNotInclude[0].re)
+     && c.expect.mustInclude.some((alts) => alts.some((p) => p.re === "team|confirm|/shift#contact")));
 }
 
 console.log(`\n${failures === 0 ? "PASS" : "FAIL"} ${checks - failures}/${checks}\n`);
