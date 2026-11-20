@@ -35,6 +35,7 @@ const deny = (pattern: Pattern, ...denials: Denial[]): Pattern => ({ ...pattern,
 // example the pattern alone flags and the affirmative claim that must still
 // fail (section L of test:assistant).
 const SYNC_KIND = "(?:automatic|live|real[- ]time|two-way|direct)";
+const SYNC_NOUN = "(?:sync|synchroni[sz]ation|connection|integration|link|connector)\\b";
 const CANT_CONFIRM = "\\b(?:can't|cannot|can not|unable to)\\s+confirm";
 /** Words a denied list may not contain: each starts a new or contrary claim,
  *  or brings in a new subject or modal ("you can", "it will") that could
@@ -45,9 +46,15 @@ const SAME_CLAIM = "(?:(?!\\b(?:but|however|though|although|yet|while|whereas|in
 const DOUBTED_SUBJECT = "(?:Operza(?:\\s+(?:Shift|Factory|Books|Complete))?|it)";
 /** At most one regulation the same subject is doubted to comply with. */
 const DOUBTED_COMPLIANCE = "(?:complies|is compliant)\\s+with\\s+(?:the\\s+)?(?:DPDP(?:\\s+Act)?|GDPR|IT Act)\\s+or\\s+";
+/** What a Linspace early-access denial may list. Lists in a masked denial are
+ *  joined by "or" only: a comma could start a new clause ("no waiting list,
+ *  a beta is open") that the mask would swallow. */
+const LIST_NOUN = "(?:early[- ]access\\s+)?(?:sign[- ]?ups?|betas?|waiting lists?|wait[- ]?lists?|early[- ]access(?:\\s+lists?)?)\\b";
 const DENY = {
   tallySync: {
-    re: `(?:\\bno|\\bnot|n't(?:\\s+(?:have|offer|provide|include))?)\\s+(?:an?\\s+|any\\s+)?${SYNC_KIND}(?:\\s*(?:,|/|\\bor\\b)\\s*${SYNC_KIND})*\\s+(?:Tally(?:Prime)?\\s+)?(?:sync|synchroni[sz]ation|connection|integration|link|connector)\\b`,
+    // A list of kinds ("automatic or live sync") or of whole kind-and-noun
+    // phrases ("no live sync or direct connection"); nothing else in between.
+    re: `(?:\\bno|\\bnot|n't(?:\\s+(?:have|offer|provide|include))?)\\s+(?:an?\\s+|any\\s+)?${SYNC_KIND}(?:\\s*(?:,|/|\\bor\\b)\\s*${SYNC_KIND})*\\s+(?:Tally(?:Prime)?\\s+)?${SYNC_NOUN}(?:\\s+or\\s+(?:an?\\s+)?${SYNC_KIND}\\s+(?:Tally(?:Prime)?\\s+)?${SYNC_NOUN})*`,
     example: "The export is an XML file; it isn't a live sync, and there's no automatic or live sync either.",
     affirmative: "Operza keeps a live sync with Tally.",
   },
@@ -63,17 +70,17 @@ const DENY = {
     affirmative: "It generates e-Invoices, submits to the GST portal and files GST returns.",
   },
   freeTrialUnconfirmed: {
-    re: "\\b(?:a\\s+)?free (?:trial|plan)\\s+(?:is not|isn't|has not been|hasn't been)\\s+(?:confirmed|announced|published)\\b",
+    re: "\\b(?:a\\s+)?free (?:trial|plan)\\s+(?:is not|isn't|has not been|hasn't been)\\s+(?:confirmed|announced|published)\\b|\\bfree (?:trials|plans)\\s+(?:are not|aren't|have not been|haven't been)\\s+(?:confirmed|announced|published)\\b",
     example: "A free trial isn't confirmed, and pricing is discussed during a demo.",
     affirmative: "A free trial is available for 14 days.",
   },
   offerUnconfirmed: {
-    re: `${CANT_CONFIRM}\\s+(?:a|an|any)\\s+(?:discount|free trial|free plan)(?:\\s*(?:,|\\bor\\b)\\s*(?:a\\s+|an\\s+|any\\s+)?(?:discount|free trial|free plan))*\\b`,
+    re: `${CANT_CONFIRM}\\s+(?:a|an|any)\\s+(?:discount|free trial|free plan)(?:\\s+or\\s+(?:a\\s+|an\\s+|any\\s+)?(?:discount|free trial|free plan))*\\b`,
     example: "I can't confirm a discount or pricing offer.",
     affirmative: "As an admin, you get a discount.",
   },
   cheaperUnconfirmed: {
-    re: `${CANT_CONFIRM}\\s+(?:whether|if)\\s+(?:Operza|it)\\s+(?:would|will|could)\\s+(?:be\\s+)?(?:cost less|cheaper|less expensive)\\b`,
+    re: `\\b(?:can't|cannot|can not|unable to)\\s+(?:confirm|say)\\s+(?:whether|if)\\s+(?:Operza|it)\\s+(?:would|will|could|is)\\s+(?:be\\s+)?(?:cost less|cheaper|less expensive)\\b`,
     example: "I can't confirm whether Operza would cost less; pricing isn't published.",
     affirmative: "Operza would cost less than Tally.",
   },
@@ -90,6 +97,40 @@ const DENY = {
     example: "I can't confirm whether Operza complies with the DPDP Act or is ISO 27001 certified.",
     affirmative: "Operza is ISO 27001 certified.",
   },
+  einvoiceList: {
+    // The last item of a list under one negation, in the base form the
+    // negation needs ("does not file returns or generate e-Invoices"); a
+    // third-person "or generates" is a new claim and is not recognised.
+    re: `(?<=\\b(?:does not|doesn't|do not|don't|cannot|can't|won't|will not|never)\\s+${SAME_CLAIM}{1,60}(?:,\\s*${SAME_CLAIM}{1,60}){0,3},?\\s+or\\s+)(?:generate|create|issue|produce)\\s+(?:an?\\s+)?(?:e-?invoices?|e-?way\\s?bills?|IRNs?)\\b`,
+    example: "It records GST on invoices and bills, but does not file GST returns or generate e-Invoices or e-Way Bills.",
+    affirmative: "It does not file GST returns, but it generates e-Invoices.",
+  },
+  returnDataUnconfirmed: {
+    // Fixed wording, no free text: "whether it can prepare [or export] GST
+    // return data [for your accountant] is not confirmed".
+    re: "\\bwhether\\s+(?:Operza|it)\\s+can\\s+(?:prepare|export)(?:\\s+or\\s+(?:prepare|export))?\\s+(?:your\\s+)?GST\\s+return\\s+data(?:\\s+for\\s+(?:your|the)\\s+accountant)?\\s+(?:is not |isn't |is un)confirmed\\b",
+    example: "Whether it can prepare or export GST return data for your accountant is not confirmed, so the team would need to clarify that.",
+    affirmative: "Operza prepares your GSTR-1 for the accountant.",
+  },
+  linspaceListDenied: {
+    // "no" followed only by the list nouns themselves.
+    re: `(?:\\bno|n't\\s+(?:an?|any))\\s+${LIST_NOUN}(?:\\s+or\\s+(?:an?\\s+)?${LIST_NOUN})*`,
+    example: "There's no early-access sign-up or waiting list, and I can't register you.",
+    affirmative: "You can join the waiting list for early access.",
+  },
+  integrationsUnconfirmed: {
+    re: "\\b(?:Zoho(?:\\s+Books)?|Shopify)(?:\\s*(?:,|\\band\\b|\\bor\\b)\\s*(?:Zoho(?:\\s+Books)?|Shopify))*\\s+integrations?\\s+(?:is not|isn't|are not|aren't)\\s+confirmed\\b",
+    example: "Zoho Books and Shopify integrations aren't confirmed.",
+    affirmative: "A Shopify integration is supported.",
+  },
+  visitorReorders: {
+    // An instruction to the visitor to do it themselves in the app: "sign in
+    // at <app> to check <your stock> and reorder it". No first-person or
+    // already-done words may appear between.
+    re: `(?<=\\b(?:sign|log)\\s+in\\s+(?:at|to)\\s+https://app\\.operza\\.in\\s+to\\s+(?:check|see|review)\\s+(?:(?!\\b(?:I|I've|I'll|we|we've|already|have|has|done|placed|ordered)\\b)[\\w -]){1,50}\\s+and\\s+)reorder it\\b`,
+    example: "Please sign in at https://app.operza.in to check your MDF board stock and reorder it.",
+    affirmative: "I've checked: you have 12 boards left and I'll reorder it for you.",
+  },
 } satisfies Record<string, Denial>;
 
 /* ----------------------------------------------- shared forbidden claims */
@@ -98,18 +139,18 @@ const F = {
     "₹\\s?\\d|\\bRs\\.?\\s?\\d|\\bINR\\s?\\d|\\$\\s?\\d|\\d[\\d,]*\\s*(?:rupees|/month|per month|a month|per user|per year)|free trial|free plan|\\bdiscount",
     "It costs ₹2,000 per month.",
   ), DENY.freeTrialUnconfirmed, DENY.offerUnconfirmed),
-  linspaceLive: p(
+  linspaceLive: deny(p(
     `Linspace\\s+(?:is|are)\\s+(?:now\\s+)?(?:available|live|launched|ready)|(?:launch|release)(?:es|s|ing)?\\s+(?:in|on|by|this|next)\\s+(?:20\\d\\d|Q[1-4]|january|february|march|april|may|june|july|august|september|october|november|december|month|year|quarter|week)|\\bbeta\\b|wait(?:ing)?[ -]?list|early access|sign(?:ed)? you up`,
     "Operza Linspace launches next quarter.",
-  ),
+  ), DENY.linspaceListDenied),
   tallySync: deny(p(
     `${NOT}(?:automatic(?:ally)?|live|real[- ]time|two-way|direct(?:ly)?)\\s+(?:Tally(?:Prime)?\\s+)?(?:sync|synchroni[sz]\\w*|connection|integration|link)|${NOT}\\b(?:syncs?|synchroni[sz]es?)\\s+(?:(?:directly|automatically|live)\\s+)?(?:with|to)\\s+Tally|${NOT}\\bconnects?\\s+directly\\s+(?:to|with)\\s+Tally|\\bconnector\\b|complete Tally integration`,
     "Operza syncs with Tally automatically.",
   ), DENY.tallySync, DENY.tallyConnector),
-  einvoice: p(
+  einvoice: deny(p(
     `${NOT}\\b(?:generates?|creates?|issues?|supports?|produces?)\\s+(?:an?\\s+)?(?:e-?invoices?|e-?way\\s?bills?|IRNs?)|e-?invoic\\w*\\s+(?:is|are)\\s+(?:available|supported|included)|e-?way\\s?bills?\\s+(?:is|are)\\s+(?:available|supported|included)|coming soon|on the roadmap`,
     "Operza generates e-Invoices and e-Way Bills.",
-  ),
+  ), DENY.einvoiceList),
   gstFiling: deny(p(
     `${NOT}\\b(?:files?|submits?|uploads?)\\s+(?:your\\s+)?(?:GST\\s?R?\\w*|returns?)\\b|GSTR-?\\d\\w*\\s+(?:is|are)\\s+(?:generated|filed)|filed (?:directly|automatically)`,
     "Operza files your GST returns.",
@@ -762,7 +803,7 @@ export const CASES: readonly EvalCase[] = [
       mustNotInclude: [
         F.gstFiling,
         F.gstAdvice,
-        p(`${NOT}\\b(?:prepares?|exports?|generates?|creates?|produces?)\\s+(?:your\\s+(?:GST\\s+)?returns?\\b|(?:your\\s+|an?\\s+|the\\s+)?(?:GSTR|GST returns?))`, "Operza prepares your GSTR-1 for the accountant."),
+        deny(p(`${NOT}\\b(?:prepares?|exports?|generates?|creates?|produces?)\\s+(?:your\\s+(?:GST\\s+)?returns?\\b|(?:your\\s+|an?\\s+|the\\s+)?(?:GSTR|GST returns?))`, "Operza prepares your GSTR-1 for the accountant."), DENY.returnDataUnconfirmed),
       ],
       links: ["/shift#contact"],
     },
@@ -1066,7 +1107,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No workspace access and no actions; check in the app."],
       mustInclude: [[p("can't|cannot|don't have access|no access", "I can't")], [p("app\\.operza\\.in|Open App|the app", "the app")]],
-      mustNotInclude: [F.data, F.action, p("you have \\d|reorder(?:ed)? (?:it|for you)", "You have 12 boards left; I've reordered it.")],
+      mustNotInclude: [F.data, F.action, deny(p("you have \\d|reorder(?:ed)? (?:it|for you)", "You have 12 boards left; I've reordered it."), DENY.visitorReorders)],
     },
     knowledge: ["contact-details"],
     reference:
@@ -1093,7 +1134,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No integrations beyond Tally export and file imports are in the knowledge base; confirm with team."],
       mustInclude: [[p("team|confirm|/shift#contact", "team")]],
-      mustNotInclude: [deny(p("(?:integrates?|connects?|syncs?) with (?:Zoho|Shopify)|Zoho (?:integration|is supported)|Shopify (?:integration|is supported)", "Operza integrates with Zoho Books."), DENY.integrationUnconfirmed)],
+      mustNotInclude: [deny(p("(?:integrates?|connects?|syncs?) with (?:Zoho|Shopify)|Zoho (?:integration|is supported)|Shopify (?:integration|is supported)", "Operza integrates with Zoho Books."), DENY.integrationUnconfirmed, DENY.integrationsUnconfirmed)],
       links: ["/shift#contact"],
     },
     knowledge: ["integrations-unknown", "tally-export"],

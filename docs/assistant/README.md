@@ -99,6 +99,42 @@ passes, each affirmative fails alone and next to the denial, and that
 sentences with an unrelated "no" or "not" nearby still fail. The number of
 denial forms is pinned, so adding one is a reviewed change.
 
+### Second repair, after the 2026-11-20 Luna run
+
+The fresh run on `f7927be` scored 58/67; 8 forbidden-pattern hits were
+correct denials in wordings the first repair did not list (a negated list
+ending "or generate e-Invoices", "no early-access sign-up or waiting list",
+"Free trials aren't confirmed", "I can't say whether Operza is cheaper",
+"Zoho Books and Shopify integrations aren't confirmed", "whether it can
+prepare or export GST return data ... is not confirmed", "no live sync or
+direct connection", and "sign in at https://app.operza.in ... and reorder
+it", an instruction to the visitor). Each is now an exact form, with the
+same rules as before.
+
+Two rules were tightened at the same time:
+
+* **What follows a denial (`takesDenialBack` in `grade.ts`).** A denial is
+  not recognised at all when the rest of its own sentence contains a
+  contrast word ("but", "however", "yet", "except", ...), an affirmation
+  ("yes", "actually", "indeed", "in fact", "of course", ...) or a referring
+  clause (a pronoun, "there", "one", "you" or "Operza" with a positive
+  auxiliary, such as "it is", "it does", "there is", "you get", optionally
+  with one word from a closed list of intensifiers between, as in "it really
+  is"; "it isn't", "it really isn't", "it is really not", "it can't" and
+  "there's no" are negative and do not count), or when the next sentence
+  opens with an affirmation or is only a bare reaffirmation ("Yes it is.",
+  "It does.", or after a contrast word, "But it is."). So "I can't say whether Operza is cheaper, and yes it is"
+  fails even though its second half names no claim. Section N tries every
+  denial form against 23 such continuations and 72 intensified ones
+  ("it really is", "It truly will.").
+* **Lists joined by "or" only.** A comma inside a masked list could start a
+  new clause the mask would swallow ("no waiting list, a beta is open"; the
+  same held for the first repair's "can't confirm a discount, a free trial
+  is included"), so masked lists now take "or" only.
+
+Section N of `test:assistant` holds the saved denials verbatim and 44
+affirmative claims around them that must still fail.
+
 ## How the knowledge base avoids becoming a second authority
 
 Every entry has a **kind**:

@@ -452,6 +452,28 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-11-20 — Second grader repair (after the Luna run on f7927be)
+
+The fresh Luna run scored 58/67 with 8 forbidden hits that were correct
+denials in new wordings. Five exact denial forms were added and three
+widened, and two rules were tightened: a denial followed in its sentence by
+a contrast word ("but", "yet", "except", ...) is not recognised, and masked
+lists join by "or" only (closing a comma gap that also existed in the first
+repair's discount form). After review (cycle 1), a denial is also not
+recognised when what follows takes it back: an affirmation ("and yes it
+is"), a referring clause ("it does", "there is one") or a bare
+reaffirmation in the next sentence (`takesDenialBack`). Cycle 2: one
+intensifier ("really", "truly", "clearly", ...) between subject and verb no
+longer hides a reversal ("and it really is"), while "it really isn't" and
+"it can't" stay negative. Final Founder-authorized correction: a next
+sentence that is a contrast word plus a bare reaffirmation ("But it is.")
+also takes a denial back. The grader task is closed; remaining regex limits
+are left to semantic review. Offline regrade of the saved answers: 58/67 to
+65/67 (critical 17/23 to 22/23); the 2026-11-19 answers stay 63/67. Still
+failing: tally-connector-rumour (no team route, a real miss) and
+unsupported-legal (link policy, a separate decision). Section N of
+`test:assistant`, 14 planted defects caught. No paid call.
+
 ## 2026-11-20 — Guidance for the four remaining critical failures
 
 `tally-igst`, `tally-connector-rumour`, `linspace-signup` and
