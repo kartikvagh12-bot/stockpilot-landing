@@ -327,8 +327,9 @@ section("H. THE BROWSER SIDE STAYS SMALL AND HONEST");
   ok("(H12) Escape stops an answer; a Stop button exists", /e\.key === "Escape" && busy/.test(ui) && />\s*Stop\s*</.test(ui));
   ok("(H13) loading, error-with-retry, rate-limited and unavailable states exist",
      /Thinking/.test(ui) && /Try again/.test(ui) && /rate_limited:/.test(ui) && /unavailable:/.test(ui));
-  ok("(H14) the visitor is told answers are AI-written and not to share personal details",
-     /written by AI/.test(ui) && /don&apos;t share personal or financial details/.test(ui));
+  // Founder-approved wording (2026-11-21), tied to the input by aria-describedby.
+  ok("(H14) the visitor is told the guidance is AI-powered, can be confirmed by the team, and not to share sensitive information",
+     /<p id=\{noteId\}[^>]*>\s*AI-powered guidance to help you explore\. For important details, our team can confirm\. Please avoid sharing sensitive information\.\s*<\/p>/.test(ui) && /aria-describedby=\{noteId\}/.test(ui));
   ok("(H14b) requests are started by the shared runner, keyed by request identity, with no shared in-flight flag",
      /runner\.sync\(state\)/.test(ui) && !/inFlight/.test(uiCode) && /pending\.requestId <= lastStarted/.test(read("lib/assistant/client/requests.ts"))
      && /emit: \(event\) => dispatch\(\{ \.\.\.event, requestId \}\)/.test(read("lib/assistant/client/requests.ts")));

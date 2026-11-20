@@ -465,6 +465,19 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-11-21 — Assistant input: premium visual refinement
+
+Founder-approved UI and copy refinement only. The "Ask anything about
+Operza..." input now sits centred under the company hero (max 880px), as a
+white surface with a restrained shadow and a brand-red submit button, under
+the heading "Have a question? Just ask." and the line "Find out how Operza
+can work for your business."; the conversation panel is part of the white
+surface. The disclaimer is now exactly "AI-powered guidance to help you
+explore. For important details, our team can confirm. Please avoid sharing
+sensitive information." (still the input's aria-describedby). H14 and M7d
+follow the new wording; M7e pins the heading. No behaviour, backend, prompt,
+knowledge or grader change.
+
 ## 2026-11-20 — Discovery-pilot release decision recorded
 
 Founder decision 10 documented in `docs/assistant/PILOT_RELEASE.md`: the
