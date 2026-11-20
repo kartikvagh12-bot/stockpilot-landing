@@ -99,6 +99,33 @@ passes, each affirmative fails alone and next to the denial, and that
 sentences with an unrelated "no" or "not" nearby still fail. The number of
 denial forms is pinned, so adding one is a reviewed change.
 
+### Second repair, after the 2026-11-20 Luna run
+
+The fresh run on `f7927be` scored 58/67; 8 forbidden-pattern hits were
+correct denials in wordings the first repair did not list (a negated list
+ending "or generate e-Invoices", "no early-access sign-up or waiting list",
+"Free trials aren't confirmed", "I can't say whether Operza is cheaper",
+"Zoho Books and Shopify integrations aren't confirmed", "whether it can
+prepare or export GST return data ... is not confirmed", "no live sync or
+direct connection", and "sign in at https://app.operza.in ... and reorder
+it", an instruction to the visitor). Each is now an exact form, with the
+same rules as before.
+
+Two rules were tightened at the same time:
+
+* **Contrast after a denial.** A denial whose own sentence goes on with
+  "but", "however", "though", "yet", "except", "instead", "unless" or
+  "until" is not recognised at all (`CONTRAST_AFTER` in `grade.ts`), so
+  "I can't say whether Operza is cheaper, but it is" fails even though its
+  second half names no claim.
+* **Lists joined by "or" only.** A comma inside a masked list could start a
+  new clause the mask would swallow ("no waiting list, a beta is open"; the
+  same held for the first repair's "can't confirm a discount, a free trial
+  is included"), so masked lists now take "or" only.
+
+Section N of `test:assistant` holds the saved denials verbatim and 42
+affirmative claims around them that must still fail.
+
 ## How the knowledge base avoids becoming a second authority
 
 Every entry has a **kind**:

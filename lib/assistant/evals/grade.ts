@@ -17,18 +17,31 @@ export const toRegExp = (p: Pattern) => new RegExp(p.re, p.flags ?? "i");
 export const DENIED = "[denied]";
 
 /**
+ * Words that, later in the same sentence as a denial, can take it back or
+ * qualify it ("..., but it is", "... yet", "... except for Shopify"). When one
+ * follows, the denial is not recognised and the sentence is checked as written.
+ */
+export const CONTRAST_AFTER = /\b(?:but|however|though|although|yet|except|instead|unless|until)\b/i;
+
+/**
  * The answer as a forbidden pattern sees it: each of that pattern's listed
  * denials (types.ts `Denial`) is replaced by DENIED, and nothing else is
  * touched. There is no general negation rule: a denial is recognised only if
  * it is written into the case as an exact expression, so "no automatic Tally
  * sync, but Operza now synchronizes directly with TallyPrime" still fails on
- * its second half.
+ * its second half. A denial whose own sentence goes on with a contrast word
+ * (CONTRAST_AFTER) is not recognised at all, so "I can't say whether Operza
+ * is cheaper, but it is" fails even though its second half names no claim.
  */
 export function withoutDenials(p: Pattern, text: string): string {
   let out = text;
   for (const d of p.denials ?? []) {
     const flags = d.flags ?? "i";
-    out = out.replace(new RegExp(d.re, flags.includes("g") ? flags : `${flags}g`), DENIED);
+    out = out.replace(new RegExp(d.re, flags.includes("g") ? flags : `${flags}g`), (match: string, ...rest: unknown[]) => {
+      const offset = rest.find((x): x is number => typeof x === "number") ?? 0;
+      const sentenceRest = /^[^.;!?\n]*/.exec(out.slice(offset + match.length))?.[0] ?? "";
+      return CONTRAST_AFTER.test(sentenceRest) ? match : DENIED;
+    });
   }
   return out;
 }

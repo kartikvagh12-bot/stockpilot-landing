@@ -452,6 +452,19 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-11-20 — Second grader repair (after the Luna run on f7927be)
+
+The fresh Luna run scored 58/67 with 8 forbidden hits that were correct
+denials in new wordings. Five exact denial forms were added and three
+widened, and two rules were tightened: a denial followed in its sentence by
+a contrast word ("but", "yet", "except", ...) is not recognised, and masked
+lists join by "or" only (closing a comma gap that also existed in the first
+repair's discount form). Offline regrade of the saved answers: 58/67 to
+65/67 (critical 17/23 to 22/23); the 2026-11-19 answers stay 63/67. Still
+failing: tally-connector-rumour (no team route, a real miss) and
+unsupported-legal (link policy, a separate decision). Section N of
+`test:assistant`, 14 planted defects caught. No paid call.
+
 ## 2026-11-20 — Guidance for the four remaining critical failures
 
 `tally-igst`, `tally-connector-rumour`, `linspace-signup` and
