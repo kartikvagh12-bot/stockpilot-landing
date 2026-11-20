@@ -25,7 +25,7 @@ const { DESTINATIONS, CONTACT } = await import("../lib/assistant/destinations.ts
 const { summarise, requiredCriticalCases } = await import("../lib/assistant/evals/report.ts");
 const { RULES, TOPIC_CHECKLISTS, systemInstructions } = await import("../lib/assistant/instructions.ts");
 const { CASES } = await import("../lib/assistant/evals/cases.ts");
-const { grade, toRegExp, makesForbiddenClaim, withoutDenials, DENIED } = await import("../lib/assistant/evals/grade.ts");
+const { grade, toRegExp, makesForbiddenClaim, withoutDenials, DENIED, INTENSIFIERS } = await import("../lib/assistant/evals/grade.ts");
 const { SITE } = await import("../lib/site.ts");
 
 let checks = 0;
@@ -1019,7 +1019,7 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
     ", and yes it is.", ", and yes it does.", ", yes it is.", ", yes it does.", ", and actually it does.", ", and in fact it is.",
     ", and indeed it can.", ", which it is.", ", and it is included.", ", and you get one.", ", and there is one.", ", and it does now.",
     ". Yes it is.", ". Actually, it does.", ". In fact it is.", ". It does.", "; it is.", ", it's true.",
-    ", and yes, absolutely.", ". Yes, absolutely.", ", and the answer is yes.",
+    ", and yes, absolutely.", ". Yes, absolutely.", ", and the answer is yes.", ", and absolutely so.", ", indeed, quite so.",
   ];
   const leaks = [];
   let controls = 0;
@@ -1042,6 +1042,39 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
   ];
   const rejected = ACCEPTED.filter(([id, t]) => forbiddenHits(id, t).length);
   ok("(N9) negative or neutral continuations after a denial stay accepted", rejected.length === 0, list(rejected.map(([id, t]) => `${id}: ${t}`)));
+
+  // PR #33 review cycle 2: an intensifier between subject and verb ("it
+  // really is") must not hide a reversal, in the same sentence or the next.
+  const REVIEW2 = [
+    "I can't say whether Operza is cheaper, and it really is. Pricing isn't published and is discussed during a demo at /shift#contact.",
+    "I can't say whether Operza is cheaper. It really is. Pricing isn't published and is discussed during a demo at /shift#contact.",
+  ];
+  ok("(N10) the cycle-2 review's two answers fail the complete pricing-cheaper-than grade, on the forbidden claim",
+     REVIEW2.every((t) => !grade(caseOf("pricing-cheaper-than"), t).pass && forbiddenHits("pricing-cheaper-than", t).length));
+  ok("(N10b) the intensifier list is the closed list the review asked for, at least",
+     ["really", "truly", "surely", "clearly", "definitely", "certainly"].every((w) => INTENSIFIERS.includes(w)) && INTENSIFIERS.length === 9);
+  // Every denial form x every intensifier x is/does/can/will, same sentence
+  // and next sentence.
+  const AUX = ["is", "does", "can", "will"];
+  const intensified = INTENSIFIERS.flatMap((w) => AUX.flatMap((v) => [`, and it ${w} ${v}.`, `. It ${w} ${v}.`]));
+  const leaks2 = [];
+  for (const { p, d } of unique) {
+    const m = new RegExp(d.re, d.flags ?? "i").exec(d.example);
+    const core = d.example.slice(0, m.index + m[0].length);
+    for (const k of intensified) if (!makesForbiddenClaim(p, core + k)) leaks2.push(`${core.slice(-30)}${k}`);
+  }
+  ok(`(N11) every denial form followed by an intensified reversal is not recognised (${unique.length} forms x ${intensified.length} = ${unique.length * intensified.length})`,
+     intensified.length === 72 && leaks2.length === 0, list(leaks2));
+  // ...and intensified negatives keep the denial recognised, across forms.
+  const NEGATIVES = [", and it really isn't available.", ". It really isn't.", ", and it is really not available.",
+    ", and it truly can't.", ". It certainly doesn't.", ", and it definitely won't.", ". It clearly can't."];
+  const negBad = [];
+  for (const { p, d } of unique) {
+    const m = new RegExp(d.re, d.flags ?? "i").exec(d.example);
+    const core = d.example.slice(0, m.index + m[0].length);
+    for (const k of NEGATIVES) if (makesForbiddenClaim(p, core + k)) negBad.push(`${core.slice(-30)}${k}`);
+  }
+  ok(`(N12) intensified negatives after a denial keep it recognised (${unique.length} forms x ${NEGATIVES.length})`, negBad.length === 0, list(negBad));
 
   // Nothing else moved: required points, links, critical categories and the
   // release gate are as they were.

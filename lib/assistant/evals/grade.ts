@@ -25,22 +25,34 @@ export const DENIED = "[denied]";
  * 2. AFFIRMATION: "yes", "actually", "indeed", "in fact", "of course", ...
  *    ("..., and yes it is").
  * 3. REFERRING_CLAUSE: a pronoun (or "Operza", "there", "one", "you")
- *    followed by a positive auxiliary or "get", with no negation right after
- *    it ("..., and it does", "..., there is one", "..., you get one"). "It
- *    isn't" or "there's no" is negative and does not count.
+ *    followed by a positive auxiliary or "get", optionally with one word
+ *    from INTENSIFIERS between ("it really is"), and with no negation right
+ *    after it ("..., and it does", "..., there is one", "..., you get one").
+ *    "It isn't", "it really isn't", "it is really not", "it can't" or
+ *    "there's no" is negative and does not count.
  *
  * The next sentence can also take a denial back when it opens with an
  * affirmation or is nothing but a bare reaffirmation ("Yes it is.", "It
- * does.", "Actually, it can."). Any of these, and the denial is not
+ * does.", "It really is.", "Actually, it can."). Any of these, and the denial is not
  * recognised: the text is checked as written. This is a closed, auditable
  * list, not a negation window; it only ever makes the grader stricter.
  */
 export const CONTRAST_AFTER = /\b(?:but|however|though|although|yet|except|instead|unless|until)\b/i;
-export const AFFIRMATION = /\b(?:yes|yeah|yep|yup|actually|indeed|in fact|of course|certainly|definitely|absolutely|true|correct)\b/i;
+/** "yes", "in fact", ... always affirm. "actually", "indeed", "certainly",
+ *  "definitely" and "absolutely" affirm unless a negation follows within the
+ *  next word ("it definitely won't", "it actually isn't", "certainly not"). */
+export const AFFIRMATION = /\b(?:yes|yeah|yep|yup|in fact|of course|true|correct)\b|\b(?:actually|indeed|certainly|definitely|absolutely)\b(?!\s+(?:\w+\s+)?(?:not|no|never)\b|\s+\w+n't\b|\s+\w+\s+\w+n't\b)/i;
 const SUBJECT = "(?:it|they|this|that|these|those|which|one|there|you|we|Operza)";
-const POSITIVE_AUX = "(?:'s|'re|'ll|'ve|'d|\\s+(?:is|are|was|were|does|do|did|can|could|will|would|has|have|had|gets?|offers?|includes?|supports?))";
-export const REFERRING_CLAUSE = new RegExp(`\\b${SUBJECT}${POSITIVE_AUX}\\b(?!\\s*(?:not\\b|no\\b|never\\b|n't))`, "i");
-const BARE_REAFFIRMATION = new RegExp(`^\\s*(?:(?:and|so)\\s+)?${SUBJECT}${POSITIVE_AUX}(?:\\s+(?:too|indeed|now|already))?\\s*[.!]?\\s*$`, "i");
+/** One intensifying adverb that may sit between subject and verb ("it really
+ *  is") or between verb and negation ("it is really not"). Closed list. */
+export const INTENSIFIERS = ["really", "truly", "surely", "clearly", "definitely", "certainly", "indeed", "actually", "absolutely"] as const;
+const INTENSIFIER = `(?:${INTENSIFIERS.join("|")})`;
+const POSITIVE_AUX = `(?:'s|'re|'ll|'ve|'d|(?:\\s+${INTENSIFIER})?\\s+(?:is|are|was|were|does|do|did|can|could|will|would|has|have|had|gets?|offers?|includes?|supports?))`;
+/** After the verb: a negation makes the clause negative ("it really isn't",
+ *  "it is really not", "it can't"). */
+const NEGATED = `(?:\\s*(?:${INTENSIFIER}\\s+)?(?:not|no|never)\\b|n't|'t)`;
+export const REFERRING_CLAUSE = new RegExp(`\\b${SUBJECT}${POSITIVE_AUX}\\b(?!${NEGATED})`, "i");
+const BARE_REAFFIRMATION = new RegExp(`^\\s*(?:(?:and|so)\\s+)?${SUBJECT}${POSITIVE_AUX}\\b(?!${NEGATED})(?:\\s+(?:too|indeed|now|already))?\\s*[.!]?\\s*$`, "i");
 
 /** True when the text after a denial can take it back (see above). */
 export function takesDenialBack(after: string): boolean {

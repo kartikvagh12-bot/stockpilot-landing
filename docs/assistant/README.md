@@ -118,12 +118,15 @@ Two rules were tightened at the same time:
   contrast word ("but", "however", "yet", "except", ...), an affirmation
   ("yes", "actually", "indeed", "in fact", "of course", ...) or a referring
   clause (a pronoun, "there", "one", "you" or "Operza" with a positive
-  auxiliary, such as "it is", "it does", "there is", "you get"; "it isn't"
-  and "there's no" are negative and do not count), or when the next sentence
+  auxiliary, such as "it is", "it does", "there is", "you get", optionally
+  with one word from a closed list of intensifiers between, as in "it really
+  is"; "it isn't", "it really isn't", "it is really not", "it can't" and
+  "there's no" are negative and do not count), or when the next sentence
   opens with an affirmation or is only a bare reaffirmation ("Yes it is.",
   "It does."). So "I can't say whether Operza is cheaper, and yes it is"
   fails even though its second half names no claim. Section N tries every
-  denial form against 21 such continuations.
+  denial form against 23 such continuations and 72 intensified ones
+  ("it really is", "It truly will.").
 * **Lists joined by "or" only.** A comma inside a masked list could start a
   new clause the mask would swallow ("no waiting list, a beta is open"; the
   same held for the first repair's "can't confirm a discount, a free trial
