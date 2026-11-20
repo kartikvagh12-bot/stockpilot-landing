@@ -281,7 +281,7 @@ export default function AskOperza() {
             spellCheck
             enterKeyHint="send"
             aria-describedby={noteId}
-            className="min-w-0 flex-1 bg-transparent py-3 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none sm:py-3.5 sm:text-lg"
+            className="min-w-0 flex-1 bg-transparent py-3 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none sm:text-lg"
           />
           {busy ? (
             <button
@@ -296,7 +296,7 @@ export default function AskOperza() {
               type="submit"
               disabled={!draft.trim()}
               aria-label="Send question"
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white shadow-sm transition hover:bg-brand-600 active:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-brand-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-12 sm:w-12"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#17191E] text-white shadow-sm transition hover:bg-[#2B2E34] active:bg-black disabled:cursor-not-allowed disabled:opacity-80 disabled:hover:bg-[#17191E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#17191E] focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-12 sm:w-12"
             >
               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path
