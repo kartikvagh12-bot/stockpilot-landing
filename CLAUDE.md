@@ -459,7 +459,10 @@ denials in new wordings. Five exact denial forms were added and three
 widened, and two rules were tightened: a denial followed in its sentence by
 a contrast word ("but", "yet", "except", ...) is not recognised, and masked
 lists join by "or" only (closing a comma gap that also existed in the first
-repair's discount form). Offline regrade of the saved answers: 58/67 to
+repair's discount form). After review (cycle 1), a denial is also not
+recognised when what follows takes it back: an affirmation ("and yes it
+is"), a referring clause ("it does", "there is one") or a bare
+reaffirmation in the next sentence (`takesDenialBack`). Offline regrade of the saved answers: 58/67 to
 65/67 (critical 17/23 to 22/23); the 2026-11-19 answers stay 63/67. Still
 failing: tally-connector-rumour (no team route, a real miss) and
 unsupported-legal (link policy, a separate decision). Section N of

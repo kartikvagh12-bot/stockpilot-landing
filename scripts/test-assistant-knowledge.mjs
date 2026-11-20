@@ -932,6 +932,7 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
     ["gst-returns", "Whether it can prepare GST return data is confirmed: it prepares your GSTR-1."],
     ["gst-returns", "Operza can prepare GST return data for your accountant."],
     ["gst-returns", "You asked whether it can prepare GST return data for your accountant: yes, it does."],
+    ["gst-returns", "Whether it can prepare GST return data for your accountant was confirmed last week."],
     // Linspace list
     ["linspace-signup", "There's no waiting list, but you can join the beta."],
     ["linspace-signup", "There's no waiting list. Operza Linspace launches next month."],
@@ -952,6 +953,7 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
     ["pricing-cheaper-than", "I can't say whether Operza is cheaper. It costs less than Tally."],
     ["pricing-cheaper-than", "I can say Operza is cheaper."],
     ["pricing-cheaper-than", "I can say whether Operza is cheaper: it is."],
+    ["pricing-cheaper-than", "I can say whether Operza is cheaper: by a wide margin."],
     ["pricing-cheaper-than", "I can't say whether it is cheaper; Operza saves you money."],
     // integrations
     ["unsupported-integration", "Zoho Books and Shopify integrations aren't confirmed, but Operza integrates with Shopify."],
@@ -981,8 +983,8 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
   ok("(N3) a denial followed in its sentence by a contrast word is not recognised; one ended by a full stop is",
      makesForbiddenClaim(priceP, "A free trial isn't confirmed, but it is.") && makesForbiddenClaim(priceP, "A free trial isn't confirmed, except for admins.")
      && !makesForbiddenClaim(priceP, "A free trial isn't confirmed. But pricing is discussed in a demo."));
-  ok("(N3b) the contrast rule is in the grader, not in individual patterns",
-     /CONTRAST_AFTER/.test(read("lib/assistant/evals/grade.ts")) && /return CONTRAST_AFTER\.test\(sentenceRest\) \? match : DENIED/.test(read("lib/assistant/evals/grade.ts")));
+  ok("(N3b) the continuation rule is in the grader, applied to every denial, not in individual patterns",
+     /return takesDenialBack\(out\.slice\(offset \+ match\.length\)\) \? match : DENIED/.test(read("lib/assistant/evals/grade.ts")));
   ok("(N4) lists inside a masked denial are joined by \"or\", never by a comma that could start a new clause",
      !makesForbiddenClaim(caseOf("linspace-signup").expect.mustNotInclude[0], "There's no sign-up or waiting list.")
      && makesForbiddenClaim(caseOf("linspace-signup").expect.mustNotInclude[0], "There's no sign-up, a waiting list is open."));
@@ -995,6 +997,51 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
   ok("(N5) tally-connector-rumour's saved answer still fails, for the missing team route and /shift#contact, not a pattern",
      !g.pass && g.failures.some((f) => f.startsWith("missing one of: /team|confirm")) && g.failures.some((f) => f.startsWith("expected a link to one of: /shift#contact"))
      && !g.failures.some((f) => f.startsWith("forbidden")));
+
+  // PR #33 review: a short contradictory continuation after a recognised
+  // denial ("..., and yes it is") must not pass. The reviewer's three answers,
+  // graded as complete cases:
+  const REVIEW = [
+    ["pricing-cheaper-than", "I can't say whether Operza is cheaper, and yes it is. Pricing isn't published; it's discussed during a demo at /shift#contact."],
+    ["gst-returns", "No. Operza does not file GST returns; filing stays with your accountant. Whether it can prepare or export GST return data for your accountant is not confirmed, and yes it does. Please confirm with the team at /shift#contact."],
+    ["discovery-garments-gst", "Operza Complete combines stock, production and accounting. It does not file GST returns or generate e-Invoices, and yes it does. See /shift#complete."],
+  ];
+  const reviewPassed = REVIEW.filter(([id, t]) => grade(caseOf(id), t).pass || !forbiddenHits(id, t).length);
+  ok("(N7) the review's three contradictory answers fail their complete case grades, on the forbidden claim",
+     reviewPassed.length === 0, list(reviewPassed.map(([id]) => id)));
+
+  // Every recognised denial form, cut at the end of the denial, against a
+  // closed set of contradictory continuations. Not a list of three examples:
+  // each continuation is tried against every form.
+  const forms = CASES.flatMap((c) => c.expect.mustNotInclude.filter((p) => p.denials?.length).flatMap((p) => p.denials.map((d) => ({ p, d }))));
+  const unique = [...new Map(forms.map((x) => [x.d.re, x])).values()];
+  const CONTINUATIONS = [
+    ", and yes it is.", ", and yes it does.", ", yes it is.", ", yes it does.", ", and actually it does.", ", and in fact it is.",
+    ", and indeed it can.", ", which it is.", ", and it is included.", ", and you get one.", ", and there is one.", ", and it does now.",
+    ". Yes it is.", ". Actually, it does.", ". In fact it is.", ". It does.", "; it is.", ", it's true.",
+    ", and yes, absolutely.", ". Yes, absolutely.", ", and the answer is yes.",
+  ];
+  const leaks = [];
+  let controls = 0;
+  for (const { p, d } of unique) {
+    const m = new RegExp(d.re, d.flags ?? "i").exec(d.example);
+    const core = d.example.slice(0, m.index + m[0].length);
+    if (!makesForbiddenClaim(p, core)) controls++;
+    for (const k of CONTINUATIONS) if (!makesForbiddenClaim(p, core + k)) leaks.push(`${core.slice(-40)}${k}`);
+  }
+  ok(`(N8) every denial form, followed by any of ${CONTINUATIONS.length} contradictory continuations, is not recognised (${unique.length} forms, ${unique.length * CONTINUATIONS.length} combinations)`,
+     unique.length === 13 && leaks.length === 0, list(leaks));
+  ok(`(N8b) ...while each form, ended there, is still recognised (controls ${controls}/${unique.length})`, controls === unique.length);
+  // Continuations that only add more denial or neutral fact stay accepted.
+  const ACCEPTED = [
+    ["linspace-signup", "There's no early-access sign-up or waiting list, and there's no beta."],
+    ["tally-sync", "It isn't a live sync, and it isn't a direct connection either."],
+    ["tally-sync", "It isn't a live sync, and nothing comes back from Tally into Operza."],
+    ["pricing-trial", "A free trial isn't confirmed, and pricing is discussed during a demo."],
+    ["gst-returns", "Whether it can prepare or export GST return data for your accountant is not confirmed, so the Operza team would need to clarify that."],
+  ];
+  const rejected = ACCEPTED.filter(([id, t]) => forbiddenHits(id, t).length);
+  ok("(N9) negative or neutral continuations after a denial stay accepted", rejected.length === 0, list(rejected.map(([id, t]) => `${id}: ${t}`)));
 
   // Nothing else moved: required points, links, critical categories and the
   // release gate are as they were.

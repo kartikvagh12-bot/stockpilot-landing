@@ -113,17 +113,23 @@ same rules as before.
 
 Two rules were tightened at the same time:
 
-* **Contrast after a denial.** A denial whose own sentence goes on with
-  "but", "however", "though", "yet", "except", "instead", "unless" or
-  "until" is not recognised at all (`CONTRAST_AFTER` in `grade.ts`), so
-  "I can't say whether Operza is cheaper, but it is" fails even though its
-  second half names no claim.
+* **What follows a denial (`takesDenialBack` in `grade.ts`).** A denial is
+  not recognised at all when the rest of its own sentence contains a
+  contrast word ("but", "however", "yet", "except", ...), an affirmation
+  ("yes", "actually", "indeed", "in fact", "of course", ...) or a referring
+  clause (a pronoun, "there", "one", "you" or "Operza" with a positive
+  auxiliary, such as "it is", "it does", "there is", "you get"; "it isn't"
+  and "there's no" are negative and do not count), or when the next sentence
+  opens with an affirmation or is only a bare reaffirmation ("Yes it is.",
+  "It does."). So "I can't say whether Operza is cheaper, and yes it is"
+  fails even though its second half names no claim. Section N tries every
+  denial form against 21 such continuations.
 * **Lists joined by "or" only.** A comma inside a masked list could start a
   new clause the mask would swallow ("no waiting list, a beta is open"; the
   same held for the first repair's "can't confirm a discount, a free trial
   is included"), so masked lists now take "or" only.
 
-Section N of `test:assistant` holds the saved denials verbatim and 42
+Section N of `test:assistant` holds the saved denials verbatim and 44
 affirmative claims around them that must still fail.
 
 ## How the knowledge base avoids becoming a second authority

@@ -17,11 +17,38 @@ export const toRegExp = (p: Pattern) => new RegExp(p.re, p.flags ?? "i");
 export const DENIED = "[denied]";
 
 /**
- * Words that, later in the same sentence as a denial, can take it back or
- * qualify it ("..., but it is", "... yet", "... except for Shopify"). When one
- * follows, the denial is not recognised and the sentence is checked as written.
+ * What may follow a recognised denial. A denial is set aside only if nothing
+ * after it can take it back. Three things can, and each is checked over the
+ * rest of the denial's own sentence:
+ *
+ * 1. CONTRAST: "but", "however", "yet", "except", ... ("..., but it is").
+ * 2. AFFIRMATION: "yes", "actually", "indeed", "in fact", "of course", ...
+ *    ("..., and yes it is").
+ * 3. REFERRING_CLAUSE: a pronoun (or "Operza", "there", "one", "you")
+ *    followed by a positive auxiliary or "get", with no negation right after
+ *    it ("..., and it does", "..., there is one", "..., you get one"). "It
+ *    isn't" or "there's no" is negative and does not count.
+ *
+ * The next sentence can also take a denial back when it opens with an
+ * affirmation or is nothing but a bare reaffirmation ("Yes it is.", "It
+ * does.", "Actually, it can."). Any of these, and the denial is not
+ * recognised: the text is checked as written. This is a closed, auditable
+ * list, not a negation window; it only ever makes the grader stricter.
  */
 export const CONTRAST_AFTER = /\b(?:but|however|though|although|yet|except|instead|unless|until)\b/i;
+export const AFFIRMATION = /\b(?:yes|yeah|yep|yup|actually|indeed|in fact|of course|certainly|definitely|absolutely|true|correct)\b/i;
+const SUBJECT = "(?:it|they|this|that|these|those|which|one|there|you|we|Operza)";
+const POSITIVE_AUX = "(?:'s|'re|'ll|'ve|'d|\\s+(?:is|are|was|were|does|do|did|can|could|will|would|has|have|had|gets?|offers?|includes?|supports?))";
+export const REFERRING_CLAUSE = new RegExp(`\\b${SUBJECT}${POSITIVE_AUX}\\b(?!\\s*(?:not\\b|no\\b|never\\b|n't))`, "i");
+const BARE_REAFFIRMATION = new RegExp(`^\\s*(?:(?:and|so)\\s+)?${SUBJECT}${POSITIVE_AUX}(?:\\s+(?:too|indeed|now|already))?\\s*[.!]?\\s*$`, "i");
+
+/** True when the text after a denial can take it back (see above). */
+export function takesDenialBack(after: string): boolean {
+  const sentence = /^[^.;!?\n]*/.exec(after)?.[0] ?? "";
+  if (CONTRAST_AFTER.test(sentence) || AFFIRMATION.test(sentence) || REFERRING_CLAUSE.test(sentence)) return true;
+  const next = /^[.;!?\n]+\s*([^.;!?\n]*[.;!?]?)/.exec(after.slice(sentence.length))?.[1] ?? "";
+  return /^\s*(?:yes|yeah|yep|actually|indeed|in fact|of course|certainly|definitely|absolutely|true)\b/i.test(next) || BARE_REAFFIRMATION.test(next);
+}
 
 /**
  * The answer as a forbidden pattern sees it: each of that pattern's listed
@@ -29,9 +56,9 @@ export const CONTRAST_AFTER = /\b(?:but|however|though|although|yet|except|inste
  * touched. There is no general negation rule: a denial is recognised only if
  * it is written into the case as an exact expression, so "no automatic Tally
  * sync, but Operza now synchronizes directly with TallyPrime" still fails on
- * its second half. A denial whose own sentence goes on with a contrast word
- * (CONTRAST_AFTER) is not recognised at all, so "I can't say whether Operza
- * is cheaper, but it is" fails even though its second half names no claim.
+ * its second half. A denial that what follows takes back (takesDenialBack)
+ * is not recognised at all, so "I can't say whether Operza is cheaper, and
+ * yes it is" fails even though its second half names no claim.
  */
 export function withoutDenials(p: Pattern, text: string): string {
   let out = text;
@@ -39,8 +66,7 @@ export function withoutDenials(p: Pattern, text: string): string {
     const flags = d.flags ?? "i";
     out = out.replace(new RegExp(d.re, flags.includes("g") ? flags : `${flags}g`), (match: string, ...rest: unknown[]) => {
       const offset = rest.find((x): x is number => typeof x === "number") ?? 0;
-      const sentenceRest = /^[^.;!?\n]*/.exec(out.slice(offset + match.length))?.[0] ?? "";
-      return CONTRAST_AFTER.test(sentenceRest) ? match : DENIED;
+      return takesDenialBack(out.slice(offset + match.length)) ? match : DENIED;
     });
   }
   return out;
