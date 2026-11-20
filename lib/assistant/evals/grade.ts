@@ -33,7 +33,7 @@ export const DENIED = "[denied]";
  *
  * The next sentence can also take a denial back when it opens with an
  * affirmation or is nothing but a bare reaffirmation ("Yes it is.", "It
- * does.", "It really is.", "Actually, it can."). Any of these, and the denial is not
+ * does.", "It really is.", "Actually, it can.", "But it is."). Any of these, and the denial is not
  * recognised: the text is checked as written. This is a closed, auditable
  * list, not a negation window; it only ever makes the grader stricter.
  */
@@ -59,7 +59,11 @@ export function takesDenialBack(after: string): boolean {
   const sentence = /^[^.;!?\n]*/.exec(after)?.[0] ?? "";
   if (CONTRAST_AFTER.test(sentence) || AFFIRMATION.test(sentence) || REFERRING_CLAUSE.test(sentence)) return true;
   const next = /^[.;!?\n]+\s*([^.;!?\n]*[.;!?]?)/.exec(after.slice(sentence.length))?.[1] ?? "";
-  return /^\s*(?:yes|yeah|yep|actually|indeed|in fact|of course|certainly|definitely|absolutely|true)\b/i.test(next) || BARE_REAFFIRMATION.test(next);
+  // A next sentence that is a contrast word plus a bare reaffirmation ("But
+  // it is.", "However it is.", "Yet it does.") also takes the denial back.
+  const afterContrast = next.replace(new RegExp(`^\\s*${CONTRAST_AFTER.source},?\\s+`, "i"), "");
+  return /^\s*(?:yes|yeah|yep|actually|indeed|in fact|of course|certainly|definitely|absolutely|true)\b/i.test(next) || BARE_REAFFIRMATION.test(next)
+    || (afterContrast !== next && BARE_REAFFIRMATION.test(afterContrast));
 }
 
 /**

@@ -123,7 +123,7 @@ Two rules were tightened at the same time:
   is"; "it isn't", "it really isn't", "it is really not", "it can't" and
   "there's no" are negative and do not count), or when the next sentence
   opens with an affirmation or is only a bare reaffirmation ("Yes it is.",
-  "It does."). So "I can't say whether Operza is cheaper, and yes it is"
+  "It does.", or after a contrast word, "But it is."). So "I can't say whether Operza is cheaper, and yes it is"
   fails even though its second half names no claim. Section N tries every
   denial form against 23 such continuations and 72 intensified ones
   ("it really is", "It truly will.").

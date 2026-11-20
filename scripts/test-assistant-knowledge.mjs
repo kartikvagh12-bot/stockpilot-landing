@@ -1076,6 +1076,30 @@ section("N. POST-LUNA GRADER REPAIR: NEW DENIALS PASS, AFFIRMATIVE CLAIMS STILL 
   }
   ok(`(N12) intensified negatives after a denial keep it recognised (${unique.length} forms x ${NEGATIVES.length})`, negBad.length === 0, list(negBad));
 
+  // Final bounded correction (Founder-authorized): a next sentence that is a
+  // contrast word plus a bare reaffirmation ("But it is.") takes the denial back.
+  ok("(N13) \"... cheaper. But it is.\" fails the complete pricing-cheaper-than grade, on the forbidden claim",
+     (() => { const t = "I can't say whether Operza is cheaper. But it is. Pricing isn't published and is discussed during a demo at /shift#contact.";
+       return !grade(caseOf("pricing-cheaper-than"), t).pass && forbiddenHits("pricing-cheaper-than", t).length > 0; })());
+  const CONTRAST_NEXT = [
+    ["pricing-cheaper-than", "I can't say whether Operza is cheaper. However it is."],
+    ["pricing-cheaper-than", "I can't say whether Operza is cheaper. But it really is."],
+    ["discovery-garments-gst", "It does not file GST returns or generate e-Invoices. Yet it does."],
+    ["linspace-signup", "There's no early-access sign-up or waiting list. But there is."],
+    ["pricing-trial", "Free trials aren't confirmed. But they are."],
+  ];
+  const contrastLeaks = CONTRAST_NEXT.filter(([id, t]) => !forbiddenHits(id, t).length);
+  ok(`(N13b) "But / However / Yet" + a bare reaffirmation in the next sentence takes a denial back (${CONTRAST_NEXT.length})`,
+     contrastLeaks.length === 0, list(contrastLeaks.map(([id, t]) => `${id}: ${t}`)));
+  const NEUTRAL_NEXT = [
+    ["pricing-cheaper-than", "I can't say whether Operza is cheaper. But pricing is discussed during a demo."],
+    ["pricing-cheaper-than", "I can't say whether Operza is cheaper. But you can ask the team at /shift#contact."],
+    ["linspace-signup", "There's no early-access sign-up or waiting list. But it isn't."],
+  ];
+  const neutralRejected = NEUTRAL_NEXT.filter(([id, t]) => forbiddenHits(id, t).length);
+  ok("(N13c) a contrast-led next sentence that is not a bare reaffirmation leaves the denial recognised",
+     neutralRejected.length === 0, list(neutralRejected.map(([id, t]) => `${id}: ${t}`)));
+
   // Nothing else moved: required points, links, critical categories and the
   // release gate are as they were.
   ok("(N6) unsupported-legal still expects /shift#contact (its alternative route is a separate rubric decision)",

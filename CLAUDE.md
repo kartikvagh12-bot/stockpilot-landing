@@ -465,7 +465,10 @@ is"), a referring clause ("it does", "there is one") or a bare
 reaffirmation in the next sentence (`takesDenialBack`). Cycle 2: one
 intensifier ("really", "truly", "clearly", ...) between subject and verb no
 longer hides a reversal ("and it really is"), while "it really isn't" and
-"it can't" stay negative. Offline regrade of the saved answers: 58/67 to
+"it can't" stay negative. Final Founder-authorized correction: a next
+sentence that is a contrast word plus a bare reaffirmation ("But it is.")
+also takes a denial back. The grader task is closed; remaining regex limits
+are left to semantic review. Offline regrade of the saved answers: 58/67 to
 65/67 (critical 17/23 to 22/23); the 2026-11-19 answers stay 63/67. Still
 failing: tally-connector-rumour (no team route, a real miss) and
 unsupported-legal (link policy, a separate decision). Section N of
