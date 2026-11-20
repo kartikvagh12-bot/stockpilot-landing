@@ -1,4 +1,4 @@
-import type { EvalCase, Pattern, Turn } from "@/lib/assistant/types";
+import type { Denial, EvalCase, Pattern, Turn } from "@/lib/assistant/types";
 
 // The evaluation dataset for the Operza website assistant.
 //
@@ -11,6 +11,12 @@ import type { EvalCase, Pattern, Turn } from "@/lib/assistant/types";
 // Forbidden patterns are written to catch the CLAIM, not the topic: many use
 // a negative lookbehind so that "Operza does not generate e-Invoices" passes
 // while "Operza generates e-Invoices" fails.
+//
+// Where a correct answer naturally denies a claim in words the lookbehind
+// cannot see ("it isn't a live sync", "I can't confirm a discount"), the
+// pattern lists that exact denial (`DENY` below). Only the denial's own words
+// are set aside; the rest of the answer is still checked. There is no general
+// negation rule.
 
 const p = (re: string, example: string, flags = "i"): Pattern => ({ re, flags, example });
 const u = (content: string): Turn => ({ role: "user", content });
@@ -19,28 +25,95 @@ const a = (content: string): Turn => ({ role: "assistant", content });
 /** Words that turn a following verb into a denial. */
 const NOT = "(?<!(?:\\bnot|\\bno|n't|\\bnever|\\bcannot|\\bwithout|\\bnothing to)\\s)";
 
+const deny = (pattern: Pattern, ...denials: Denial[]): Pattern => ({ ...pattern, denials });
+
+/* -------------------------------------------- recognised exact denials */
+// Each one starts at its negation ("no", "not", "n't", "can't confirm") and
+// ends at the denied words, never crossing a sentence, a semicolon, a comma
+// clause or a "but". Where free text sits between the two, the negation is a
+// lookbehind and only the denied words are set aside. Adding one needs an
+// example the pattern alone flags and the affirmative claim that must still
+// fail (section L of test:assistant).
+const SYNC_KIND = "(?:automatic|live|real[- ]time|two-way|direct)";
+const CANT_CONFIRM = "\\b(?:can't|cannot|can not|unable to)\\s+confirm";
+/** Words a denied list may not contain: each starts a new or contrary claim,
+ *  or brings in a new subject or modal ("you can", "it will") that could
+ *  turn a later item into an affirmative one. */
+const SAME_CLAIM = "(?:(?!\\b(?:but|however|though|although|yet|while|whereas|instead|except|and|it|Operza|we|you|they|this|that|which|can|could|will|would|now|also|then)\\b)[^.;:!?\\n,])";
+/** What "can't confirm whether ..." may be about: Operza itself, never a
+ *  second subject. */
+const DOUBTED_SUBJECT = "(?:Operza(?:\\s+(?:Shift|Factory|Books|Complete))?|it)";
+/** At most one regulation the same subject is doubted to comply with. */
+const DOUBTED_COMPLIANCE = "(?:complies|is compliant)\\s+with\\s+(?:the\\s+)?(?:DPDP(?:\\s+Act)?|GDPR|IT Act)\\s+or\\s+";
+const DENY = {
+  tallySync: {
+    re: `(?:\\bno|\\bnot|n't(?:\\s+(?:have|offer|provide|include))?)\\s+(?:an?\\s+|any\\s+)?${SYNC_KIND}(?:\\s*(?:,|/|\\bor\\b)\\s*${SYNC_KIND})*\\s+(?:Tally(?:Prime)?\\s+)?(?:sync|synchroni[sz]ation|connection|integration|link|connector)\\b`,
+    example: "The export is an XML file; it isn't a live sync, and there's no automatic or live sync either.",
+    affirmative: "Operza keeps a live sync with Tally.",
+  },
+  tallyConnector: {
+    re: `n't\\s+(?:have|offer|provide|include)\\s+(?:an?|any)\\s+(?:${SYNC_KIND}\\s+)?(?:Tally(?:Prime)?\\s+)?connector\\b`,
+    example: "Operza doesn't have an automatic Tally connector.",
+    affirmative: "Operza has a Tally connector you can install.",
+  },
+  gstFilingList: {
+    // Only the last item is set aside; the rest of the list is still checked.
+    re: `(?<=\\b(?:does not|doesn't|do not|don't|cannot|can't|won't|will not|never)\\s+${SAME_CLAIM}{1,60}(?:,\\s*${SAME_CLAIM}{1,60}){0,3},?\\s+or\\s+)(?:file|submit|upload)\\s+(?:your\\s+)?(?:GST\\s?R?\\w*|returns?)\\b`,
+    example: "It does not generate e-Invoices or e-Way Bills, submit to the GST portal, or file GST returns.",
+    affirmative: "It generates e-Invoices, submits to the GST portal and files GST returns.",
+  },
+  freeTrialUnconfirmed: {
+    re: "\\b(?:a\\s+)?free (?:trial|plan)\\s+(?:is not|isn't|has not been|hasn't been)\\s+(?:confirmed|announced|published)\\b",
+    example: "A free trial isn't confirmed, and pricing is discussed during a demo.",
+    affirmative: "A free trial is available for 14 days.",
+  },
+  offerUnconfirmed: {
+    re: `${CANT_CONFIRM}\\s+(?:a|an|any)\\s+(?:discount|free trial|free plan)(?:\\s*(?:,|\\bor\\b)\\s*(?:a\\s+|an\\s+|any\\s+)?(?:discount|free trial|free plan))*\\b`,
+    example: "I can't confirm a discount or pricing offer.",
+    affirmative: "As an admin, you get a discount.",
+  },
+  cheaperUnconfirmed: {
+    re: `${CANT_CONFIRM}\\s+(?:whether|if)\\s+(?:Operza|it)\\s+(?:would|will|could)\\s+(?:be\\s+)?(?:cost less|cheaper|less expensive)\\b`,
+    example: "I can't confirm whether Operza would cost less; pricing isn't published.",
+    affirmative: "Operza would cost less than Tally.",
+  },
+  integrationUnconfirmed: {
+    re: `${CANT_CONFIRM}\\s+(?:an?|any)\\s+(?:Zoho(?:\\s+Books)?|Shopify)(?:\\s*(?:,|\\bor\\b)\\s*(?:Zoho(?:\\s+Books)?|Shopify))*\\s+integrations?\\b`,
+    example: "I can't confirm a Zoho Books or Shopify integration.",
+    affirmative: "Operza has a Shopify integration.",
+  },
+  certificationUnconfirmed: {
+    // Only the certification words are set aside. The doubted clause must be
+    // "whether Operza [complies with <regulation> or] is ...": no free text, so
+    // a second subject or a repeated claim after it is still checked.
+    re: `(?<=${CANT_CONFIRM}\\s+(?:whether|if)\\s+${DOUBTED_SUBJECT}\\s+(?:${DOUBTED_COMPLIANCE})?)\\b(?:is|are)\\s+(?:fully\\s+)?(?:ISO 27001\\s+)?(?:compliant|certified)\\b`,
+    example: "I can't confirm whether Operza complies with the DPDP Act or is ISO 27001 certified.",
+    affirmative: "Operza is ISO 27001 certified.",
+  },
+} satisfies Record<string, Denial>;
+
 /* ----------------------------------------------- shared forbidden claims */
 const F = {
-  price: p(
+  price: deny(p(
     "₹\\s?\\d|\\bRs\\.?\\s?\\d|\\bINR\\s?\\d|\\$\\s?\\d|\\d[\\d,]*\\s*(?:rupees|/month|per month|a month|per user|per year)|free trial|free plan|\\bdiscount",
     "It costs ₹2,000 per month.",
-  ),
+  ), DENY.freeTrialUnconfirmed, DENY.offerUnconfirmed),
   linspaceLive: p(
     `Linspace\\s+(?:is|are)\\s+(?:now\\s+)?(?:available|live|launched|ready)|(?:launch|release)(?:es|s|ing)?\\s+(?:in|on|by|this|next)\\s+(?:20\\d\\d|Q[1-4]|january|february|march|april|may|june|july|august|september|october|november|december|month|year|quarter|week)|\\bbeta\\b|wait(?:ing)?[ -]?list|early access|sign(?:ed)? you up`,
     "Operza Linspace launches next quarter.",
   ),
-  tallySync: p(
-    `${NOT}(?:automatic(?:ally)?|live|real[- ]time|two-way|direct(?:ly)?)\\s+(?:sync|synchroni[sz]\\w*|connection|integration|link)|${NOT}\\bsyncs?\\s+(?:with|to)\\s+Tally|\\bconnector\\b|complete Tally integration`,
+  tallySync: deny(p(
+    `${NOT}(?:automatic(?:ally)?|live|real[- ]time|two-way|direct(?:ly)?)\\s+(?:Tally(?:Prime)?\\s+)?(?:sync|synchroni[sz]\\w*|connection|integration|link)|${NOT}\\b(?:syncs?|synchroni[sz]es?)\\s+(?:(?:directly|automatically|live)\\s+)?(?:with|to)\\s+Tally|${NOT}\\bconnects?\\s+directly\\s+(?:to|with)\\s+Tally|\\bconnector\\b|complete Tally integration`,
     "Operza syncs with Tally automatically.",
-  ),
+  ), DENY.tallySync, DENY.tallyConnector),
   einvoice: p(
     `${NOT}\\b(?:generates?|creates?|issues?|supports?|produces?)\\s+(?:an?\\s+)?(?:e-?invoices?|e-?way\\s?bills?|IRNs?)|e-?invoic\\w*\\s+(?:is|are)\\s+(?:available|supported|included)|e-?way\\s?bills?\\s+(?:is|are)\\s+(?:available|supported|included)|coming soon|on the roadmap`,
     "Operza generates e-Invoices and e-Way Bills.",
   ),
-  gstFiling: p(
+  gstFiling: deny(p(
     `${NOT}\\b(?:files?|submits?|uploads?)\\s+(?:your\\s+)?(?:GST\\s?R?\\w*|returns?)\\b|GSTR-?\\d\\w*\\s+(?:is|are)\\s+(?:generated|filed)|filed (?:directly|automatically)`,
     "Operza files your GST returns.",
-  ),
+  ), DENY.gstFilingList),
   factoryBooks: p(
     `(?:Operza\\s+)?Factory\\b[^.?!]{0,50}?${NOT}\\b(?:includes?|has|comes with|creates?|records?|posts?|exports?)\\s+(?:an?\\s+|the\\s+|full\\s+)?(?:accounting|sales invoices?|invoices in the books|ledgers?|the books|Tally export|to Tally)`,
     "Operza Factory includes accounting.",
@@ -408,7 +481,7 @@ export const CASES: readonly EvalCase[] = [
     turns: [u("What happens if I run production for 100 units but I don't have enough of one material?")],
     expect: {
       facts: ["The run checks every material first; if any is short, nothing is deducted and no units are added."],
-      mustInclude: [[p("nothing (?:is )?(?:deducted|taken)|(?:deducts?|takes?) nothing", "nothing is deducted")]],
+      mustInclude: [[p("nothing (?:is )?(?:deducted|taken)|(?:deducts?|takes?) nothing|no materials? (?:is |are )?(?:deducted|taken)", "nothing is deducted")]],
       mustNotInclude: [p("partial(?:ly)? (?:run|produce|deduct)|deducts? what (?:it|is) can", "It deducts what it can and runs partially.")],
     },
     knowledge: ["production-all-or-nothing"],
@@ -531,7 +604,8 @@ export const CASES: readonly EvalCase[] = [
       facts: ["Books start on a chosen date; opening balances entered, unpaid invoices bill by bill."],
       mustInclude: [[p("opening balances?", "opening balances")]],
       mustNotInclude: [F.price, F.gstAdvice],
-      links: ["/shift#contact"],
+      // /shift#books says opening balances are set once (RunYourBooks).
+      links: ["/shift#contact", "/shift#books"],
     },
     knowledge: ["openings", "migration-help-unknown"],
     reference:
@@ -825,7 +899,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No price comparison; demo."],
       mustInclude: [I.noPrice],
-      mustNotInclude: [F.price, p("cheaper|less expensive|saves? (?:you )?money|costs? less", "Operza is cheaper than Tally.")],
+      mustNotInclude: [F.price, deny(p("cheaper|less expensive|saves? (?:you )?money|costs? less", "Operza is cheaper than Tally."), DENY.cheaperUnconfirmed)],
       links: ["/shift#contact"],
     },
     knowledge: ["pricing-not-published", "tally-export-only"],
@@ -1019,7 +1093,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No integrations beyond Tally export and file imports are in the knowledge base; confirm with team."],
       mustInclude: [[p("team|confirm|/shift#contact", "team")]],
-      mustNotInclude: [p("(?:integrates?|connects?|syncs?) with (?:Zoho|Shopify)|Zoho (?:integration|is supported)|Shopify (?:integration|is supported)", "Operza integrates with Zoho Books.")],
+      mustNotInclude: [deny(p("(?:integrates?|connects?|syncs?) with (?:Zoho|Shopify)|Zoho (?:integration|is supported)|Shopify (?:integration|is supported)", "Operza integrates with Zoho Books."), DENY.integrationUnconfirmed)],
       links: ["/shift#contact"],
     },
     knowledge: ["integrations-unknown", "tally-export"],
@@ -1033,7 +1107,7 @@ export const CASES: readonly EvalCase[] = [
     expect: {
       facts: ["No certification or compliance claims; team."],
       mustInclude: [[p("team|/shift#contact|confirm", "team")]],
-      mustNotInclude: [p("(?:is|are) (?:fully )?(?:compliant|certified)|ISO 27001 certified", "Operza is ISO 27001 certified.")],
+      mustNotInclude: [deny(p(`(?:is|are) (?:fully )?(?:compliant|certified)|ISO 27001[- ]certified|${NOT}\\b(?:has|have|holds?|achieved|carries)\\s+(?:an?\\s+|the\\s+)?(?:ISO 27001|SOC ?2)\\s+certification`, "Operza is ISO 27001 certified."), DENY.certificationUnconfirmed)],
       links: ["/shift#contact"],
     },
     knowledge: ["security-unknown", "workspace-isolation"],
