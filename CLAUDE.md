@@ -452,6 +452,19 @@ Product is complete enough for early customer acquisition.
 
 # Session log
 
+## 2026-11-20 — Guidance for the four remaining critical failures
+
+`tally-igst`, `tally-connector-rumour`, `linspace-signup` and
+`data-my-workspace` still failed in the saved Luna run after the grader
+repair, each because the prompt never asked for the missing link or point.
+Added two Tally checklist points (refused cases go to the team; connector
+questions get the manual export and the team, never a connector), a
+Linspace early-access point and trigger for `/#contact`, and a rule sending
+an existing customer's own records to `CONTACT.app`. Section M of
+`test:assistant` (12 planted defects caught). No case, grader, release
+gate, knowledge, destination, runtime or UI change; no paid call. Unmeasured
+until a new live run.
+
 ## 2026-11-20 — Evaluation grader: denials versus claims
 
 12 forbidden-claim flags in the saved Luna run were correct denials ("it

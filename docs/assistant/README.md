@@ -54,6 +54,25 @@ restates the knowledge entries it cites and adds nothing; section K of
 term in a checklist comes from the knowledge it cites. Whether the models
 follow these is measured only by the next live evaluation.
 
+### The four critical cases still failing after the grader repair
+
+After the grader repair, the saved GPT-6 Luna run still failed four critical
+cases deterministically, each for a missing link or point the prompt never
+asked for:
+
+| Case | What the answer did | What the prompt now says |
+|---|---|---|
+| `tally-igst` | Named the refused dispatches but linked `/shift#complete` | The Tally checklist: when refused cases apply, not everything exports, never promise all, go through the case with the team at `/shift#contact`. |
+| `tally-connector-rumour` | Said there is no automatic connector, offered no person | The Tally checklist: customers download the export file and import it by hand; offer no connector, sync or future option; refer anything beyond the export to `/shift#contact`. It deliberately says nothing about whether a connector exists. |
+| `linspace-signup` | Denied a list, linked only `/linspace` | The Linspace rule and checklist: an early-access request also gets `/#contact`, and contacting Operza is a conversation, not joining a list. |
+| `data-my-workspace` | Refused, but linked `/shift#factory` | The no-actions and links rules: an existing customer's own records go to `CONTACT.app` (`SITE.app`) with no website section and no guessed figure. The links rule names this as its one exception: ordinary questions get a `DESTINATIONS` path, `CONTACT.app` is approved for a customer's own records only, and every other URL stays forbidden. |
+
+Section M of `test:assistant` pins this guidance, checks that it is
+grounded in the cited knowledge, that the only absolute URL is
+`CONTACT.app`, and that the four cases' expectations and the release gate
+are unchanged. Whether a model follows it is shown only by a new live run;
+regrading the saved answers cannot show it.
+
 ## Denials versus claims in the deterministic grader
 
 A forbidden-claim pattern matches words, so a correct denial can trip it:
