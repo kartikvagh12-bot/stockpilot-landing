@@ -262,7 +262,7 @@ export default function AskOperza() {
           </div>
         )}
 
-        <form onSubmit={submit} className="flex items-center gap-2 p-2.5 pl-5 sm:gap-3 sm:p-3 sm:pl-7" role="search" aria-label="Ask about Operza">
+        <form onSubmit={submit} className="flex items-center gap-2 p-2 pl-5 sm:gap-3 sm:p-2 sm:pl-7" role="search" aria-label="Ask about Operza">
           <label htmlFor={inputId} className="sr-only">
             Ask a question about Operza
           </label>
@@ -281,7 +281,7 @@ export default function AskOperza() {
             spellCheck
             enterKeyHint="send"
             aria-describedby={noteId}
-            className="min-w-0 flex-1 bg-transparent py-3 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none sm:text-lg"
+            className="min-w-0 flex-1 bg-transparent py-2 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none sm:text-lg"
           />
           {busy ? (
             <button
